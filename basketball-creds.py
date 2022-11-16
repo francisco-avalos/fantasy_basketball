@@ -1,0 +1,9 @@
+sports_db_admin_pw="ATGL3N58s0X43A"
+sports_db_admin_host="database-1.cu0htegrkzdq.us-west-1.rds.amazonaws.com"
+sports_db_admin_user="admin_fa"
+sports_db_admin_db="basketball"
+sports_db_admin_port=3306
+
+leagueid=10441
+swid='{29F196AE-3216-4498-932D-095D8F2C4395}'
+espn_s2='AEAnGOPw7iwc2OGd2zEMCivDtGvqtEI6ZjdLk0zM8YNDJw1SBFk5zHDy7%2FZXJbfK8tVaUwRBlkxcSWwXgiuPBY7OKNtl7vkOG5X4Kc6ZbofB5cmhveEDF8wMxImldt2xFcjuVJ3Yl90qlB34%2FpzKh8Qp%2BQa3r05SoaeVffgJZsB9nnH%2ByBJ28Jgo0u3PBbMLTGmqkmHOwrgSAQbK7YJtwEWSYYodfECwhRy2avV34AhwGRyk4ypgJdOtTpSo9xx6xi6fp%2BzBrMLRI76DwXvGhM5TzRi3Ofpd9Dnw8CsOo9yRmg%3D%3D'
