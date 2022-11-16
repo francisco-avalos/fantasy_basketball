@@ -12,7 +12,7 @@ import datetime as dt
 
 
 
-exec(open('/Users/franciscoavalosjr/Desktop/basketball-folder/basketball-creds.py').read())
+exec(open('/Users/franciscoavalosjr/Desktop/basketball-creds.py').read())
 
 connection=mysql.connect(host=sports_db_admin_host,
                         database=sports_db_admin_db,

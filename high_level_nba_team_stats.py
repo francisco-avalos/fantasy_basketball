@@ -25,7 +25,7 @@ pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', None)
 
 
-exec(open('/Users/franciscoavalosjr/Desktop/basketball-folder/basketball-creds.py').read())
+exec(open('/Users/franciscoavalosjr/Desktop/basketball-creds.py').read())
 
 league=League(league_id=leagueid, 
 				year=2023,
