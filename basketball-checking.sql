@@ -273,9 +273,26 @@ GROUP BY X.first_name, X.last_name, X.bday;
 ########################################################################################################################
 
 
+-- DROP TABLE IF EXISTS basketball.high_level_nba_team_schedules;
+-- CREATE TABLE basketball.high_level_nba_team_schedules
+-- (
+--   `start_time` varchar(100) NOT NULL,
+--   `away_team` varchar(100) NOT NULL,
+--   `home_team` varchar(100) NOT NULL,
+--   `away_team_score` int DEFAULT NULL,
+--   `home_team_score` int DEFAULT NULL,
+--   PRIMARY KEY (`start_time`, `away_team`, `home_team`)
+-- );
+
+
+########################################################################################################################
+########################################################################################################################
+
+
 select *
 from basketball.my_team_stats
 ;
+
 
 
 SELECT *
@@ -343,3 +360,25 @@ ORDER BY date DESC
 
 
 SELECT MAX(date) AS most_recent_data_date FROM basketball.high_level_nba_team_stats;
+
+SELECT 
+	*, 
+    SUBDATE(CAST(start_time AS DATETIME), INTERVAL 8 HOUR) AS PST_time,
+    DATE(SUBDATE(CAST(start_time AS DATETIME), INTERVAL 8 HOUR)) AS PST_date
+FROM basketball.high_level_nba_team_schedules
+WHERE DATE(SUBDATE(CAST(start_time AS DATETIME), INTERVAL 8 HOUR)) = SUBDATE(CURDATE(), INTERVAL 1 DAY)
+-- where away_team_score is not null
+;
+
+SELECT * FROM basketball.high_level_nba_team_stats WHERE date = '2022-11-15' LIMIT 100;
+
+select *
+from basketball.high_level_nba_team_stats TSTATS
+join basketball.high_level_nba_team_schedules TSCHED ON TSTATS.team = TSCHED.home_team
+	AND TSTATS.date = DATE(SUBDATE(CAST(TSCHED.start_time AS DATETIME), INTERVAL 8 HOUR))
+WHERE DATE(SUBDATE(CAST(TSCHED.start_time AS DATETIME), INTERVAL 8 HOUR)) = SUBDATE(CURDATE(), INTERVAL 2 DAY)
+limit 100;
+
+
+
+

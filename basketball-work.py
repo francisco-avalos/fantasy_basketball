@@ -635,15 +635,16 @@ def convert_game_score_to_points(GS, FG, FGA, FTA, FT, ORB, DRB, STL, AST, BLK, 
 ## high level team stats
 
 # season schedule 
-# df=client.season_schedule(season_end_year=2023)
-# df=pd.DataFrame(df)
-# # print('schedule \n',df.head(5))
-
-
-# team box score
-df=client.team_box_scores(day=9,month=11,year=2022)
+df=client.season_schedule(season_end_year=2023)
 df=pd.DataFrame(df)
-print('team box Score \n',df)
+print('schedule \n',df)
+# print('schedule \n',df.shape)
+
+
+# # team box score
+# df=client.team_box_scores(day=9,month=11,year=2022)
+# df=pd.DataFrame(df)
+# print('team box Score \n',df)
 
 
 # # standings

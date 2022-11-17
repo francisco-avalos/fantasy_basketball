@@ -100,7 +100,6 @@ def convert_game_score_to_points(GS, FG, FGA, FTA, FT, ORB, DRB, STL, AST, BLK, 
 	return PTS
 
 
-high_level_df=pd.DataFrame()
 
 
 try:
@@ -128,7 +127,6 @@ try:
 			df=pd.DataFrame(df)
 			date=day.strftime('%Y-%m-%d')
 			df['date']=date
-			# high_level_df=pd.concat([high_level_df, df])
 			df['team']=df['team'].astype(str)
 			df['outcome']=df['outcome'].astype(str)
 			cols="`,`".join([str(i) for i in df.columns.tolist()])

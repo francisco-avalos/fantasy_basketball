@@ -122,7 +122,7 @@ try:
 							database=sports_db_admin_db,
 							user=sports_db_admin_user,
 							password=sports_db_admin_pw,
-							port=3306)
+							port=sports_db_admin_port)
 	if connection.is_connected():
 		cursor=connection.cursor()
 		cursor.execute('TRUNCATE basketball.advanced_stats;')
