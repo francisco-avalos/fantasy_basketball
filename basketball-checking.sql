@@ -244,6 +244,33 @@ GROUP BY X.first_name, X.last_name, X.bday;
 ########################################################################################################################
 ########################################################################################################################
 
+-- DROP TABLE IF EXISTS basketball.high_level_nba_team_stats;
+-- CREATE TABLE basketball.high_level_nba_team_stats
+-- (
+--   `team` varchar(100) NOT NULL,
+--   `outcome` VARCHAR(100) NOT NULL,
+--   `minutes_played` INT,
+--   `made_field_goals` int DEFAULT NULL,
+--   `attempted_field_goals` int DEFAULT NULL,
+--   `made_three_point_field_goals` int DEFAULT NULL,
+--   `attempted_three_point_field_goals` int DEFAULT NULL,
+--   `made_free_throws` int DEFAULT NULL,
+--   `attempted_free_throws` int DEFAULT NULL,
+--   `offensive_rebounds` int DEFAULT NULL,
+--   `defensive_rebounds` int DEFAULT NULL,
+--   `assists` int DEFAULT NULL,
+--   `steals` int DEFAULT NULL,
+--   `blocks` int DEFAULT NULL,
+--   `turnovers` int DEFAULT NULL,
+--   `personal_fouls` int DEFAULT NULL,
+--   `points` int DEFAULT NULL,
+--   `date` DATE,
+--   PRIMARY KEY (`team`, `date`)
+-- );
+
+
+########################################################################################################################
+########################################################################################################################
 
 
 select *
@@ -306,3 +333,13 @@ SELECT MAX(date) AS most_recent_data_date FROM basketball.live_free_agents;
 SELECT * 
 FROM basketball.master_names_list_temp
 LIMIT 10000;
+
+
+
+SELECT *, REPLACE(team, 'Team.', '') AS clean_team, REPLACE(outcome, 'Outcome.', '') AS clean_outcome
+FROM basketball.high_level_nba_team_stats
+ORDER BY date DESC
+;
+
+
+SELECT MAX(date) AS most_recent_data_date FROM basketball.high_level_nba_team_stats;

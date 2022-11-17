@@ -641,7 +641,7 @@ def convert_game_score_to_points(GS, FG, FGA, FTA, FT, ORB, DRB, STL, AST, BLK, 
 
 
 # team box score
-df=client.team_box_scores(day=2,month=11,year=2022)
+df=client.team_box_scores(day=9,month=11,year=2022)
 df=pd.DataFrame(df)
 print('team box Score \n',df)
 
