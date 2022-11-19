@@ -129,6 +129,7 @@ app.layout=html.Div(children=[dcc.Graph(figure=player_stats(), id='line_plot'),
                               dcc.Dropdown(id='calculation', 
                                           options=[{'label':'Total', 'value':'sum'},
                                                    {'label':'Average(non-weighted))', 'value':'mean'},
+                                                   {'label':'Weighted Average', 'value':'weights'},
                                                    {'label':'Standard Deviation', 'value':'std'}],
                                           value='sum'),
                               'Fields to display',
@@ -176,12 +177,33 @@ def graph_update(input_value, focus_field_value, calc_value, display_field, top_
         fa_df1=fa_df[fa_df['name'].isin(player_list)]
     else:
         fa_df1=fa_df
-    
-    df_query=fa_df1.query("date >= @days_back")
-    output=df_query.groupby(['name'])[cols].agg(calc_value).reset_index().sort_values(by=[focus_field_value],ascending=False).head(player_sample)
 
-    output.set_index(['name'], inplace=True, drop=True, append=False)
-    output.reset_index(inplace=False)
+    imps=[
+     'made_field_goals',
+     'made_three_point_field_goals',
+     'made_free_throws',
+     'offensive_rebounds',
+     'defensive_rebounds',
+     'assists',
+     'steals',
+     'blocks',
+     'turnovers',
+     'personal_fouls',
+     'points_scored',
+     'total_rebounds']
+
+    df_query=fa_df1.query("date >= @days_back")
+
+    if calc_value=='weights':
+        output=df_query.groupby(['name']).apply(lambda x: pd.Series([sum(x[v]*x.minutes_played)/sum(x.minutes_played) for v in imps]))
+        output.columns=imps
+        output=output[display_field]
+        output=output.sort_values(by=[focus_field_value],ascending=False).head(player_sample)
+    else:
+        output=df_query.groupby(['name'])[cols].agg(calc_value).reset_index().sort_values(by=[focus_field_value],ascending=False).head(player_sample)
+        output.set_index(['name'], inplace=True, drop=True, append=False)
+        output.reset_index(inplace=False)
+
 
     if calc_value=='sum':
         fig=px.imshow(output[display_field], text_auto=True)
