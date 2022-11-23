@@ -382,3 +382,69 @@ limit 100;
 
 
 
+SHOW TABLE STATUS FROM basketball WHERE name LIKE "live_free_agents";
+use basketball;
+
+select *
+FROM live_free_agents
+ORDER BY date DESC
+LIMIT 10;
+
+SELECT *
+FROM basketball.high_level_nba_team_stats
+ORDER BY date DESC
+LIMIT 100;
+
+-- 420
+SELECT COUNT(*)
+FROM basketball.high_level_nba_team_stats
+LIMIT 100;
+
+
+
+
+SELECT *
+FROM basketball.advanced_stats
+-- WHERE slug='hoardja01'
+-- WHERE name LIKE '%james%'
+LIMIT 1000;
+
+
+select *
+from basketball.my_team_stats
+;
+
+
+SELECT 
+	ADS.slug,
+	ADS.name, 
+	SUBSTRING_INDEX(REPLACE(REPLACE(ADS.positions, '[<Position.', ''), '>]', ''), ':', 1) AS position,
+	ADS.age, 
+	REPLACE(ADS.team, 'Team.', '') AS team,
+	ADS.games_played,
+	ADS.minutes_played,
+	ADS.player_efficiency_rating,
+	ADS.true_shooting_percentage,
+	ADS.three_point_attempt_rate,
+	ADS.free_throw_attempt_rate,
+	ADS.offensive_rebound_percentage,
+	ADS.defensive_rebound_percentage,
+	ADS.total_rebound_percentage,
+	ADS.assist_percentage,
+	ADS.steal_percentage,
+	ADS.block_percentage,
+	ADS.turnover_percentage,
+	ADS.usage_percentage,
+	ADS.offensive_win_shares,
+	ADS.defensive_win_shares,
+	ADS.win_shares,
+	ADS.win_shares_per_48_minutes,
+	ADS.offensive_box_plus_minus,
+	ADS.defensive_box_plus_minus,
+	ADS.box_plus_minus,
+	ADS.value_over_replacement_player,
+	ADS.is_combined_totals
+FROM basketball.advanced_stats ADS
+JOIN basketball.live_free_agents LGA ON LGA.name = ADS.name
+GROUP BY ADS.name
+;
