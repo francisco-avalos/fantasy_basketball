@@ -1,17 +1,16 @@
 import dash
-from dash import dcc
-from dash import html
 import plotly.graph_objects as go
 import plotly.express as px
-from dash.dependencies import Input, Output
-
 import mysql.connector as mysql
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
+
+
 from mysql.connector import Error
-import datetime as dt
+from dash import dcc, html, Input, Output, dash_table
+
 
 
 
@@ -29,6 +28,18 @@ if connection.is_connected():
     cursor.execute("""SELECT MTS.*, C.week_starting_monday, C.week_ending_sunday FROM basketball.my_team_stats MTS JOIN basketball.calendar C ON MTS.date=C.day;""")
     myteam_df=cursor.fetchall()
     myteam_df=pd.DataFrame(myteam_df, columns=cursor.column_names)
+
+if connection.is_connected():
+    cursor=connection.cursor()
+    cursor.execute("""SELECT 
+                        MTS.*, 
+                        C.week_starting_monday, 
+                        C.week_ending_sunday 
+                      FROM basketball.my_team_stats MTS 
+                      JOIN basketball.calendar C ON MTS.date=C.day
+                      WHERE C.week_ending_sunday = (SELECT MAX(week_ending_sunday) FROM basketball.calendar WHERE day < CURDATE());""")
+    myteam_df_recent=cursor.fetchall()
+    myteam_df_recent=pd.DataFrame(myteam_df_recent, columns=cursor.column_names)
 
 
 # if connection.is_connected():
@@ -51,6 +62,18 @@ pd.set_option('display.max_rows', None)
 
 myteam_df['total_rebounds']=myteam_df['offensive_rebounds']+myteam_df['defensive_rebounds']
 myteam_df['minutes_played']=myteam_df['seconds_played']/60
+
+my_safe_players=['Jordan Poole', 'Anthony Davis',
+                 'Tyrese Haliburton', 'Jrue Holiday',
+                 'Jimmy Butler', 'Jarrett Allen'
+]
+
+current_players = myteam_df_recent.name.unique()
+players_at_risk=list(set(current_players)-set(my_safe_players))
+players_at_risk=pd.DataFrame(players_at_risk)
+players_at_risk.columns=['Name']
+# print(players_at_risk)
+
 
 
 app=dash.Dash('francisco app')
@@ -193,6 +216,18 @@ def heatmap():
     return heat_map
 # print(myteam_df.head())
 
+# def datatable_init():
+#     # dic=dict()
+#     table_dic={
+#         'data':players_at_risk.to_dict('records'),
+#         'columns':[{"name": i, "id": i} for i in players_at_risk.columns],
+#         'style_cell':dict(textAlign='left')
+#         # 'style_header': dict(backgroundColor="paleturquoise")
+#     }
+#     # data=players_at_risk.to_dict('records')
+#     # columns=[{"name": i, "id": i} for i in players_at_risk.columns],
+#     # style_cell=dict(textAlign='left')
+#     return table_dic
 
 app.layout=html.Div(children=[
                             html.H1('My team performance',
@@ -206,7 +241,16 @@ app.layout=html.Div(children=[
                             ),
                             dcc.Graph(id='heat-map',
                                     figure=heatmap()
+                            ),
+                            html.Label("Players at risk if dropped",
+                                        style={'textAlign':'center'}
+                            ),
+                            dash_table.DataTable(data=players_at_risk.to_dict('records'),
+                                                columns=[{"name": i, "id": i} for i in players_at_risk.columns],
+                                                style_cell=dict(textAlign='left'),
+                                                style_header=dict(backgroundColor="paleturquoise")
                             )
+
 ])
 
 
