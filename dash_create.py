@@ -104,13 +104,18 @@ def player_stats():
     return fig
 
 
+
 app=dash.Dash()
 
-app.layout=html.Div(children=[dcc.Graph(figure=player_stats(), id='line_plot'),
+app.layout=html.Div(children=[html.H1(children='Free Agent Analysis Helper Tool',
+                                        style={'textAlign':'center'}),
+                              html.Div(children='Analysis tool to screen potential star players',
+                                        style={'textAlign':'center', 'color':'red'}), 
+                             dcc.Graph(figure=player_stats(), id='line_plot'),
                               'How many days back?',
                               dcc.Input(id='my_input', value=7, type='integer'),
                               'Focus Field\n',
-                             dcc.Dropdown(id='dropdown',
+                             html.Div(dcc.Dropdown(id='dropdown',
                                          options=[{'label':'Made Field Goals','value':'made_field_goals'},
                                                   {'label':'Made 3p Field Goals','value':'made_three_point_field_goals'},
                                                   {'label':'Made Free Throws','value':'made_free_throws'},
@@ -124,7 +129,23 @@ app.layout=html.Div(children=[dcc.Graph(figure=player_stats(), id='line_plot'),
                                                   {'label':'Personal Fouls','value':'personal_fouls'},
                                                   {'label':'Points','value':'points_scored'},
                                                   {'label':'Minutes Played','value':'minutes_played'}],
-                                         value='made_field_goals'),
+                                         value='made_field_goals')),
+
+                             # dcc.Dropdown(id='dropdown',
+                             #             options=[{'label':'Made Field Goals','value':'made_field_goals'},
+                             #                      {'label':'Made 3p Field Goals','value':'made_three_point_field_goals'},
+                             #                      {'label':'Made Free Throws','value':'made_free_throws'},
+                             #                      {'label':'Total Rebounds','value':'total_rebounds'},
+                             #                      {'label':'Offensive Rebounds','value':'offensive_rebounds'},
+                             #                      {'label':'Defensive Rebounds','value':'defensive_rebounds'},
+                             #                      {'label':'Assists','value':'assists'},
+                             #                      {'label':'Steals','value':'steals'},
+                             #                      {'label':'Blocks','value':'blocks'},
+                             #                      {'label':'Turnovers','value':'turnovers'},
+                             #                      {'label':'Personal Fouls','value':'personal_fouls'},
+                             #                      {'label':'Points','value':'points_scored'},
+                             #                      {'label':'Minutes Played','value':'minutes_played'}],
+                             #             value='made_field_goals'),
                               'Calculation type',
                               dcc.Dropdown(id='calculation', 
                                           options=[{'label':'Total', 'value':'sum'},
@@ -146,7 +167,7 @@ app.layout=html.Div(children=[dcc.Graph(figure=player_stats(), id='line_plot'),
                              dcc.Input(id='top_n', value=5, type='integer'),
                              'player_checklist',
                              dcc.Checklist(id='player_list', options=[name for name in fa_df['name'].unique()], value=[name for name in fa_df['name'].unique()], 
-                                style={'height':10000,'width':100})
+                                style={'height':10000,'width':100}, inline=True)
                              ])
 
 
