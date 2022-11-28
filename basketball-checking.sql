@@ -448,3 +448,27 @@ FROM basketball.advanced_stats ADS
 JOIN basketball.live_free_agents LGA ON LGA.name = ADS.name
 GROUP BY ADS.name
 ;
+
+
+
+SELECT *
+FROM basketball.my_team_stats
+WHERE name LIKE '%jevon carter%'
+LIMIT 100;
+
+
+SELECT *
+FROM basketball.live_free_agents
+WHERE name LIKE '%jevon carter%'
+LIMIT 100;
+
+
+SELECT *
+FROM basketball.advanced_stats
+WHERE name LIKE '%anthony davis%'
+	OR name LIKE '%jevon carter%'
+LIMIT 100;
+
+
+SELECT DISTINCT name
+FROM basketball.advanced_stats
