@@ -180,7 +180,7 @@ try:
 		time.sleep(5)
 		# print('finished for ', fa)
 		row+=1
-		completion_tracker=row/fa_size
+		completion_tracker=row/fa_size * 100
 		print("{:.2%}".format(completion_tracker))
 	main_free_agents_df['name']=main_free_agents_df['name'].astype(str)
 	main_free_agents_df['team']=main_free_agents_df['team'].astype(str)
