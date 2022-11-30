@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
+import dash_bootstrap_components as dbc
 
 
 from mysql.connector import Error
@@ -32,21 +33,13 @@ if connection.is_connected():
 if connection.is_connected():
     cursor=connection.cursor()
     cursor.execute("""SELECT 
-                        MTS.*, 
-                        C.week_starting_monday, 
-                        C.week_ending_sunday 
-                      FROM basketball.my_team_stats MTS 
-                      JOIN basketball.calendar C ON MTS.date=C.day
-                      WHERE C.week_ending_sunday = (SELECT MAX(week_ending_sunday) FROM basketball.calendar WHERE day < CURDATE());""")
+                        DISTINCT MTS.name
+                    FROM basketball.my_team_stats MTS 
+                    JOIN basketball.calendar C ON MTS.date=C.day
+                    WHERE C.day >= SUBDATE(CURDATE(), INTERVAL 4 DAY);""")
     myteam_df_recent=cursor.fetchall()
     myteam_df_recent=pd.DataFrame(myteam_df_recent, columns=cursor.column_names)
 
-
-# if connection.is_connected():
-#     cursor=connection.cursor()
-#     cursor.execute('SELECT * FROM basketball.live_free_agents;')
-#     fa_df=cursor.fetchall()
-#     fa_df=pd.DataFrame(fa_df, columns=cursor.column_names)
 
 if(connection.is_connected()):
     cursor.close()
@@ -72,25 +65,26 @@ current_players = myteam_df_recent.name.unique()
 players_at_risk=list(set(current_players)-set(my_safe_players))
 players_at_risk=pd.DataFrame(players_at_risk)
 players_at_risk.columns=['Name']
-# print(players_at_risk)
 
 
 
-app=dash.Dash('francisco app')
+app=dash.Dash('francisco app',
+            external_stylesheets=[dbc.themes.BOOTSTRAP]
+)
 
 
 # myteam_df=myteam_df.sort_values(by='week_ending_sunday')
 xaxis=pd.date_range(min(myteam_df['week_ending_sunday'].unique()),max(myteam_df['week_ending_sunday'].unique()), freq='W')
 
-myteam_df_x_we=myteam_df.groupby(by=['week_ending_sunday','name'])['points'].sum()
+# myteam_df_x_we=myteam_df.groupby(by=['week_ending_sunday','name'])['points'].sum()
 
-myteam_df_x_we=myteam_df_x_we.reset_index()
+# myteam_df_x_we=myteam_df_x_we.reset_index()
 
-# myteam_df_x_we['pct']=myteam_df_x_we.points/myteam_df_x_we.groupby('week_ending_sunday')['points'].sum()
-myteam_df_x_we['pct']=myteam_df_x_we.points/myteam_df_x_we.groupby('week_ending_sunday')['points'].transform('sum')
-myteam_df_x_we['pct']=pd.to_numeric(myteam_df_x_we['pct'])
-myteam_df_x_we['pct']=myteam_df_x_we['pct'].round(4)
-# myteam_df_x_we['pct']=myteam_df_x_we['pct'].apply(lambda x: '{0:1.2}%'.format(x))
+# # myteam_df_x_we['pct']=myteam_df_x_we.points/myteam_df_x_we.groupby('week_ending_sunday')['points'].sum()
+# myteam_df_x_we['pct']=myteam_df_x_we.points/myteam_df_x_we.groupby('week_ending_sunday')['points'].transform('sum')
+# myteam_df_x_we['pct']=pd.to_numeric(myteam_df_x_we['pct'])
+# myteam_df_x_we['pct']=myteam_df_x_we['pct'].round(4)
+# # myteam_df_x_we['pct']=myteam_df_x_we['pct'].apply(lambda x: '{0:1.2}%'.format(x))
 
 # pct_df=myteam_df_x_we.groupby('week_ending_sunday').reset_index()
 # myteam_df_x_we.groupby('week_ending_sunday')['points'].sum()
@@ -99,7 +93,14 @@ myteam_df_x_we['pct']=myteam_df_x_we['pct'].round(4)
 mycolors=px.colors.qualitative.Light24+px.colors.qualitative.Pastel1
 
 
-def line_plot():
+print(myteam_df.head())
+
+def line_plot(metric='points'):
+    myteam_df_x_we=myteam_df.groupby(by=['week_ending_sunday','name'])[metric].sum()
+    myteam_df_x_we=myteam_df_x_we.reset_index()
+    myteam_df_x_we['pct']=myteam_df_x_we[metric]/myteam_df_x_we.groupby('week_ending_sunday')[metric].transform('sum')
+    myteam_df_x_we['pct']=pd.to_numeric(myteam_df_x_we['pct'])
+    myteam_df_x_we['pct']=myteam_df_x_we['pct'].round(4)
     xaxis_formats={
         'tickvals':xaxis,
         'tickformat':'%Y-%m-%d',
@@ -118,13 +119,13 @@ def line_plot():
     }
     labels={
         'week_ending_sunday':'Week Ending Sunday',
-        'points':'Point'
+        metric:metric
+        # 'points':'Point'
     }
-
 
     line_plot=px.line(myteam_df_x_we,
                 x=myteam_df_x_we['week_ending_sunday'],
-                y=myteam_df_x_we['points'],
+                y=myteam_df_x_we[metric],
                 color=myteam_df_x_we['name'],
                 width=20,
                 markers=True,
@@ -156,10 +157,16 @@ def line_plot():
 #             barmode='stack'
 # )
 
-def bar_plot():
+def bar_plot(metric='points'):
+    myteam_df_x_we=myteam_df.groupby(by=['week_ending_sunday','name'])[metric].sum()
+    myteam_df_x_we=myteam_df_x_we.reset_index()
+    myteam_df_x_we['pct']=myteam_df_x_we[metric]/myteam_df_x_we.groupby('week_ending_sunday')[metric].transform('sum')
+    myteam_df_x_we['pct']=pd.to_numeric(myteam_df_x_we['pct'])
+    myteam_df_x_we['pct']=myteam_df_x_we['pct'].round(4)
     hover_data={
         'pct':False,
-        'points':True
+        metric:True
+        # 'points':True
     }
     title_data={
         'text':'Player contribution share by week',
@@ -200,8 +207,6 @@ def bar_plot():
         width=1250,
         yaxis_tickformat=".2%",
         xaxis=xaxis_formats
-        # ,hover_data='points'
-        # template="%{percent}",
     )
     return bar_plot_pct_share
 
@@ -214,44 +219,102 @@ def heatmap():
     )
     heat_map.update_xaxes(side='top')
     return heat_map
-# print(myteam_df.head())
 
-# def datatable_init():
-#     # dic=dict()
-#     table_dic={
-#         'data':players_at_risk.to_dict('records'),
-#         'columns':[{"name": i, "id": i} for i in players_at_risk.columns],
-#         'style_cell':dict(textAlign='left')
-#         # 'style_header': dict(backgroundColor="paleturquoise")
-#     }
-#     # data=players_at_risk.to_dict('records')
-#     # columns=[{"name": i, "id": i} for i in players_at_risk.columns],
-#     # style_cell=dict(textAlign='left')
-#     return table_dic
 
-app.layout=html.Div(children=[
-                            html.H1('My team performance',
-                                    style={'textAlign':'center'}
-                            ),
-                            dcc.Graph(id='line-plot',
-                                     figure=line_plot()
-                            ),
-                            dcc.Graph(id='bar-plot',
-                                     figure=bar_plot()
-                            ),
-                            dcc.Graph(id='heat-map',
-                                    figure=heatmap()
-                            ),
-                            html.Label("Players at risk if dropped",
-                                        style={'textAlign':'center'}
-                            ),
-                            dash_table.DataTable(data=players_at_risk.to_dict('records'),
-                                                columns=[{"name": i, "id": i} for i in players_at_risk.columns],
-                                                style_cell=dict(textAlign='left'),
-                                                style_header=dict(backgroundColor="paleturquoise")
-                            )
+app.layout=dbc.Container(
+    [
+        dbc.Row(
+            html.H1('My team performance', style={'textAlign': 'center'})
+        ),
+        dbc.Row(
+            [
+                dbc.Col(
+                    [
+                        html.H2('Players at risk if dropped'),
+                        dash_table.DataTable(data=players_at_risk.to_dict('records'),
+                                                    columns=[{"name": i, "id": i} for i in players_at_risk.columns],
+                                                    style_cell=dict(textAlign='left'),
+                                                    style_header=dict(backgroundColor="paleturquoise")    
+                        )
+                    ],
+                    md=4
+                    # align='center'
+                    # width={'size':1, 'order':'last'}
+                ),
+                dbc.Col(
+                    [dcc.Graph(id='line_plot', figure=line_plot())],
+                    md=4
+                    # align='start',
+                    # offset=0
+                    # width={'md':4, 'offset':0, 'order':'start'}
+                )
+            ], align='center'
+        ),
+        dbc.Row(
+            [
+                dbc.Col(
+                    [dcc.Dropdown(id='id-dropdown',
+                                         options=[{'label':'Made Field Goals','value':'made_field_goals'},
+                                                  {'label':'Made 3p Field Goals','value':'made_three_point_field_goals'},
+                                                  {'label':'Made Free Throws','value':'made_free_throws'},
+                                                  {'label':'Total Rebounds','value':'total_rebounds'},
+                                                  {'label':'Offensive Rebounds','value':'offensive_rebounds'},
+                                                  {'label':'Defensive Rebounds','value':'defensive_rebounds'},
+                                                  {'label':'Assists','value':'assists'},
+                                                  {'label':'Steals','value':'steals'},
+                                                  {'label':'Blocks','value':'blocks'},
+                                                  {'label':'Turnovers','value':'turnovers'},
+                                                  {'label':'Personal Fouls','value':'personal_fouls'},
+                                                  {'label':'Points','value':'points'},
+                                                  {'label':'Minutes Played','value':'minutes_played'}],
+                                    value='made_field_goals'
+                    )],
+                    lg=3
+                )
+            ]
+        ),
+        dbc.Row(
+            [
+                dcc.Graph(id='bar-plot', figure=bar_plot())
+            ]
+        )
+    ]
+)
 
-])
+
+@app.callback(
+    Output(component_id='line_plot', component_property='figure'),
+    Output(component_id='bar-plot', component_property='figure'),
+    Input(component_id='id-dropdown', component_property='value')
+)
+
+def update_plots(metric_value):
+    fig_line=line_plot(metric_value)
+    fig_bar=bar_plot(metric_value)
+    return fig_line, fig_bar
+
+
+# app.layout=html.Div(children=[
+#                             html.H1('My team performance',
+#                                     style={'textAlign':'center'}
+#                             ),
+#                             dcc.Graph(id='line-plot',
+#                                      figure=line_plot()
+#                             ),
+#                             dcc.Graph(id='bar-plot',
+#                                      figure=bar_plot()
+#                             ),
+#                             dcc.Graph(id='heat-map',
+#                                     figure=heatmap()
+#                             ),
+#                             html.Label("Players at risk if dropped"
+#                             ),
+#                             dash_table.DataTable(data=players_at_risk.to_dict('records'),
+#                                                 columns=[{"name": i, "id": i} for i in players_at_risk.columns],
+#                                                 style_cell=dict(textAlign='left'),
+#                                                 style_header=dict(backgroundColor="paleturquoise")
+#                             )
+# ])
 
 
 
