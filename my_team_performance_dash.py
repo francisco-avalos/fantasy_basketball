@@ -93,7 +93,7 @@ xaxis=pd.date_range(min(myteam_df['week_ending_sunday'].unique()),max(myteam_df[
 mycolors=px.colors.qualitative.Light24+px.colors.qualitative.Pastel1
 
 
-print(myteam_df.head())
+# print(myteam_df.head())
 
 def line_plot(metric='points'):
     myteam_df_x_we=myteam_df.groupby(by=['week_ending_sunday','name'])[metric].sum()
@@ -177,7 +177,7 @@ def bar_plot(metric='points'):
     }
     labels={
         'week_ending_sunday':'Week Ending Sunday',
-        'pct':'%'
+        'pct':f'{metric} share (%)'
     }
     xaxis_formats={
         'tickvals':xaxis,
