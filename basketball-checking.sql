@@ -471,4 +471,17 @@ LIMIT 100;
 
 
 SELECT DISTINCT name
-FROM basketball.advanced_stats
+FROM basketball.advanced_stats;
+
+
+
+
+SELECT 
+	DISTINCT MTS.name
+FROM basketball.my_team_stats MTS 
+JOIN basketball.calendar C ON MTS.date=C.day
+WHERE C.day >= SUBDATE(CURDATE(), INTERVAL 4 DAY);
+
+
+
+
