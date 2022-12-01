@@ -145,10 +145,12 @@ def convert_game_score_to_points(GS, FG, FGA, FTA, FT, ORB, DRB, STL, AST, BLK, 
 
 
 
-# myteam=league.teams[5]
-# my_players=clean_string(myteam.roster).split(',')
-# # for p in my_players:
-# # 	print(p.lstrip())
+myteam=league.teams[11]
+my_players=clean_string(myteam.roster).split(',')
+print(type(my_players))
+print(my_players)
+# for p in my_players:
+# 	print(p.lstrip())
 
 # for p in myteam.roster:
 # 	pid=p.playerId
@@ -635,9 +637,9 @@ def convert_game_score_to_points(GS, FG, FGA, FTA, FT, ORB, DRB, STL, AST, BLK, 
 ## high level team stats
 
 # season schedule 
-df=client.season_schedule(season_end_year=2023)
-df=pd.DataFrame(df)
-print('schedule \n',df)
+# df=client.season_schedule(season_end_year=2023)
+# df=pd.DataFrame(df)
+# print('schedule \n',df)
 # print('schedule \n',df.shape)
 
 
