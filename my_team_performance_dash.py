@@ -11,7 +11,8 @@ import dash_bootstrap_components as dbc
 
 from mysql.connector import Error
 from dash import dcc, html, Input, Output, dash_table
-
+from espn_api.basketball import League
+from my_functions import clean_string, remove_name_suffixes
 
 
 
@@ -23,6 +24,12 @@ connection=mysql.connect(host=sports_db_admin_host,
                         password=sports_db_admin_pw,
                         port=sports_db_admin_port)
 
+league=League(league_id=leagueid, 
+                year=2023,
+                espn_s2=espn_s2,
+                swid=swid, 
+                debug=False)
+
 
 if connection.is_connected():
     cursor=connection.cursor()
@@ -30,15 +37,15 @@ if connection.is_connected():
     myteam_df=cursor.fetchall()
     myteam_df=pd.DataFrame(myteam_df, columns=cursor.column_names)
 
-if connection.is_connected():
-    cursor=connection.cursor()
-    cursor.execute("""SELECT 
-                        DISTINCT MTS.name
-                    FROM basketball.my_team_stats MTS 
-                    JOIN basketball.calendar C ON MTS.date=C.day
-                    WHERE C.day >= SUBDATE(CURDATE(), INTERVAL 4 DAY);""")
-    myteam_df_recent=cursor.fetchall()
-    myteam_df_recent=pd.DataFrame(myteam_df_recent, columns=cursor.column_names)
+# if connection.is_connected():
+#     cursor=connection.cursor()
+#     cursor.execute("""SELECT 
+#                         DISTINCT MTS.name
+#                     FROM basketball.my_team_stats MTS 
+#                     JOIN basketball.calendar C ON MTS.date=C.day
+#                     WHERE C.day >= SUBDATE(CURDATE(), INTERVAL 4 DAY);""")
+#     myteam_df_recent=cursor.fetchall()
+#     myteam_df_recent=pd.DataFrame(myteam_df_recent, columns=cursor.column_names)
 
 
 if(connection.is_connected()):
@@ -61,11 +68,19 @@ my_safe_players=['Jordan Poole', 'Anthony Davis',
                  'Jimmy Butler', 'Jarrett Allen'
 ]
 
-current_players = myteam_df_recent.name.unique()
+
+
+myteam=league.teams[11]
+current_players=clean_string(myteam.roster).split(',')
+current_players=[remove_name_suffixes(x) for x in current_players]
+current_players=[x.strip(' ') for x in current_players]
+
 players_at_risk=list(set(current_players)-set(my_safe_players))
 players_at_risk=pd.DataFrame(players_at_risk)
 players_at_risk.columns=['Name']
 
+
+# print(myteam_df.name.unique())
 
 
 app=dash.Dash('francisco app',
@@ -205,20 +220,61 @@ def bar_plot(metric='points'):
         legend=legend_data,
         height=800,
         width=1250,
+        # height=800,
+        # width=1250,
         yaxis_tickformat=".2%",
         xaxis=xaxis_formats
     )
     return bar_plot_pct_share
 
-def heatmap():
-    heat_map=px.density_heatmap(myteam_df,
-                                x='attempted_field_goals',
-                                y='name',
-                                z='made_field_goals',
-                                text_auto=True
+# def heatmap():
+#     heat_map=px.density_heatmap(myteam_df,
+#                                 x='attempted_field_goals',
+#                                 y='name',
+#                                 z='made_field_goals',
+#                                 text_auto=True
+#     )
+#     heat_map.update_xaxes(side='top')
+#     return heat_map
+
+# print(current_players)
+def heatmap(metric='points'):
+
+    imps=[metric]
+    output=myteam_df.groupby(['name']).apply(lambda x: pd.Series([sum(x[v]*x.minutes_played)/sum(x.minutes_played) for v in imps]))
+    output.columns=imps
+    output=output.sort_values(by=metric, ascending=False)
+    # output=output.sort_values(by=[focus_field_value],ascending=False).head(player_sample)
+
+    output=output[output.index.isin(current_players)]
+    fig=px.imshow(output, 
+                    text_auto='.2f', 
+                    color_continuous_scale='RdBu_r',
+                    aspect='auto'
     )
-    heat_map.update_xaxes(side='top')
-    return heat_map
+    fig.update_xaxes(side='top')
+    fig.update_yaxes(title=None)
+    fig.update_layout(width=300,height=400)
+
+    # output=output.reset_index()
+    # fig=px.density_heatmap(output,
+    #                             x=metric,
+    #                             y='name',
+    #                             text_auto=True
+    # )
+    # fig.update_xaxes(side='top')
+
+
+
+    # heat_map=px.density_heatmap(myteam_df,
+    #                             x='attempted_field_goals',
+    #                             y='name',
+    #                             z='made_field_goals',
+    #                             text_auto=True
+    # )
+    # heat_map.update_xaxes(side='top')
+    return fig
+
 
 
 app.layout=dbc.Container(
@@ -275,9 +331,31 @@ app.layout=dbc.Container(
         ),
         dbc.Row(
             [
-                dcc.Graph(id='bar-plot', figure=bar_plot())
+                dbc.Col(
+                    [
+                        html.H3('Minutes-Played Weighted Production'),
+                        dcc.Graph(id='heat-map', figure=heatmap())
+                    ], 
+                    width=4, 
+                    align='start'
+                ),
+                dbc.Col(
+                    [dcc.Graph(id='bar-plot', figure=bar_plot())],
+                    width=8,
+                    align='end'
+                )
             ]
         )
+        # dbc.Row(
+        #     [
+        #         dcc.Graph(id='bar-plot', figure=bar_plot())
+        #     ]
+        # ),
+        # dbc.Row(
+        #     [
+        #         dcc.Graph(id='heat-map', figure=heatmap())
+        #     ]
+        # )
     ]
 )
 
@@ -285,13 +363,15 @@ app.layout=dbc.Container(
 @app.callback(
     Output(component_id='line_plot', component_property='figure'),
     Output(component_id='bar-plot', component_property='figure'),
+    Output(component_id='heat-map', component_property='figure'),
     Input(component_id='id-dropdown', component_property='value')
 )
 
 def update_plots(metric_value):
     fig_line=line_plot(metric_value)
     fig_bar=bar_plot(metric_value)
-    return fig_line, fig_bar
+    fig_heat=heatmap(metric_value)
+    return fig_line, fig_bar, fig_heat
 
 
 # app.layout=html.Div(children=[
