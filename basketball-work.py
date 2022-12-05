@@ -122,14 +122,14 @@ def convert_game_score_to_points(GS, FG, FGA, FTA, FT, ORB, DRB, STL, AST, BLK, 
 
 
 
-# print(league.recent_activity(size=1000))
-# act=league.recent_activity(size=100000)
-# for activity in act:
-# 	activity=str(activity)
-# 	activity=remove_team_string(activity)
-# 	activity=remove_matchup_string(activity)
-# 	activity=clean_string(activity)
-# 	print(activity)
+# print(league.recent_activity(size=10))
+act=league.recent_activity(size=10)
+for activity in act:
+	activity=str(activity)
+	activity=remove_team_string(activity)
+	activity=remove_matchup_string(activity)
+	activity=clean_string(activity)
+	print(activity)
 
 
 
@@ -145,10 +145,10 @@ def convert_game_score_to_points(GS, FG, FGA, FTA, FT, ORB, DRB, STL, AST, BLK, 
 
 
 
-myteam=league.teams[11]
-my_players=clean_string(myteam.roster).split(',')
-print(type(my_players))
-print(my_players)
+# myteam=league.teams[11]
+# my_players=clean_string(myteam.roster).split(',')
+# print(type(my_players))
+# print(my_players)
 # for p in my_players:
 # 	print(p.lstrip())
 

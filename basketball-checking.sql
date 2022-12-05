@@ -326,10 +326,11 @@ select * from basketball.basketball_references_players;
 
 SELECT *
 FROM basketball.advanced_stats
-WHERE name = 'Tyus Jones'
+-- WHERE name = 'Tyus Jones'
 LIMIT 100
 ;
 
+EXPLAIN basketball.advanced_stats;
 SELECT *
 FROM basketball.live_free_agents
 WHERE name = 'Tyus Jones'
@@ -483,5 +484,29 @@ JOIN basketball.calendar C ON MTS.date=C.day
 WHERE C.day >= SUBDATE(CURDATE(), INTERVAL 4 DAY);
 
 
+SELECT *
+FROM basketball.my_team_stats
+WHERE date = '2022-11-30' AND name = 'Bruce Brown'
+ORDER BY date DESC
+LIMIT 100;
+
+
+SELECT 
+	MTS.name, 
+    SUM(made_field_goals * seconds_played/60) / SUM(seconds_played/60) AS made_field_goals_weighted_by_mins_played
+--     seconds_played/60 AS minutes_played
+FROM basketball.my_team_stats MTS 
+JOIN basketball.calendar C ON MTS.date=C.day
+GROUP BY name
+;
+
+
+SELECT 
+	MTS.*, 
+    DATE_FORMAT(MTS.date, '%W') AS day_of_week,
+	C.week_starting_monday, 
+	C.week_ending_sunday 
+FROM basketball.my_team_stats MTS 
+JOIN basketball.calendar C ON MTS.date=C.day;
 
 
