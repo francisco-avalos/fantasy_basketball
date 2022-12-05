@@ -239,7 +239,7 @@ def graph_update(input_value, focus_field_value, calc_value, display_field, top_
 
 
 if __name__ == '__main__': 
-    app.run(port=8005)
+    app.run(port=8006)
 
 
 
