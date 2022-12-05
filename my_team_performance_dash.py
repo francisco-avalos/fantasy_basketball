@@ -7,6 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
 import dash_bootstrap_components as dbc
+import plotly.figure_factory as ff
 
 
 from mysql.connector import Error
@@ -33,7 +34,19 @@ league=League(league_id=leagueid,
 
 if connection.is_connected():
     cursor=connection.cursor()
-    cursor.execute("""SELECT MTS.*, C.week_starting_monday, C.week_ending_sunday FROM basketball.my_team_stats MTS JOIN basketball.calendar C ON MTS.date=C.day;""")
+    cursor.execute("""
+                    SELECT 
+                        MTS.*, 
+                        DATE_FORMAT(MTS.date, '%W') AS day_of_week,
+                        CASE
+                            WHEN DATE_FORMAT(MTS.date, '%W') IN ('Saturday', 'Sunday') THEN 'week_end'
+                            ELSE 'week_day'
+                        END AS day_of_week_class,
+                        C.week_starting_monday, 
+                        C.week_ending_sunday 
+                    FROM basketball.my_team_stats MTS 
+                    JOIN basketball.calendar C ON MTS.date=C.day;
+                    """)
     myteam_df=cursor.fetchall()
     myteam_df=pd.DataFrame(myteam_df, columns=cursor.column_names)
 
@@ -80,8 +93,34 @@ players_at_risk=pd.DataFrame(players_at_risk)
 players_at_risk.columns=['Name']
 
 
-# print(myteam_df.name.unique())
+# I picked up bruce brown on November 30 at 10pm, 
+# so don't add his scores to my team performance for that day
+# same with T.J. McConnell for dec 2
+myteam_df=myteam_df.drop(235)
+myteam_df=myteam_df.drop(249)
 
+
+
+
+myteam_df['seconds_played']=myteam_df['seconds_played'].astype(float)
+myteam_df['made_field_goals']=myteam_df['made_field_goals'].astype(float)
+myteam_df['attempted_field_goals']=myteam_df['attempted_field_goals'].astype(float)
+myteam_df['made_three_point_field_goals']=myteam_df['made_three_point_field_goals'].astype(float)
+myteam_df['attempted_three_point_field_goals']=myteam_df['attempted_three_point_field_goals'].astype(float)
+myteam_df['made_free_throws']=myteam_df['made_free_throws'].astype(float)
+myteam_df['attempted_free_throws']=myteam_df['attempted_free_throws'].astype(float)
+myteam_df['offensive_rebounds']=myteam_df['offensive_rebounds'].astype(float)
+myteam_df['defensive_rebounds']=myteam_df['defensive_rebounds'].astype(float)
+myteam_df['assists']=myteam_df['assists'].astype(float)
+myteam_df['steals']=myteam_df['steals'].astype(float)
+myteam_df['blocks']=myteam_df['blocks'].astype(float)
+myteam_df['turnovers']=myteam_df['turnovers'].astype(float)
+myteam_df['personal_fouls']=myteam_df['personal_fouls'].astype(float)
+myteam_df['points']=myteam_df['points'].astype(float)
+myteam_df['total_rebounds']=myteam_df['total_rebounds'].astype(float)
+myteam_df['game_score']=myteam_df['game_score'].astype(float)
+
+# print(myteam_df.dtypes)
 
 app=dash.Dash('francisco app',
             external_stylesheets=[dbc.themes.BOOTSTRAP]
@@ -227,22 +266,39 @@ def bar_plot(metric='points'):
     )
     return bar_plot_pct_share
 
-# def heatmap():
-#     heat_map=px.density_heatmap(myteam_df,
-#                                 x='attempted_field_goals',
-#                                 y='name',
-#                                 z='made_field_goals',
-#                                 text_auto=True
-#     )
-#     heat_map.update_xaxes(side='top')
-#     return heat_map
 
-# print(current_players)
+metric='points'
+imps=[metric]
+output=myteam_df.groupby(['name']).apply(lambda x: pd.Series([sum(x[v]*x.minutes_played)/sum(x.minutes_played) for v in imps]))
+output.columns=imps
+
+mins_agg=myteam_df.groupby(['name'])['minutes_played'].sum()
+
+output=pd.merge(output, mins_agg, how='inner', on='name')
+
+output=output.sort_values(by=metric, ascending=False)
+# output=output.sort_values(by=[focus_field_value],ascending=False).head(player_sample)
+
+output=output[output.index.isin(current_players)]
+# output=output.reset_index()
+# print(output.head())
+# print(output.index)
+
+
+
+
+
+
 def heatmap(metric='points'):
 
     imps=[metric]
     output=myteam_df.groupby(['name']).apply(lambda x: pd.Series([sum(x[v]*x.minutes_played)/sum(x.minutes_played) for v in imps]))
     output.columns=imps
+    
+    # mins_agg=myteam_df.groupby(['name'])['minutes_played'].sum()
+
+    # output=pd.merge(output, mins_agg, how='inner', on='name')
+
     output=output.sort_values(by=metric, ascending=False)
     # output=output.sort_values(by=[focus_field_value],ascending=False).head(player_sample)
 
@@ -275,12 +331,91 @@ def heatmap(metric='points'):
     # heat_map.update_xaxes(side='top')
     return fig
 
+def heatmap_weights():
+    metric='minutes_played'
+
+    mins_agg=myteam_df.groupby(['name'])['minutes_played'].sum()
+    mins_agg.columns=metric
+    mins_agg=pd.DataFrame(mins_agg)
+    mins_agg=mins_agg.sort_values(by=metric, ascending=False)
+    mins_agg=mins_agg[mins_agg.index.isin(current_players)]
+    fig=px.imshow(mins_agg, 
+                    text_auto='.2f', 
+                    color_continuous_scale='RdBu_r',
+                    aspect='auto'
+    )
+    fig.update_xaxes(side='top')
+    fig.update_yaxes(title=None)
+    fig.update_layout(width=300,height=400)
+
+    return fig
+
+# print(myteam_df[myteam_df['name'].isin(current_players)].head())
+def boxplot_by_player(metric='points'):
+    myteam_df_v1=myteam_df[myteam_df['name'].isin(current_players)]
+    fig1=px.box(myteam_df_v1, x='name', y=metric)
+    fig1.update_traces(quartilemethod='exclusive')
+    return fig1
+
+def boxplot_by_player_weekday_class(metric='points'):
+    myteam_df_v2=myteam_df[myteam_df['name'].isin(current_players)]
+    fig=px.box(myteam_df_v2, x='name', y=metric, 
+                facet_row='day_of_week_class'
+    )
+    fig.update_traces(quartilemethod='exclusive')
+    return fig
+
+
+# metric='made_field_goals'
+# names=[name for name in myteam_df.name.unique()]
+# data_list=[]
+# for name in names:
+#     name_values=myteam_df[myteam_df['name']==name][metric].values.tolist()
+#     data_list.append(name_values)
+
+# # data_list=pd.Series(data_list)
+# # print(type(data_list))
+# # print(type(names))
+# # print(data_list)
+# # print(names)
+
+# # # print(len(data_list))
+# # print(names)
+# # print(data_list)
+# # # # print(unlist(data_list))
+# # print(data_list[0:10])
+# fig=ff.create_distplot(data_list,
+#     names, show_rug=False, colors=mycolors)
+# fig.show()
+
+
+
+# print(myteam_df.head())
 
 
 app.layout=dbc.Container(
     [
         dbc.Row(
             html.H1('My team performance', style={'textAlign': 'center'})
+        ),
+        dbc.Row(
+            [
+                dbc.Col(
+                    [
+                        html.H3('Minutes-Played Weighted Production'),
+                        dcc.Graph(id='heat-map', figure=heatmap())
+                    ], 
+                    width=6, 
+                    align='start'
+                ),
+                dbc.Col(
+                    [
+                        dcc.Graph(id='heat-map-weights', figure=heatmap_weights())
+                    ],
+                    width=6,
+                    align='end'
+                )
+            ]
         ),
         dbc.Row(
             [
@@ -322,7 +457,8 @@ app.layout=dbc.Container(
                                                   {'label':'Turnovers','value':'turnovers'},
                                                   {'label':'Personal Fouls','value':'personal_fouls'},
                                                   {'label':'Points','value':'points'},
-                                                  {'label':'Minutes Played','value':'minutes_played'}],
+                                                  {'label':'Minutes Played','value':'minutes_played'},
+                                                  {'label':'Game Score','value':'game_score'}],
                                     value='made_field_goals'
                     )],
                     lg=3
@@ -332,30 +468,26 @@ app.layout=dbc.Container(
         dbc.Row(
             [
                 dbc.Col(
-                    [
-                        html.H3('Minutes-Played Weighted Production'),
-                        dcc.Graph(id='heat-map', figure=heatmap())
-                    ], 
-                    width=4, 
-                    align='start'
-                ),
-                dbc.Col(
                     [dcc.Graph(id='bar-plot', figure=bar_plot())],
                     width=8,
                     align='end'
                 )
             ]
+        ),
+        dbc.Row(
+            [
+                dbc.Col(
+                    [dcc.Graph(id='box-plot', figure=boxplot_by_player())]
+                )
+            ]
+        ),
+        dbc.Row(
+            [
+                dbc.Col(
+                    [dcc.Graph(id='box-plot-x-week-class', figure=boxplot_by_player_weekday_class())]
+                )
+            ]
         )
-        # dbc.Row(
-        #     [
-        #         dcc.Graph(id='bar-plot', figure=bar_plot())
-        #     ]
-        # ),
-        # dbc.Row(
-        #     [
-        #         dcc.Graph(id='heat-map', figure=heatmap())
-        #     ]
-        # )
     ]
 )
 
@@ -364,6 +496,8 @@ app.layout=dbc.Container(
     Output(component_id='line_plot', component_property='figure'),
     Output(component_id='bar-plot', component_property='figure'),
     Output(component_id='heat-map', component_property='figure'),
+    Output(component_id='box-plot', component_property='figure'),
+    Output(component_id='box-plot-x-week-class', component_property='figure'),
     Input(component_id='id-dropdown', component_property='value')
 )
 
@@ -371,7 +505,9 @@ def update_plots(metric_value):
     fig_line=line_plot(metric_value)
     fig_bar=bar_plot(metric_value)
     fig_heat=heatmap(metric_value)
-    return fig_line, fig_bar, fig_heat
+    fig_box=boxplot_by_player(metric_value)
+    fig_box_x_week=boxplot_by_player_weekday_class(metric_value)
+    return fig_line, fig_bar, fig_heat, fig_box, fig_box_x_week
 
 
 # app.layout=html.Div(children=[
