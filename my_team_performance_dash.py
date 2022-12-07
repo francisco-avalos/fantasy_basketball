@@ -50,15 +50,11 @@ if connection.is_connected():
     myteam_df=cursor.fetchall()
     myteam_df=pd.DataFrame(myteam_df, columns=cursor.column_names)
 
-# if connection.is_connected():
-#     cursor=connection.cursor()
-#     cursor.execute("""SELECT 
-#                         DISTINCT MTS.name
-#                     FROM basketball.my_team_stats MTS 
-#                     JOIN basketball.calendar C ON MTS.date=C.day
-#                     WHERE C.day >= SUBDATE(CURDATE(), INTERVAL 4 DAY);""")
-#     myteam_df_recent=cursor.fetchall()
-#     myteam_df_recent=pd.DataFrame(myteam_df_recent, columns=cursor.column_names)
+if connection.is_connected():
+    cursor=connection.cursor()
+    cursor.execute("""SELECT * FROM basketball.injured_player_news ORDER BY exp_return_date ASC;""")
+    inj_df=cursor.fetchall()
+    inj_df=pd.DataFrame(inj_df, columns=cursor.column_names)
 
 
 if(connection.is_connected()):
@@ -96,8 +92,11 @@ players_at_risk.columns=['Name']
 # I picked up bruce brown on November 30 at 10pm, 
 # so don't add his scores to my team performance for that day
 # same with T.J. McConnell for dec 2
+# same with Tim Hardaway for dec 3
 myteam_df=myteam_df.drop(235)
 myteam_df=myteam_df.drop(249)
+myteam_df=myteam_df.drop(255)
+
 
 
 
@@ -420,19 +419,6 @@ app.layout=dbc.Container(
         dbc.Row(
             [
                 dbc.Col(
-                    [
-                        html.H2('Players at risk if dropped'),
-                        dash_table.DataTable(data=players_at_risk.to_dict('records'),
-                                                    columns=[{"name": i, "id": i} for i in players_at_risk.columns],
-                                                    style_cell=dict(textAlign='left'),
-                                                    style_header=dict(backgroundColor="paleturquoise")    
-                        )
-                    ],
-                    md=4
-                    # align='center'
-                    # width={'size':1, 'order':'last'}
-                ),
-                dbc.Col(
                     [dcc.Graph(id='line_plot', figure=line_plot())],
                     md=4
                     # align='start',
@@ -486,6 +472,37 @@ app.layout=dbc.Container(
                 dbc.Col(
                     [dcc.Graph(id='box-plot-x-week-class', figure=boxplot_by_player_weekday_class())]
                 )
+            ]
+        ),
+        dbc.Row(
+            [
+                dbc.Col(
+                    [
+                        html.H2('Players at risk if dropped'),
+                        dash_table.DataTable(data=players_at_risk.to_dict('records'),
+                                                    columns=[{"name": i, "id": i} for i in players_at_risk.columns],
+                                                    style_cell=dict(textAlign='left'),
+                                                    style_header=dict(backgroundColor="paleturquoise")    
+                        )
+                    ],
+                    md=4
+                    # align='center'
+                    # width={'size':1, 'order':'last'}
+                ),
+                dbc.Col(
+                    [
+                        html.H3('Injured players report'),
+                        dash_table.DataTable(data=inj_df.to_dict('records'),
+                                                    columns=[{"name": i, "id": i} for i in inj_df.columns],
+                                                    style_cell=dict(textAlign='left'),
+                                                    style_header=dict(backgroundColor="paleturquoise")    
+                        )
+                    ],
+                    md=4
+                    # align='center'
+                    # width={'size':1, 'order':'last'}
+                )
+
             ]
         )
     ]
