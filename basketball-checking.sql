@@ -289,9 +289,29 @@ GROUP BY X.first_name, X.last_name, X.bday;
 ########################################################################################################################
 
 
+-- DROP TABLE IF EXISTS basketball.injured_player_news;
+-- CREATE TABLE basketball.injured_player_news
+-- (
+--   `name` varchar(100) NOT NULL,
+--   `injury` varchar(100) NOT NULL,
+--   `exp_return_date` DATE,
+--   `date_report_ran` DATE,
+--   PRIMARY KEY (`name`, `exp_return_date`)
+-- );
+
+
+
+########################################################################################################################
+########################################################################################################################
+
+
+SELECT *
+FROM basketball.injured_player_news;
+
 select *
 from basketball.my_team_stats
-;
+WHERE date = '2022-12-03'
+ORDER BY date DESC;
 
 
 
@@ -508,5 +528,6 @@ SELECT
 	C.week_ending_sunday 
 FROM basketball.my_team_stats MTS 
 JOIN basketball.calendar C ON MTS.date=C.day;
+
 
 
