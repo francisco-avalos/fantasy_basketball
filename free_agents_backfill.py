@@ -15,7 +15,6 @@ import pandas as pd
 import os
 import unidecode
 import time
-from datetime import datetime
 from datetime import date
 from datetime import timedelta
 
@@ -180,7 +179,7 @@ try:
 		time.sleep(5)
 		# print('finished for ', fa)
 		row+=1
-		completion_tracker=row/fa_size * 100
+		completion_tracker=row/fa_size
 		print("{:.2%}".format(completion_tracker))
 	main_free_agents_df['name']=main_free_agents_df['name'].astype(str)
 	main_free_agents_df['team']=main_free_agents_df['team'].astype(str)
