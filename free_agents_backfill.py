@@ -27,8 +27,9 @@ pd.set_option('display.max_rows', None)
 
 exec(open('/Users/franciscoavalosjr/Desktop/basketball-creds.py').read())
 
+season_end_year=2023
 league=League(league_id=leagueid, 
-				year=2023,
+				year=season_end_year,
 				espn_s2=espn_s2,
 				swid=swid, 
 				debug=False)
@@ -37,7 +38,7 @@ league=League(league_id=leagueid,
 # my_players=clean_string(myteam.roster).split(',')
 
 
-season_end_year=2023
+
 fa_size=10000
 non_shows=[]
 non_shows_path='/Users/franciscoavalosjr/Desktop/basketball-folder/'
@@ -111,8 +112,8 @@ try:
 		time.sleep(5)
 		# print('finished for ', fa)
 		row+=1
-		completion_tracker=row/fa_size
-		print("{:.2%}".format(completion_tracker))
+		completion_tracker=row/len(FA)
+		print("Progress {:.2%}".format(completion_tracker), end='\r')
 	main_free_agents_df['name']=main_free_agents_df['name'].astype(str)
 	main_free_agents_df['team']=main_free_agents_df['team'].astype(str)
 	main_free_agents_df['location']=main_free_agents_df['location'].astype(str)
