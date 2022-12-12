@@ -47,6 +47,15 @@ def clean_string(item):
 	item=remove_box_string(item)
 	return item
 
+def remove_jr(item):
+	item=str(item)
+	item=item.replace('Jr.','')
+	item=item.replace('II','')
+	item=item.replace('III','')
+	item=item.replace('IV','')
+	item=item.replace('Sr.','')
+	return item
+
 def remove_name_suffixes(item):
 	item=str(item)
 	item=item.replace('Jr.','')
