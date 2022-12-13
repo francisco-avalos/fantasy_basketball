@@ -48,20 +48,37 @@ try:
         cursor.execute('SELECT MAX(date) FROM basketball.historical_player_data;')
         return_date=cursor.fetchall()
         return_date=pd.DataFrame(return_date, columns=['date'])
+        qry="""
+            SELECT 
+                season, 
+                SUBSTRING_INDEX(GROUP_CONCAT(date ORDER BY date ASC SEPARATOR '; '), ';', 1) AS backfill_since_current_season_begins,
+                SUBSTRING_INDEX(GROUP_CONCAT(date ORDER BY date DESC SEPARATOR '; '), ';', 1) AS backfill_since_current_season_latest_data_entry
+            FROM basketball.historical_player_data 
+            GROUP BY season
+            ORDER BY backfill_since_current_season_begins DESC 
+            LIMIT 1;"""
+        cursor.execute(qry)
+        latest_season=cursor.fetchall()
+        latest_season_date=pd.DataFrame(latest_season, columns=cursor.column_names)
+
     if(connection.is_connected()):
         cursor.close()
         connection.close()
         print('MySQL connection is closed for now.')
 
-        basketball_seasons['start']=pd.to_datetime(basketball_seasons['start'])
-        basketball_seasons['end']=pd.to_datetime(basketball_seasons['end'])
-        basketball_seasons['special_start']=pd.to_datetime(basketball_seasons['special_start'])
-        basketball_seasons['special_end']=pd.to_datetime(basketball_seasons['special_end'])
+    basketball_seasons['start']=pd.to_datetime(basketball_seasons['start'])
+    basketball_seasons['end']=pd.to_datetime(basketball_seasons['end'])
+    basketball_seasons['special_start']=pd.to_datetime(basketball_seasons['special_start'])
+    basketball_seasons['special_end']=pd.to_datetime(basketball_seasons['special_end'])
+
+    latest_season_date['backfill_since_current_season_begins']=pd.to_datetime(latest_season_date['backfill_since_current_season_begins'])
+    latest_season_date['backfill_since_current_season_latest_data_entry']=pd.to_datetime(latest_season_date['backfill_since_current_season_latest_data_entry'])
 
     if return_date is not None:
         max_date=return_date.iloc[0,0].strftime('%Y-%m-%d')
         print(f'not starting from scratch... starting from after {max_date}')
-        season_parsed=basketball_seasons[basketball_seasons['start']>max_date]
+        # season_parsed=basketball_seasons[basketball_seasons['start']>max_date]
+        season_parsed=basketball_seasons[basketball_seasons['start']>=latest_season_date.iloc[0]['backfill_since_current_season_latest_data_entry']]
         # season_parsed=season_parsed[season_parsed['start']<'2019-10-22'] # doing covid season manually
 
         #use below 2 lines for runinng covid season
