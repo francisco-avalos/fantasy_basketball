@@ -61,27 +61,27 @@ try:
     if return_date is not None:
         max_date=return_date.iloc[0,0].strftime('%Y-%m-%d')
         print(f'not starting from scratch... starting from after {max_date}')
-        # season_parsed=basketball_seasons[basketball_seasons['start']>max_date]
+        season_parsed=basketball_seasons[basketball_seasons['start']>max_date]
         # season_parsed=season_parsed[season_parsed['start']<'2019-10-22'] # doing covid season manually
 
         #use below 2 lines for runinng covid season
-        del basketball_seasons['start'], basketball_seasons['end']
-        basketball_seasons.dropna(how='all', inplace=True)
-        season_parsed=basketball_seasons.copy(deep=True)
+        # del basketball_seasons['start'], basketball_seasons['end']
+        # basketball_seasons.dropna(how='all', inplace=True)
+        # season_parsed=basketball_seasons.copy(deep=True)
 
         n=2
         # for i in season_parsed.index:
         for i in season_parsed.index:
             start_time=time.perf_counter()
             df=pd.DataFrame()
-            # season_year_start=int(datetime.strftime(season_parsed.loc[i,:]['start'],'%Y'))
-            # season_year_end=int(datetime.strftime(season_parsed.loc[i,:]['end'],'%Y'))
-            season_year_start=int(datetime.strftime(season_parsed.loc[i,:]['special_start'],'%Y'))
-            season_year_end=int(datetime.strftime(season_parsed.loc[i,:]['special_end'],'%Y'))
+            season_year_start=int(datetime.strftime(season_parsed.loc[i,:]['start'],'%Y'))
+            season_year_end=int(datetime.strftime(season_parsed.loc[i,:]['end'],'%Y'))
+            # season_year_start=int(datetime.strftime(season_parsed.loc[i,:]['special_start'],'%Y'))
+            # season_year_end=int(datetime.strftime(season_parsed.loc[i,:]['special_end'],'%Y'))
             length=len(str(season_year_start))
             season='20'+str(season_year_start)[length-n:]+'-'+str(season_year_end)[length-n:]
-            # day_range=pd.date_range(start=season_parsed.loc[i,'start'], end=season_parsed.loc[i,'end'])
-            day_range=pd.date_range(start=season_parsed.loc[i,'special_start'], end=season_parsed.loc[i,'special_end'])
+            day_range=pd.date_range(start=season_parsed.loc[i,'start'], end=season_parsed.loc[i,'end'])
+            # day_range=pd.date_range(start=season_parsed.loc[i,'special_start'], end=season_parsed.loc[i,'special_end'])
             for day in day_range:
                 year=int(day.year)
                 month=int(day.month)
