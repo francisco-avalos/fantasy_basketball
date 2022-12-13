@@ -313,6 +313,20 @@ from basketball.my_team_stats
 WHERE date = '2022-12-03'
 ORDER BY date DESC;
 
+-- CREATE TABLE basketball.historical_player_data LIKE basketball.my_team_stats;
+
+SHOW CREATE TABLE basketball WHERE name LIKE '%historical_player_data%';
+SHOW CREATE TABLE basketball.historical_player_data;
+
+SELECT *#min(date), max(date)
+FROM basketball.historical_player_data
+WHERE name LIKE '%dorian%'
+ORDER BY game_score DESC
+LIMIT 100;
+-- ALTER TABLE basketball.historical_player_data
+-- ADD COLUMN season VARCHAR(7) NOT NULL;
+
+-- TRUNCATE basketball.historical_player_data;
 
 
 SELECT *
@@ -324,10 +338,17 @@ FROM basketball.calendar
 LIMIT 10;
 
 
+SELECT *
+-- SELECT COUNT(DISTINCT name)
+-- SELECT COUNT(*)
+FROM basketball.live_free_agents
+LIMIT 100;
+
+SHOW TABLE STATUS FROM basketball WHERE name LIKE '%live_free_agents%';
 
 SELECT *
-FROM basketball.live_free_agents
-WHERE name='Aaron Holiday'
+FROM basketball.my_team_stats
+-- WHERE name='Aaron Holiday'
 ORDER BY date DESC;
 
 
@@ -335,18 +356,30 @@ ORDER BY date DESC;
 
 
 
+SELECT * FROM basketball.historical_player_data LIMIT 100;
+
 
 select * from basketball.espn_players;
 select * from basketball.basketball_references_players;
 
 
 
+SELECT MAX(date) FROM basketball.historical_player_data;
+SELECT * FROM basketball.historical_player_data ORDER BY date DESC LIMIT 100;
 
+SELECT 
+	season, 
+	SUBSTRING_INDEX(GROUP_CONCAT(date ORDER BY date ASC SEPARATOR '; '), ';', 1) AS backfill_since_current_season_begins,
+	SUBSTRING_INDEX(GROUP_CONCAT(date ORDER BY date DESC SEPARATOR '; '), ';', 1) AS backfill_since_current_season_latest_data_entry
+FROM basketball.historical_player_data 
+GROUP BY season
+ORDER BY backfill_since_current_season_begin DESC 
+LIMIT 1;
 
 
 SELECT *
-FROM basketball.advanced_stats
--- WHERE name = 'Tyus Jones'
+FROM basketball.historical_player_data
+ORDER BY date DESC, game_score DESC
 LIMIT 100
 ;
 
