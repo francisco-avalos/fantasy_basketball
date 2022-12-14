@@ -51,6 +51,11 @@ try:
 		sql='SELECT MAX(date) AS most_recent_data_date FROM basketball.my_team_stats;'
 		cursor.execute(sql)
 		output=cursor.fetchone()
+
+		if(connection.is_connected()):
+			cursor.close()
+			connection.close()
+
 		if output[0] is None:
 			season_begin='2022-10-18'
 			last_data_date=datetime.strptime(season_begin, '%Y-%m-%d')
@@ -101,7 +106,14 @@ try:
 				main_df['outcome']=main_df['outcome'].astype(str)
 
 				cols="`,`".join([str(i) for i in main_df.columns.tolist()])
-				
+
+				connection=mysql.connect(host=sports_db_admin_host,
+										database=sports_db_admin_db,
+										user=sports_db_admin_user,
+										password=sports_db_admin_pw,
+										port=sports_db_admin_port)
+				cursor=connection.cursor()
+
 				for i,row in main_df.iterrows():
 					sql='REPLACE INTO `my_team_stats` (`'+cols+'`) VALUES ('+'%s,'*(len(row)-1)+'%s)'
 					cursor.execute(sql, tuple(row))
