@@ -9,6 +9,8 @@ from basketball_reference_web_scraper import client
 # Connection to my DB
 import mysql.connector as mysql
 from mysql.connector import Error
+from mysql.connector import errorcode # new guy
+
 
 
 import pandas as pd
@@ -36,7 +38,6 @@ exec(open('/Users/franciscoavalosjr/Desktop/basketball-creds.py').read())
 basketball_seasons=pd.read_csv('/Users/franciscoavalosjr/Downloads/season_dates.csv')
 
 
-
 try:
     connection=mysql.connect(host=sports_db_admin_host,
                             database=sports_db_admin_db,
@@ -53,7 +54,7 @@ try:
                 season, 
                 SUBSTRING_INDEX(GROUP_CONCAT(date ORDER BY date ASC SEPARATOR '; '), ';', 1) AS backfill_since_current_season_begins,
                 SUBSTRING_INDEX(GROUP_CONCAT(date ORDER BY date DESC SEPARATOR '; '), ';', 1) AS backfill_since_current_season_latest_data_entry
-            FROM basketball.historical_player_data 
+            FROM basketball.historical_player_data
             GROUP BY season
             ORDER BY backfill_since_current_season_begins DESC 
             LIMIT 1;"""
@@ -78,13 +79,18 @@ try:
         max_date=return_date.iloc[0,0].strftime('%Y-%m-%d')
         print(f'not starting from scratch... starting from after {max_date}')
         # season_parsed=basketball_seasons[basketball_seasons['start']>max_date]
-        season_parsed=basketball_seasons[basketball_seasons['start']>=latest_season_date.iloc[0]['backfill_since_current_season_latest_data_entry']]
+        season_parsed=basketball_seasons[basketball_seasons['start']>=latest_season_date.iloc[0]['backfill_since_current_season_begins']].copy()
         # season_parsed=season_parsed[season_parsed['start']<'2019-10-22'] # doing covid season manually
 
         #use below 2 lines for runinng covid season
         # del basketball_seasons['start'], basketball_seasons['end']
         # basketball_seasons.dropna(how='all', inplace=True)
         # season_parsed=basketball_seasons.copy(deep=True)
+
+        season_parsed.loc[-1:,'start']=latest_season_date.loc[0,'backfill_since_current_season_latest_data_entry']
+        today=datetime.today()
+        today=pd.to_datetime(today)
+        season_parsed.loc[-1:,'end']=today
 
         n=2
         # for i in season_parsed.index:
@@ -146,7 +152,6 @@ try:
                 print('MySQL connection is closed for now.')
             print(f'Finished inserting for the {season} season')
     else:
-        print('hello full backfill')
         n=2
         for i in basketball_seasons.loc[0:18,:].index:
             df=pd.DataFrame()
@@ -194,10 +199,22 @@ try:
                 connection.close()
                 print('MySQL connection is closed for now.')
             print(f'Finished inserting for the {season} season')
-except Error as e:
-    print('Error while connecting to MySQL', e)
+# except Error as e:
+except mysql.connector.Error as e:
+    print('except worked')
+    if e.errno==errorcode.ER_ACCESS_DENIED_ERROR:
+        print('Something is wrong with your user name or password')
+    elif e.errno==errorcode.ER_BAD_DB_ERROR:
+        print('database does not exist')
+    else:
+        print(e)
+    # print("Error while connecting to MySQL", e)
+# else:
+#     print('else worked')
+#     connection.close()
 finally:
     if(connection.is_connected()):
         cursor.close()
         connection.close()
         print('MySQL connection is closed')
+
