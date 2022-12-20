@@ -44,7 +44,7 @@ ORDER BY date DESC;
 
 
 
-SELECT * FROM basketball.historical_player_data LIMIT 100;
+SELECT * FROM basketball.historical_player_data ORDER BY date DESC LIMIT 100;
 
 
 select * from basketball.espn_players;
@@ -249,6 +249,38 @@ SELECT
 	C.week_ending_sunday 
 FROM basketball.my_team_stats MTS 
 JOIN basketball.calendar C ON MTS.date=C.day;
+
+
+
+SELECT * FROM basketball.my_team_stats LIMIT 100;
+SELECT * FROM basketball.high_level_nba_team_schedules ORDER BY start_time DESC LIMIT 100;
+SELECT * FROM basketball.calendar LIMIT 100;
+
+
+SELECT 
+-- 	CAL.*, 
+    DATE(SUBDATE(CAST(TSCHED.start_time AS DATETIME), INTERVAL 8 HOUR)) AS PST_DATE, 
+    TSCHED.*
+FROM basketball.calendar CAL
+JOIN basketball.high_level_nba_team_schedules TSCHED ON DATE(SUBDATE(CAST(TSCHED.start_time AS DATETIME), INTERVAL 8 HOUR)) = CAL.day
+WHERE CURDATE() BETWEEN CAL.week_starting_monday AND CAL.week_ending_sunday
+	AND (away_team LIKE '%cavaliers%' OR home_team LIKE '%cavaliers%')
+LIMIT 100;
+
+
+
+
+SELECT * 
+FROM basketball.my_team_stats MTS
+JOIN basketball.calendar CAL ON MTS.date BETWEEN CAL.week_starting_monday AND CAL.week_ending_sunday
+JOIN basketball.high_level_nba_team_schedules TSCHED ON DATE(SUBDATE(CAST(TSCHED.start_time AS DATETIME), INTERVAL 8 HOUR)) = CAL.day#BETWEEN CAL.week_starting_monday AND CAL.week_ending_sunday
+	AND (MTS.team LIKE CONCAT('%', TSCHED.away_team, '%') OR MTS.team LIKE CONCAT('%', TSCHED.home_team, '%'))
+--     AND (TSCHED.away_team LIKE '%cavaliers%' OR TSCHED.home_team LIKE '%cavaliers%')
+-- 	AND (REPLACE(TSCHED.away_team, 'Team.', '') = IF(REPLACE(MTS.location, 'Location.', '')='AWAY', REPLACE(MTS.team, 'Team.', ''), NULL)
+-- 			OR REPLACE(TSCHED.home_team, 'Team.', '') = IF(REPLACE(MTS.location, 'Location.', '')='HOME', REPLACE(MTS.team, 'Team.', ''), NULL))
+WHERE CURDATE() BETWEEN CAL.week_starting_monday AND CAL.week_ending_sunday
+	AND MTS.name LIKE '%Barrett%'
+LIMIT 100;
 
 
 

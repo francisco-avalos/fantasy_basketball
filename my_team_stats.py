@@ -52,9 +52,9 @@ try:
 		cursor.execute(sql)
 		output=cursor.fetchone()
 
-		if(connection.is_connected()):
-			cursor.close()
-			connection.close()
+		# if(connection.is_connected()):
+		# 	cursor.close()
+		# 	connection.close()
 
 		if output[0] is None:
 			season_begin='2022-10-18'

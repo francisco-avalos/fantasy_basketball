@@ -11,13 +11,18 @@ from mysql.connector import Error
 
 exec(open('/Users/franciscoavalosjr/Desktop/basketball-creds.py').read())
 
-out_players=['https://www.rotowire.com/basketball/player/tyrese-haliburton-5114',
-# 'https://www.rotowire.com/basketball/player/jarrett-allen-4122',
+out_players=[
+# 'https://www.rotowire.com/basketball/player/dangelo-russell-3708'
+# 'https://www.rotowire.com/basketball/player/tyrese-haliburton-5114',
+# # 'https://www.rotowire.com/basketball/player/jarrett-allen-4122',
 'https://www.rotowire.com/basketball/player/norman-powell-3726',
-'https://www.rotowire.com/basketball/player/deandre-hunter-4776',
-'https://www.rotowire.com/basketball/player/tj-mcconnell-3760',
-'https://www.rotowire.com/basketball/player/jimmy-butler-3231',
-'https://www.rotowire.com/basketball/player/anthony-davis-3297']
+# 'https://www.rotowire.com/basketball/player/deandre-hunter-4776',
+# 'https://www.rotowire.com/basketball/player/tj-mcconnell-3760',
+# 'https://www.rotowire.com/basketball/player/jimmy-butler-3231',
+'https://www.rotowire.com/basketball/player/gary-trent-4433',
+'https://www.rotowire.com/basketball/player/anthony-davis-3297'
+# 'https://www.rotowire.com/basketball/player/jrue-holiday-3029'
+]
 
 
 report_run_date=datetime.now()-timedelta(days=0)
@@ -33,6 +38,7 @@ for p in out_players:
 	inj_player_name=[n.find('h1').text for n in soup.find_all('div',attrs={'class':'p-card'})]
 	inj_player_name=str(inj_player_name).strip('[]')
 	data.insert(0, inj_player_name)
+	# print(data)
 	df.loc[idx]=data
 	idx+=1
 	time.sleep(5)

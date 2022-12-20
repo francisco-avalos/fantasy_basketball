@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
 import dash_bootstrap_components as dbc
 import plotly.figure_factory as ff
+import random
 
 
 from mysql.connector import Error
@@ -142,9 +143,9 @@ xaxis=pd.date_range(min(myteam_df['week_ending_sunday'].unique()),max(myteam_df[
 # pct_df=myteam_df_x_we.groupby('week_ending_sunday').reset_index()
 # myteam_df_x_we.groupby('week_ending_sunday')['points'].sum()
 # print(myteam_df_x_we.head())
-
-mycolors=px.colors.qualitative.Light24+px.colors.qualitative.Pastel1
-
+random.seed(11)
+mycolors=px.colors.qualitative.Light24+px.colors.qualitative.Pastel1+px.colors.qualitative.Vivid+px.colors.qualitative.Set1
+random.shuffle(mycolors)
 
 # print(myteam_df.head())
 
