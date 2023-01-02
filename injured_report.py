@@ -12,7 +12,7 @@ from mysql.connector import Error
 exec(open('/Users/franciscoavalosjr/Desktop/basketball-creds.py').read())
 
 out_players=[
-# 'https://www.rotowire.com/basketball/player/dangelo-russell-3708'
+'https://www.rotowire.com/basketball/player/dangelo-russell-3708',
 # 'https://www.rotowire.com/basketball/player/tyrese-haliburton-5114',
 # # 'https://www.rotowire.com/basketball/player/jarrett-allen-4122',
 # 'https://www.rotowire.com/basketball/player/norman-powell-3726',
