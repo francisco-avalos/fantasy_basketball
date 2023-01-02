@@ -15,12 +15,15 @@ out_players=[
 # 'https://www.rotowire.com/basketball/player/dangelo-russell-3708'
 # 'https://www.rotowire.com/basketball/player/tyrese-haliburton-5114',
 # # 'https://www.rotowire.com/basketball/player/jarrett-allen-4122',
-'https://www.rotowire.com/basketball/player/norman-powell-3726',
-# 'https://www.rotowire.com/basketball/player/deandre-hunter-4776',
+# 'https://www.rotowire.com/basketball/player/norman-powell-3726',
+ 'https://www.rotowire.com/basketball/player/deandre-hunter-4776',
 # 'https://www.rotowire.com/basketball/player/tj-mcconnell-3760',
-# 'https://www.rotowire.com/basketball/player/jimmy-butler-3231',
-'https://www.rotowire.com/basketball/player/gary-trent-4433',
-'https://www.rotowire.com/basketball/player/anthony-davis-3297'
+'https://www.rotowire.com/basketball/player/jimmy-butler-3231',
+# 'https://www.rotowire.com/basketball/player/gary-trent-4433',
+'https://www.rotowire.com/basketball/player/anthony-davis-3297',
+'https://www.rotowire.com/basketball/player/jrue-holiday-3029',
+'https://www.rotowire.com/basketball/player/rj-barrett-4767',
+'https://www.rotowire.com/basketball/player/moritz-wagner-4389'
 # 'https://www.rotowire.com/basketball/player/jrue-holiday-3029'
 ]
 
