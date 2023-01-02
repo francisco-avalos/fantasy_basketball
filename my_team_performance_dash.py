@@ -99,6 +99,49 @@ myteam_df=myteam_df.drop(249)
 myteam_df=myteam_df.drop(255)
 
 
+connection=mysql.connect(host=sports_db_admin_host,
+                        database=sports_db_admin_db,
+                        user=sports_db_admin_user,
+                        password=sports_db_admin_pw,
+                        port=sports_db_admin_port)
+
+myteam=league.teams[11]
+my_players=clean_string(myteam.roster).split(',')
+
+main_df=pd.DataFrame()
+if connection.is_connected():
+    for p in my_players:
+        cursor=connection.cursor()
+        p=remove_name_suffixes(p)
+        p=p.strip()
+        qry=f"""
+            SELECT
+                name,
+                team,
+                TSCHED.*
+            FROM basketball.my_team_stats MTS
+            JOIN basketball.high_level_nba_team_schedules TSCHED ON MTS.team = TSCHED.away_team OR MTS.team = TSCHED.home_team
+            JOIN basketball.calendar CAL ON DATE(SUBDATE(CAST(TSCHED.start_time AS DATETIME), INTERVAL 8 HOUR)) = CAL.day
+            WHERE MTS.name LIKE CONCAT("%", "{p}","%")
+                AND CURDATE() BETWEEN CAL.week_starting_monday AND CAL.week_ending_sunday
+            GROUP BY MTS.name, TSCHED.start_time;"""
+        cursor.execute(qry)
+        myteam_df1=cursor.fetchall()
+        myteam_df1=pd.DataFrame(myteam_df1, columns=cursor.column_names)
+        main_df=pd.concat([main_df, myteam_df1])
+
+
+aggregate=main_df.groupby(['name']).start_time.nunique()
+aggregate=aggregate.reset_index()
+aggregate.columns=['name', 'games_this_week']
+aggregate=aggregate.sort_values(['games_this_week', 'name'], ascending=False)
+
+if(connection.is_connected()):
+    cursor.close()
+    connection.close()
+    print('Script finished - MySQL connection is closed')
+else:
+    print('MySQL already closed')
 
 
 
@@ -504,6 +547,21 @@ app.layout=dbc.Container(
                     # width={'size':1, 'order':'last'}
                 )
 
+            ]
+        ),
+        dbc.Row(
+            [
+                dbc.Col(
+                    [
+                        html.H2('Games expected this week by players'),
+                        dash_table.DataTable(data=aggregate.to_dict('records'),
+                                                    columns=[{"name": i, "id": i} for i in aggregate.columns],
+                                                    style_cell=dict(textAlign='left'),
+                                                    style_header=dict(backgroundColor="paleturquoise")
+                        )
+                    ],
+                    md=4
+                )
             ]
         )
     ]

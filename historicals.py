@@ -79,19 +79,36 @@ try:
         max_date=return_date.iloc[0,0].strftime('%Y-%m-%d')
         print(f'not starting from scratch... starting from after {max_date}')
         # season_parsed=basketball_seasons[basketball_seasons['start']>max_date]
-        season_parsed=basketball_seasons[basketball_seasons['start']>=latest_season_date.iloc[0]['backfill_since_current_season_begins']].copy()
+
+        # print('basketball_seasons::\n',basketball_seasons)
+        # print('latest_season_date::\n',latest_season_date)
+
+        # season_parsed=basketball_seasons[basketball_seasons['start']>=latest_season_date.iloc[0]['backfill_since_current_season_begins']].copy()
+        season_parsed=basketball_seasons[(basketball_seasons['start']<=latest_season_date.iloc[0]['backfill_since_current_season_begins']) &
+                                            (basketball_seasons['end']>=latest_season_date.iloc[0]['backfill_since_current_season_begins'])].copy()
+        # print('season_parsed::',season_parsed)
+
+
+        # print('season_parsed::',season_parsed)
+        # print('max_date::',max_date)
+        # print('latest_season_date::', latest_season_date)
+        # print(basketball_seasons.head(100))
+        # print(season_parsed.head())
+        # print(max_date)
         # season_parsed=season_parsed[season_parsed['start']<'2019-10-22'] # doing covid season manually
 
         #use below 2 lines for runinng covid season
         # del basketball_seasons['start'], basketball_seasons['end']
         # basketball_seasons.dropna(how='all', inplace=True)
         # season_parsed=basketball_seasons.copy(deep=True)
-
+        # print('im here')
+        # print('this here:: ',latest_season_date.loc[0,'backfill_since_current_season_latest_data_entry'])
+        # print('season_parsed:: ', season_parsed)
         season_parsed.loc[-1:,'start']=latest_season_date.loc[0,'backfill_since_current_season_latest_data_entry']
         today=datetime.today()
         today=pd.to_datetime(today)
         season_parsed.loc[-1:,'end']=today
-
+        # print('season_parsed::',season_parsed)
         n=2
         # for i in season_parsed.index:
         for i in season_parsed.index:
@@ -105,10 +122,14 @@ try:
             season='20'+str(season_year_start)[length-n:]+'-'+str(season_year_end)[length-n:]
             day_range=pd.date_range(start=season_parsed.loc[i,'start'], end=season_parsed.loc[i,'end'])
             # day_range=pd.date_range(start=season_parsed.loc[i,'special_start'], end=season_parsed.loc[i,'special_end'])
+            # print('im here::',day_range)
             for day in day_range:
                 year=int(day.year)
                 month=int(day.month)
                 date=int(day.day)
+                # print('year: ', year)
+                # print('month: ', month)
+                # print('date: ', date)
                 try:
                     p=client.player_box_scores(day=date,month=month,year=year)
                     p=pd.DataFrame(p)
