@@ -20,7 +20,11 @@ if run_fa=='yes':
 	try:
 		print('Begin full list now... \n')
 		for script in full_list:
+			start_time=time.perf_counter()
 			call(['python', script])
+			end_time=time.perf_counter()
+            lapsed_time_min=(end_time-start_time)/60
+            print(f'{script} took {lapsed_time_min:.02f} minutes to obtain')
 			chime.success()
 			print('Finished executing - ', script, '\n')
 		chime.theme('zelda')
@@ -32,7 +36,11 @@ elif run_fa=='no':
 	try:
 		print('Begin small list now... \n')
 		for script in small_list:
+			start_time=time.perf_counter()
 			call(['python', script])
+			end_time=time.perf_counter()
+            lapsed_time_min=(end_time-start_time)/60
+            print(f'{script} took {lapsed_time_min:.02f} minutes to obtain')
 			chime.success()
 			print('Finished executing - ', script, '\n')
 		chime.theme('zelda')
