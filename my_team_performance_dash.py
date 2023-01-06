@@ -98,6 +98,24 @@ myteam_df=myteam_df.drop(235)
 myteam_df=myteam_df.drop(249)
 myteam_df=myteam_df.drop(255)
 
+myteam_df=myteam_df.drop(381) # shake milton
+myteam_df=myteam_df.drop(402) # duane washington
+myteam_df=myteam_df.drop(409) # duane washington
+myteam_df=myteam_df.drop(394) # quentin grimes
+myteam_df=myteam_df.drop(401) # moritz wagner
+myteam_df=myteam_df.drop(408) # moritz wagner
+myteam_df=myteam_df.drop(405) # patty mills
+
+myteam_df=myteam_df.drop(414) # immanuel quickley
+myteam_df=myteam_df.drop(443) # Alec burks
+# print(myteam_df.tail(15))
+
+# myteam_df=myteam_df.drop(414)
+# myteam_df=myteam_df.drop(426)
+
+# print(myteam_df[myteam_df['name']=='Immanuel Quickley'])
+# print(myteam_df.tail(50))
+
 
 connection=mysql.connect(host=sports_db_admin_host,
                         database=sports_db_admin_db,
