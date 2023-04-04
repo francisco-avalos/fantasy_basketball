@@ -116,34 +116,35 @@
 ########################################################################################################################
 
 -- DROP TABLE IF EXISTS basketball.live_free_agents;
--- CREATE TABLE basketball.live_free_agents
--- (
---   `name` varchar(100) NOT NULL,
---   `date` date NOT NULL,
---   `team` varchar(100) NOT NULL,
---   `location` varchar(100) NOT NULL,
---   `opponent` varchar(100) NOT NULL,
---   `outcome` varchar(100) NOT NULL, 
---   `active` varchar(50) NOT NULL,
---   `seconds_played` int DEFAULT NULL,
---   `made_field_goals` int DEFAULT NULL,
---   `attempted_field_goals` int DEFAULT NULL,
---   `made_three_point_field_goals` int DEFAULT NULL,
---   `attempted_three_point_field_goals` int DEFAULT NULL,
---   `made_free_throws` int DEFAULT NULL,
---   `attempted_free_throws` int DEFAULT NULL,
---   `offensive_rebounds` int DEFAULT NULL,
---   `defensive_rebounds` int DEFAULT NULL,
---   `assists` int DEFAULT NULL,
---   `steals` int DEFAULT NULL,
---   `blocks` int DEFAULT NULL,
---   `turnovers` int DEFAULT NULL,
---   `personal_fouls` int DEFAULT NULL,
---   `points_scored` int DEFAULT NULL,
---   `game_score` decimal(10,2) DEFAULT NULL,
---   `plus_minus` int signed DEFAULT NULL,
---   PRIMARY KEY (`name`, `date`)
--- );
+--CREATE TABLE basketball.live_free_agents (
+--  `name` varchar(100) NOT NULL,
+--  `date` date NOT NULL,
+--  `team` varchar(100) NOT NULL,
+--  `location` varchar(100) NOT NULL,
+--  `opponent` varchar(100) NOT NULL,
+--  `outcome` varchar(100) NOT NULL,
+--  `active` varchar(50) NOT NULL,
+--  `seconds_played` int DEFAULT NULL,
+--  `made_field_goals` int DEFAULT NULL,
+--  `attempted_field_goals` int DEFAULT NULL,
+--  `made_three_point_field_goals` int DEFAULT NULL,
+--  `attempted_three_point_field_goals` int DEFAULT NULL,
+--  `made_free_throws` int DEFAULT NULL,
+--  `attempted_free_throws` int DEFAULT NULL,
+--  `offensive_rebounds` int DEFAULT NULL,
+--  `defensive_rebounds` int DEFAULT NULL,
+--  `assists` int DEFAULT NULL,
+--  `steals` int DEFAULT NULL,
+--  `blocks` int DEFAULT NULL,
+--  `turnovers` int DEFAULT NULL,
+--  `personal_fouls` int DEFAULT NULL,
+--  `points_scored` int DEFAULT NULL,
+--  `game_score` decimal(10,2) DEFAULT NULL,
+--  `plus_minus` int DEFAULT NULL,
+--  `name_code` VARCHAR(75),
+--  PRIMARY KEY (`name`,`date`,`team`,`name_code`)
+--) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+--;
 
 
 ########################################################################################################################
