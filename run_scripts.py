@@ -8,12 +8,12 @@ from subprocess import call
 
 chime.theme('mario')
 small_list=['advanced_stats.py', 'high_level_nba_team_schedules.py',
-				'high_level_nba_team_stats.py', 'my_team_stats.py'
-				# 'historicals.py'
+				'high_level_nba_team_stats.py', 'my_team_stats.py',
+				'historicals.py'
 				]
 full_list=['advanced_stats.py', 'high_level_nba_team_schedules.py',
 				'high_level_nba_team_stats.py', 'my_team_stats.py',
-				# 'historicals.py',
+				'historicals.py',
 				'free_agents_backfill.py']
 
 run_fa = input('Execute Free Agents Script?(yes/no) - ')
