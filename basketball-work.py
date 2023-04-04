@@ -54,16 +54,32 @@ league=League(league_id=leagueid,
 # 	score_results=remove_matchup_string(score_results)
 # 	print(score_results)
 
+# Error while connecting to MySQL 1062 (23000): Duplicate entry 'Justin Jackson-2022-10-24-Team.BOSTON_CELTICS-jacksju01' for key 'live_free_agents.PRIMARY'
+
+name_code='jacksju01'
+name_code_list=[name_code]
+df=client.regular_season_player_box_scores(
+    player_identifier=name_code, 
+    season_end_year=2023
+)
+df=pd.DataFrame(df)
+print(df)
+
+# print(df.head())
+# print(df.shape)
+# name_code_list=[name_code] * df.shape[0]
+
+# print(name_code_list)
 
 
-print(league.recent_activity(size=10))
-act=league.recent_activity(size=10)
-for activity in act:
-	activity=str(activity)
-	activity=remove_team_string(activity)
-	activity=remove_matchup_string(activity)
-	activity=clean_string(activity)
-	print(activity)
+# print(league.recent_activity(size=10))
+# act=league.recent_activity(size=10)
+# for activity in act:
+# 	activity=str(activity)
+# 	activity=remove_team_string(activity)
+# 	activity=remove_matchup_string(activity)
+# 	activity=clean_string(activity)
+# 	print(activity)
 
 
 
@@ -212,11 +228,11 @@ for activity in act:
 # ###################################################
 
 
-p=client.player_box_scores(day=21,month=12,year=2022)
-# print(type(p))
-df=pd.DataFrame(p)
-# df=df[df['name']=='Anthony Davis']
-print(df.head())
+# p=client.player_box_scores(day=21,month=12,year=2022)
+# # print(type(p))
+# df=pd.DataFrame(p)
+# # df=df[df['name']=='Anthony Davis']
+# print(df.head())
 
 
 
