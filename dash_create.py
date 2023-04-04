@@ -30,7 +30,7 @@ if connection.is_connected():
 
 if connection.is_connected():
     cursor=connection.cursor()
-    cursor.execute('SELECT * FROM basketball.live_free_agents;')
+    cursor.execute('SELECT * FROM basketball.live_free_agents WHERE seconds_played!=0;')
     fa_df=cursor.fetchall()
     fa_df=pd.DataFrame(fa_df, columns=cursor.column_names)
 
@@ -220,6 +220,7 @@ def graph_update(input_value, focus_field_value, calc_value, display_field, top_
         output.columns=imps
         output=output[display_field]
         output=output.sort_values(by=[focus_field_value],ascending=False).head(player_sample)
+
     else:
         output=df_query.groupby(['name'])[cols].agg(calc_value).reset_index().sort_values(by=[focus_field_value],ascending=False).head(player_sample)
         output.set_index(['name'], inplace=True, drop=True, append=False)
