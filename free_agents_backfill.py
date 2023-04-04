@@ -88,6 +88,8 @@ try:
 																		season_end_year=season_end_year)
 						df=pd.DataFrame(fa_output)
 						df.insert(0, 'name', fa)
+						name_code_list=[name_code] * df.shape[0]
+						df['name_code']=name_code_list
 						if not df.empty:
 							df['active']=df['active'].astype(bool)
 							main_free_agents_df=pd.concat([main_free_agents_df, df])
@@ -104,6 +106,8 @@ try:
 																		season_end_year=season_end_year)
 						df=pd.DataFrame(fa_output)
 						df.insert(0, 'name', fa)
+						name_code_list=[name_code] * df.shape[0]
+						df['name_code']=name_code_list
 						if not df.empty:
 							df['active']=df['active'].astype(bool)
 							main_free_agents_df=pd.concat([main_free_agents_df, df])
@@ -131,11 +135,18 @@ try:
 
 	if connection.is_connected():
 		cursor=connection.cursor()
-		cols="`,`".join([str(i) for i in main_free_agents_df.columns.tolist()])
-		for i,row in main_free_agents_df.iterrows():
-			sql='REPLACE INTO `live_free_agents` (`'+cols+'`) VALUES ('+'%s,'*(len(row)-1)+'%s)'
-			cursor.execute(sql, tuple(row))
-			connection.commit()
+		qry="REPLACE INTO live_free_agents VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+		my_data=[]
+		for idx, row in main_free_agents_df.iterrows():
+			my_data.append(tuple(row))
+		cursor.executemany(qry,my_data)
+		connection.commit()
+		del my_data, main_free_agents_df
+		# cols="`,`".join([str(i) for i in main_free_agents_df.columns.tolist()])
+		# for i,row in main_free_agents_df.iterrows():
+		# 	sql='REPLACE INTO `live_free_agents` (`'+cols+'`) VALUES ('+'%s,'*(len(row)-1)+'%s)'
+		# 	cursor.execute(sql, tuple(row))
+		# 	connection.commit()
 	print('live_free_agents table ready to analyze')
 	
 	export_non_shows_file=os.path.join(non_shows_path, 'non_shows_list.csv')
@@ -151,5 +162,11 @@ finally:
 		cursor.close()
 		connection.close()
 		print('Script finished - MySQL connection is closed')
+
+
+# Duplicate entry 'Justin Jackson-2022-10-24-Team.BOSTON_CELTICS-Location.AWAY' for key 'live_free_agents.PRIMARY
+
+
+
 
 
