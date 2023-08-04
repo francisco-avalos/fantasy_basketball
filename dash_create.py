@@ -107,13 +107,15 @@ def player_stats():
 
 app=dash.Dash()
 
+server = app.server
+
 app.layout=html.Div(children=[html.H1(children='Free Agent Analysis Helper Tool',
                                         style={'textAlign':'center'}),
                               html.Div(children='Analysis tool to screen potential star players',
                                         style={'textAlign':'center', 'color':'red'}), 
                              dcc.Graph(figure=player_stats(), id='line_plot'),
                               'How many days back?',
-                              dcc.Input(id='my_input', value=7, type='integer'),
+                              dcc.Input(id='my_input', value=365, type='integer'),
                               'Focus Field\n',
                              html.Div(dcc.Dropdown(id='dropdown',
                                          options=[{'label':'Made Field Goals','value':'made_field_goals'},
@@ -129,7 +131,7 @@ app.layout=html.Div(children=[html.H1(children='Free Agent Analysis Helper Tool'
                                                   {'label':'Personal Fouls','value':'personal_fouls'},
                                                   {'label':'Points','value':'points_scored'},
                                                   {'label':'Minutes Played','value':'minutes_played'}],
-                                         value='made_field_goals')),
+                                         value='points_scored')),
 
                              # dcc.Dropdown(id='dropdown',
                              #             options=[{'label':'Made Field Goals','value':'made_field_goals'},
@@ -152,7 +154,7 @@ app.layout=html.Div(children=[html.H1(children='Free Agent Analysis Helper Tool'
                                                    {'label':'Average(non-weighted))', 'value':'mean'},
                                                    {'label':'Weighted Average', 'value':'weights'},
                                                    {'label':'Standard Deviation', 'value':'std'}],
-                                          value='sum'),
+                                          value='weights'),
                               'Fields to display',
                              dcc.Checklist(id='displayed_fields', 
                                            options=['made_field_goals', 'made_three_point_field_goals',
@@ -161,8 +163,8 @@ app.layout=html.Div(children=[html.H1(children='Free Agent Analysis Helper Tool'
                                                     'turnovers', 'personal_fouls', 'points_scored', 'minutes_played'],
                                           value=['made_field_goals', 'made_three_point_field_goals',
                                                     'made_free_throws','total_rebounds', 'offensive_rebounds', 
-                                                    'defensive_rebounds', 'assists','steals', 'blocks', 
-                                                    'turnovers', 'personal_fouls']),
+                                                    'assists','steals', 'blocks', 
+                                                    'turnovers', 'points_scored']),
                               'Number of players',
                              dcc.Input(id='top_n', value=5, type='integer'),
                              'player_checklist',
