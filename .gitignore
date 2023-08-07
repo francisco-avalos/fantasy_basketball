@@ -7,3 +7,7 @@ ipynb_checkpoints/dashboard set up-checkpoint.ipynb
 Basketball Analysis.ipynb
 .ipynb_checkpoints/Basketball Analysis-checkpoint.ipynb
 non_shows_list.csv
+venv
+*.pyc
+.DS_Store
+.env
