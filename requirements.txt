@@ -1,4 +1,7 @@
 alabaster==0.7.12
+anaconda-client==1.7.2
+anaconda-navigator==1.9.12
+anaconda-project==0.8.3
 appnope==0.1.0
 appscript==1.0.1
 asn1crypto==1.0.1
@@ -29,7 +32,12 @@ Click==7.0
 click-plugins==1.1.1
 cligj==0.5.0
 cloudpickle==1.2.2
+clyent==1.2.2
 colorama==0.4.1
+conda==4.8.3
+conda-build==3.18.9
+conda-package-handling==1.6.0
+conda-verify==3.4.2
 constantly==15.1.0
 contextlib2==0.6.0
 cryptography==2.7
