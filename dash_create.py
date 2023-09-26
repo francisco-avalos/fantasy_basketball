@@ -14,6 +14,7 @@ import datetime as dt
 
 exec(open('/Users/franciscoavalosjr/Desktop/basketball-creds.py').read())
 
+
 connection=mysql.connect(host=sports_db_admin_host,
                         database=sports_db_admin_db,
                         user=sports_db_admin_user,
@@ -64,7 +65,7 @@ cols=['made_field_goals', 'made_three_point_field_goals','made_free_throws',
 focus_value='made_field_goals'
 calc='mean'
 player_sample=20
-days_ago=7
+days_ago=700
 
 today=dt.date.today()
 days_back=today-dt.timedelta(days=days_ago)
@@ -74,6 +75,7 @@ days_back=today-dt.timedelta(days=days_ago)
 # sn.set(rc={'figure.figsize':(15,8)})
 
 df_query=fa_df.query("date >= @days_back")
+
 output=df_query.groupby(['name'])[cols].agg(calc).reset_index().sort_values(by=[focus_value],ascending=False).head(player_sample)
 
 output.set_index(['name'], inplace=True, drop=True, append=False)
