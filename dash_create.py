@@ -1,3 +1,4 @@
+import os
 import dash
 from dash import dcc
 from dash import html
@@ -12,7 +13,14 @@ import datetime as dt
 
 
 
-exec(open('/Users/franciscoavalosjr/Desktop/basketball-creds.py').read())
+# exec(open('/Users/franciscoavalosjr/Desktop/basketball-creds.py').read())
+
+
+sports_db_admin_host=os.environ.get('basketball_host')
+sports_db_admin_db=os.environ.get('basketball_db')
+sports_db_admin_user=os.environ.get('basketball_user')
+sports_db_admin_pw=os.environ.get('basketball_pw')
+sports_db_admin_port=os.environ.get('basketball_port')
 
 
 connection=mysql.connect(host=sports_db_admin_host,
