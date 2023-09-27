@@ -36,7 +36,7 @@ contextlib2==0.6.0
 cryptography==2.7
 cssselect==1.1.0
 cycler==0.10.0
-Cython==0.29.13
+Cython>=0.29.24
 cytoolz==0.10.0
 dask==2.5.2
 decorator==4.4.0
