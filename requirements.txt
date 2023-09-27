@@ -36,7 +36,7 @@ contextlib2==0.6.0
 cryptography==2.7
 cssselect==1.1.0
 cycler==0.10.0
-Cython>=0.29.24
+Cython==0.29.13
 cytoolz==0.10.0
 dask==2.5.2
 decorator==4.4.0
@@ -48,7 +48,6 @@ entrypoints==0.3
 et-xmlfile==1.0.1
 fastcache==1.1.0
 filelock==3.8.0
-Fiona==1.8.17
 Flask==1.1.1
 fsspec==0.5.2
 future==0.17.1
@@ -138,6 +137,7 @@ pep8==1.7.1
 pexpect==4.7.0
 pickleshare==0.7.5
 Pillow==6.2.0
+pipdeptree==2.9.6
 pkginfo==1.5.0.1
 platformdirs==2.5.2
 plotly==4.9.0
