@@ -95,9 +95,14 @@ BEGIN
 -- 	  INDEX (start_health_cycle_team, end_health_cycle_team, unhealthy1, unhealthy2, unhealthy3, unhealthy4, unhealthy5)
 -- 	);
 
+
+	
 	DROP TEMPORARY TABLE IF EXISTS basketball.players_cycler;
     CREATE TEMPORARY TABLE basketball.players_cycler
-    (p_name VARCHAR(150), PRIMARY KEY (p_name));
+    (	
+    	p_name VARCHAR(150), 
+   		PRIMARY KEY (p_name)
+   	);
     
     REPLACE INTO basketball.players_cycler
 	SELECT DISTINCT p_name
@@ -107,14 +112,14 @@ BEGIN
 				acquired AS p_name
 			FROM basketball.hist_player_inj
 			WHERE acquired!=''
--- 				AND acquired = 'Erick Dampier'
+				AND acquired = 'Erick Dampier'
 			GROUP BY p_name
 			UNION ALL
 			SELECT 
 				relinquished AS p_name
 			FROM basketball.hist_player_inj
 			WHERE relinquished!=''
--- 				AND relinquished = 'Erick Dampier'
+				AND relinquished = 'Erick Dampier'
 			GROUP BY p_name
 		) X
 	WHERE p_name NOT IN (' and to complete 5 days of a work program run by the sheriff''s office"',
@@ -132,6 +137,7 @@ BEGIN
                         'strained left quadriceps (DTD)',
                         'v'
 	)
+	
 	ORDER BY p_name;
 --     DELETE FROM basketball.players_cycler WHERE p_name = 'Adonal Foyle';
     SET @name = (SELECT MIN(p_name) FROM basketball.players_cycler);
@@ -154,7 +160,10 @@ BEGIN
     WHILE @name IS NOT NULL DO
 		DROP TEMPORARY TABLE IF EXISTS basketball.unhealthy_date_only_DNP;
 		CREATE TEMPORARY TABLE basketball.unhealthy_date_only_DNP
-		(`DAY` date, PRIMARY KEY (DAY));
+		(
+			`DAY` date, 
+			PRIMARY KEY (DAY)
+		);
         REPLACE INTO basketball.unhealthy_date_only_DNP
 		SELECT DISTINCT DAY
 		FROM basketball.hist_player_inj
@@ -223,31 +232,45 @@ BEGIN
         # end of DNP cut
 		DROP TEMPORARY TABLE IF EXISTS basketball.healthy_date_cycles_excl_DNP;
 		CREATE TEMPORARY TABLE basketball.healthy_date_cycles_excl_DNP
-		(`DAY` date, PRIMARY KEY (DAY));
+		(
+			`DAY` DATE,
+			PRIMARY KEY (DAY)
+		);
         REPLACE INTO basketball.healthy_date_cycles_excl_DNP
-		SELECT DISTINCT DAY
-		FROM basketball.hist_player_inj
-        WHERE acquired IN (@name)
+		SELECT DISTINCT A.DAY
+		FROM basketball.hist_player_inj A
+        WHERE A.acquired IN (@name)
 			AND TRIM(BOTH '"' FROM notes) NOT LIKE 'fined %'
 			AND TRIM(BOTH '"' FROM notes) NOT LIKE '% fined %'
 			AND TRIM(BOTH '"' FROM notes) NOT LIKE '%suspen%'
 			AND TRIM(BOTH '"' FROM notes) NOT LIKE '%DNP%'
-			AND day NOT BETWEEN LAST_DAY(DATE_FORMAT(day, '%Y-04-%d')) AND LAST_DAY(DATE_FORMAT(day, '%Y-09-%d')) # in season only
+			AND A.day NOT BETWEEN LAST_DAY(DATE_FORMAT(A.day, '%Y-04-%d')) AND LAST_DAY(DATE_FORMAT(A.day, '%Y-09-%d')) 
 		;
-		
--- 		DROP TEMPORARY TABLE IF EXISTS basketball.unhealthy_date_cycles_DNP;
--- 		CREATE TEMPORARY TABLE basketball.unhealthy_date_cycles_DNP
--- 		(`DAY` date, PRIMARY KEY (DAY));
---         REPLACE INTO basketball.unhealthy_date_cycles_DNP
--- 		SELECT DISTINCT DAY
--- 		FROM basketball.hist_player_inj
--- 		WHERE relinquished IN (@name)
--- 			AND TRIM(BOTH '"' FROM notes) NOT LIKE 'fined %'
--- 			AND TRIM(BOTH '"' FROM notes) NOT LIKE '% fined %'
--- 			AND TRIM(BOTH '"' FROM notes) NOT LIKE '%suspen%'
---             AND TRIM(BOTH '"' FROM notes) NOT LIKE '%DNP%'
---             AND ((MONTH(day) >= 10 AND DAY(day) >= 15) OR (MONTH(day) <= 4 AND DAY(day) <= 20)) # in season
---         ;
+		DROP TEMPORARY TABLE IF EXISTS basketball.unhealthy_date_cycles_DNP;
+		CREATE TEMPORARY TABLE basketball.unhealthy_date_cycles_DNP
+		(`DAY` date, PRIMARY KEY (DAY));
+        REPLACE INTO basketball.unhealthy_date_cycles_DNP
+		SELECT DISTINCT DAY
+		FROM basketball.hist_player_inj A
+		WHERE relinquished IN (@name)
+			AND TRIM(BOTH '"' FROM notes) NOT LIKE 'fined %'
+			AND TRIM(BOTH '"' FROM notes) NOT LIKE '% fined %'
+			AND TRIM(BOTH '"' FROM notes) NOT LIKE '%suspen%'
+            AND TRIM(BOTH '"' FROM notes) NOT LIKE '%DNP%'
+            AND TRIM(BOTH '"' FROM notes) NOT LIKE 'suspended % game%'
+            AND A.day NOT BETWEEN LAST_DAY(DATE_FORMAT(A.day, '%Y-04-%d')) AND LAST_DAY(DATE_FORMAT(A.day, '%Y-09-%d')) 
+        ;
+
+--         SELECT * FROM basketball.healthy_date_cycles_excl_DNP LIMIT 100;
+        SET @first_healthy_date := (SELECT MIN(day) FROM basketball.healthy_date_cycles_excl_DNP);
+        SET @first_unhealthy_date := (SELECT MIN(day) FROM basketball.unhealthy_date_cycles_DNP);
+--         SELECT @first_unhealthy_date;
+
+-- 		SELECT * FROM basketball.healthy_date_cycles_excl_DNP;
+        DELETE FROM basketball.healthy_date_cycles_excl_DNP
+        WHERE DAY = CASE WHEN @first_healthy_date < @first_unhealthy_date THEN @first_healthy_date ELSE NULL END;
+--         SELECT * FROM basketball.healthy_date_cycles_excl_DNP;
+
 
         # initiate health cycle walk day range
 		SET @next_day := (SELECT MIN(day) FROM basketball.healthy_date_cycles_excl_DNP);
@@ -258,7 +281,8 @@ BEGIN
                             WHEN MONTH(@next_day) IN (1,2,3,4) THEN CONCAT(YEAR(@next_day)-1, '-10-15')
 						END);
 		# im here - ensure @name data pulled doesn't start off with a 'acquired' entry. if so, delete it.
--- 		SELECT * FROM basketball.healthy_date_cycles_excl_DNP;
+        SELECT @next_day;
+        SELECT @prev_day;
 
 		WHILE @next_day IS NOT NULL DO
 			REPLACE INTO basketball.player_inj_cycles_prefinal
