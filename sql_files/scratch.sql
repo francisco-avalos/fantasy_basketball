@@ -68,42 +68,36 @@ DELIMITER $$
 
 CREATE PROCEDURE basketball.health_cycle_backfill_proc()
 BEGIN
--- 	SET @start_of_current_season := (SELECT MIN(date) AS start_of_current_season FROM basketball.historical_season_dates_RetroSheet WHERE YEAR(date) = YEAR(CURDATE()));
---     SET @twelve_months_back := (SELECT DATE_FORMAT(SUBDATE(CURDATE(), INTERVAL 12 MONTH), '%Y-%m-01'));
---     SELECT @twelve_months_back;
 
--- 	DROP TABLE IF EXISTS basketball.player_inj_cycles_prefinal;
--- 	CREATE TABLE basketball.player_inj_cycles_prefinal
--- 	(
--- 	  `player_name` VARCHAR(50),
--- 	  `start_health_cycle_team` VARCHAR(50),
--- 	  `end_health_cycle_team` VARCHAR(50),
--- 	  `unhealthy1` date DEFAULT NULL,
--- 	  `first_unhealthy_day_notes` varchar(150) DEFAULT NULL,
--- 	  `unhealthy2` date DEFAULT NULL,
--- 	  `second_unhealthy_day_notes` varchar(150) DEFAULT NULL,
--- 	  `unhealthy3` date DEFAULT NULL,
--- 	  `third_unhealthy_day_notes` varchar(150) DEFAULT NULL,
--- 	  `unhealthy4` date DEFAULT NULL,
--- 	  `fourth_unhealthy_day_notes` varchar(150) DEFAULT NULL,
--- 	  `unhealthy5` date DEFAULT NULL,
--- 	  `fifth_unhealthy_day_notes` varchar(150) DEFAULT NULL,
--- 	  `healthy` date,
--- 	  `healthy_notes` varchar(150) DEFAULT NULL,
--- 	  `days_to_recovery` int DEFAULT NULL,
--- 	  PRIMARY KEY (player_name, healthy),
--- 	  INDEX (start_health_cycle_team, end_health_cycle_team, unhealthy1, unhealthy2, unhealthy3, unhealthy4, unhealthy5)
--- 	);
+	DROP TABLE IF EXISTS basketball.player_inj_cycles_prefinal;
+	CREATE TABLE basketball.player_inj_cycles_prefinal
+	(
+	  `player_name` VARCHAR(50),
+	  `start_health_cycle_team` VARCHAR(50),
+	  `end_health_cycle_team` VARCHAR(50),
+	  `unhealthy1` date DEFAULT NULL,
+	  `first_unhealthy_day_notes` varchar(150) DEFAULT NULL,
+	  `unhealthy2` date DEFAULT NULL,
+	  `second_unhealthy_day_notes` varchar(150) DEFAULT NULL,
+	  `unhealthy3` date DEFAULT NULL,
+	  `third_unhealthy_day_notes` varchar(150) DEFAULT NULL,
+	  `unhealthy4` date DEFAULT NULL,
+	  `fourth_unhealthy_day_notes` varchar(150) DEFAULT NULL,
+	  `unhealthy5` date DEFAULT NULL,
+	  `fifth_unhealthy_day_notes` varchar(150) DEFAULT NULL,
+	  `healthy` date,
+	  `healthy_notes` varchar(150) DEFAULT NULL,
+	  `days_to_recovery` int DEFAULT NULL,
+	  PRIMARY KEY (player_name, healthy),
+	  INDEX (start_health_cycle_team, end_health_cycle_team, unhealthy1, unhealthy2, unhealthy3, unhealthy4, unhealthy5)
+	);
 
-
-	
 	DROP TEMPORARY TABLE IF EXISTS basketball.players_cycler;
     CREATE TEMPORARY TABLE basketball.players_cycler
     (	
     	p_name VARCHAR(150), 
    		PRIMARY KEY (p_name)
    	);
-    
     REPLACE INTO basketball.players_cycler
 	SELECT DISTINCT p_name
 	FROM 
@@ -112,14 +106,14 @@ BEGIN
 				acquired AS p_name
 			FROM basketball.hist_player_inj
 			WHERE acquired!=''
-				AND acquired = 'Erick Dampier'
+				AND acquired = 'Dwight Howard'
 			GROUP BY p_name
 			UNION ALL
 			SELECT 
 				relinquished AS p_name
 			FROM basketball.hist_player_inj
 			WHERE relinquished!=''
-				AND relinquished = 'Erick Dampier'
+				AND relinquished = 'Dwight Howard'
 			GROUP BY p_name
 		) X
 	WHERE p_name NOT IN (' and to complete 5 days of a work program run by the sheriff''s office"',
@@ -135,14 +129,12 @@ BEGIN
                         'placed on IL with surgery on right knee',
                         'placed on IL with torn labrum in right hip',
                         'strained left quadriceps (DTD)',
-                        'v'
-	)
-	
+                        'v')
 	ORDER BY p_name;
---     DELETE FROM basketball.players_cycler WHERE p_name = 'Adonal Foyle';
     SET @name = (SELECT MIN(p_name) FROM basketball.players_cycler);
 --     SET @name := 'Aaron Boone';
-
+	
+    ########### DNP ANALYSIS START
 	DROP TABLE IF EXISTS basketball.unhealthy_date_only_DNP_expanded;
 	CREATE TABLE basketball.unhealthy_date_only_DNP_expanded
 	(
@@ -160,10 +152,8 @@ BEGIN
     WHILE @name IS NOT NULL DO
 		DROP TEMPORARY TABLE IF EXISTS basketball.unhealthy_date_only_DNP;
 		CREATE TEMPORARY TABLE basketball.unhealthy_date_only_DNP
-		(
-			`DAY` date, 
-			PRIMARY KEY (DAY)
-		);
+		(`DAY` date, PRIMARY KEY (DAY));
+        
         REPLACE INTO basketball.unhealthy_date_only_DNP
 		SELECT DISTINCT DAY
 		FROM basketball.hist_player_inj
@@ -182,7 +172,7 @@ BEGIN
         SET @dnp_day2 := (SELECT MIN(day) FROM basketball.unhealthy_date_only_DNP WHERE day NOT IN (@dnp_day1));
         SET @prev_group := NULL;
         SET @group_num := 0;
-
+		
         WHILE @dnp_day1 IS NOT NULL AND @dnp_day2 IS NOT NULL DO
 			SET @prev_case := (SELECT SUBSTRING_INDEX(GROUP_CONCAT(notes1 ORDER BY day DESC SEPARATOR ';'), ';', 1) AS prev_notes FROM basketball.unhealthy_date_only_DNP_expanded WHERE name = @name);
             SET @prev_case_day := (SELECT SUBSTRING_INDEX(GROUP_CONCAT(day ORDER BY day DESC SEPARATOR ';'), ';', 1) AS prev_notes FROM basketball.unhealthy_date_only_DNP_expanded WHERE name = @name);
@@ -221,21 +211,16 @@ BEGIN
 			SET @dnp_day1 := (SELECT MIN(day) FROM basketball.unhealthy_date_only_DNP_COPY);
 			SET @dnp_day2 := (SELECT MIN(day) FROM basketball.unhealthy_date_only_DNP_COPY WHERE day NOT IN (@dnp_day1));
             SET @prev_group := @group_num;
---             SET @group_num := @group_num+1;
 		END WHILE;
-        DELETE FROM basketball.players_cycler WHERE p_name = @name;
-		SET @name = (SELECT MIN(p_name) FROM basketball.players_cycler);
         DROP TABLES IF EXISTS basketball.unhealthy_date_only_DNP_COPY, basketball.unhealthy_date_only_DNP;
-
-		
         
-        # end of DNP cut
+
+
+        ########### REGULAR HEALTH CYCLE START
 		DROP TEMPORARY TABLE IF EXISTS basketball.healthy_date_cycles_excl_DNP;
 		CREATE TEMPORARY TABLE basketball.healthy_date_cycles_excl_DNP
-		(
-			`DAY` DATE,
-			PRIMARY KEY (DAY)
-		);
+		(`DAY` DATE,PRIMARY KEY (DAY));
+        
         REPLACE INTO basketball.healthy_date_cycles_excl_DNP
 		SELECT DISTINCT A.DAY
 		FROM basketball.hist_player_inj A
@@ -244,12 +229,13 @@ BEGIN
 			AND TRIM(BOTH '"' FROM notes) NOT LIKE '% fined %'
 			AND TRIM(BOTH '"' FROM notes) NOT LIKE '%suspen%'
 			AND TRIM(BOTH '"' FROM notes) NOT LIKE '%DNP%'
-			AND A.day NOT BETWEEN LAST_DAY(DATE_FORMAT(A.day, '%Y-04-%d')) AND LAST_DAY(DATE_FORMAT(A.day, '%Y-09-%d')) 
+			AND A.day NOT BETWEEN LAST_DAY(DATE_FORMAT(A.day, '%Y-04-%d')) AND LAST_DAY(DATE_FORMAT(A.day, '%Y-09-%d')) # in season only
 		;
-		DROP TEMPORARY TABLE IF EXISTS basketball.unhealthy_date_cycles_DNP;
-		CREATE TEMPORARY TABLE basketball.unhealthy_date_cycles_DNP
+		DROP TEMPORARY TABLE IF EXISTS basketball.unhealthy_date_cycles_excl_DNP;
+		CREATE TEMPORARY TABLE basketball.unhealthy_date_cycles_excl_DNP
 		(`DAY` date, PRIMARY KEY (DAY));
-        REPLACE INTO basketball.unhealthy_date_cycles_DNP
+        
+        REPLACE INTO basketball.unhealthy_date_cycles_excl_DNP
 		SELECT DISTINCT DAY
 		FROM basketball.hist_player_inj A
 		WHERE relinquished IN (@name)
@@ -258,31 +244,37 @@ BEGIN
 			AND TRIM(BOTH '"' FROM notes) NOT LIKE '%suspen%'
             AND TRIM(BOTH '"' FROM notes) NOT LIKE '%DNP%'
             AND TRIM(BOTH '"' FROM notes) NOT LIKE 'suspended % game%'
-            AND A.day NOT BETWEEN LAST_DAY(DATE_FORMAT(A.day, '%Y-04-%d')) AND LAST_DAY(DATE_FORMAT(A.day, '%Y-09-%d')) 
+            AND A.day NOT BETWEEN LAST_DAY(DATE_FORMAT(A.day, '%Y-04-%d')) AND LAST_DAY(DATE_FORMAT(A.day, '%Y-09-%d')) # in season only
         ;
 
---         SELECT * FROM basketball.healthy_date_cycles_excl_DNP LIMIT 100;
         SET @first_healthy_date := (SELECT MIN(day) FROM basketball.healthy_date_cycles_excl_DNP);
-        SET @first_unhealthy_date := (SELECT MIN(day) FROM basketball.unhealthy_date_cycles_DNP);
+        SET @first_unhealthy_date := (SELECT MIN(day) FROM basketball.unhealthy_date_cycles_excl_DNP);
 --         SELECT @first_unhealthy_date;
 
--- 		SELECT * FROM basketball.healthy_date_cycles_excl_DNP;
         DELETE FROM basketball.healthy_date_cycles_excl_DNP
         WHERE DAY = CASE WHEN @first_healthy_date < @first_unhealthy_date THEN @first_healthy_date ELSE NULL END;
---         SELECT * FROM basketball.healthy_date_cycles_excl_DNP;
-
-
-        # initiate health cycle walk day range
+		
 		SET @next_day := (SELECT MIN(day) FROM basketball.healthy_date_cycles_excl_DNP);
+--         SET @first_season_half := ();
+--         SET @second_season_half := ();
+        SET @first_unhealthy_date_of_season := (
+													SELECT 
+														MIN(day) AS in_season_out 
+													FROM basketball.unhealthy_date_cycles_excl_DNP
+                                                    WHERE day BETWEEN DATE_FORMAT(@next_day-INTERVAL 1 YEAR, '%Y-10-01') AND @next_day
+--                                                     WHERE day < @next_day
+-- 														AND day >= DATE_FORMAT(@next_day-INTERVAL 1 YEAR, '%Y-10-01')
+												);
 -- 		SET @prev_day := DATE_FORMAT(@next_day, '%Y-01-01');
 -- 		SET @prev_day := CONCAT(YEAR(@next_day)-1, '-10-15');
-        SET @prev_day := (CASE 
-							WHEN MONTH(@next_day) IN (10,11,12) THEN CONCAT(YEAR(@next_day), '-10-15')
-                            WHEN MONTH(@next_day) IN (1,2,3,4) THEN CONCAT(YEAR(@next_day)-1, '-10-15')
-						END);
+--         SET @prev_day := (CASE 
+-- 							WHEN MONTH(@next_day) IN (10,11,12) THEN CONCAT(YEAR(@next_day), '-10-15')
+--                             WHEN MONTH(@next_day) IN (1,2,3,4) THEN CONCAT(YEAR(@next_day)-1, '-10-15')
+-- 						END);
+		SET @prev_day := @first_unhealthy_date_of_season;
 		# im here - ensure @name data pulled doesn't start off with a 'acquired' entry. if so, delete it.
-        SELECT @next_day;
-        SELECT @prev_day;
+--         SELECT @next_day;
+--         SELECT @prev_day;
 
 		WHILE @next_day IS NOT NULL DO
 			REPLACE INTO basketball.player_inj_cycles_prefinal
@@ -398,7 +390,7 @@ BEGIN
 -- 								AND day > @prev_day 
 -- 								AND day <= @next_day
 								AND day BETWEEN @prev_day AND @next_day
-                                AND YEAR(B.day) = YEAR(@next_day)
+--                                 AND YEAR(B.day) = YEAR(@next_day)
 								AND TRIM(BOTH '"' FROM B.notes) NOT LIKE 'fined %'
 								AND TRIM(BOTH '"' FROM B.notes) NOT LIKE '% fined %'
 								AND TRIM(BOTH '"' FROM B.notes) NOT LIKE '%suspen%'
@@ -409,32 +401,45 @@ BEGIN
 				) MAIN
 			;
 
+            SELECT @next_day; # current healthy ending date
+            SELECT @prev_day; # current unhealthy starting date / previous health cycle ending date
+            SELECT @next_inj_day; # unhealthy starting datez
+            SELECT @in_season_comp_day; # unhealthy starting date
+            
 			SET @prev_day := @next_day;
-			DELETE FROM basketball.healthy_date_cycles_excl_DNP WHERE day = @next_day OR day < (CASE WHEN @next_day = DATE_FORMAT(@next_day, '%Y-12-31') THEN @next_day ELSE '1990-06-11' END);
---             DELETE FROM basketball.healthy_date_cycles_excl_DNP WHERE day = @next_day;
-			SET @next_day := (SELECT MIN(day) FROM basketball.healthy_date_cycles_excl_DNP);
---             SET @next_next_day := (SELECT MIN(day) FROM basketball.healthy_date_cycles_excl_DNP WHERE day > @next_day);
+			DELETE FROM basketball.healthy_date_cycles_excl_DNP WHERE day = @next_day; # THE FOLLOWING CODE IS SPECIFIC TO BASEBALL: OR day < (CASE WHEN @next_day = DATE_FORMAT(@next_day, '%Y-12-31') THEN @next_day ELSE '1990-06-11' END);
+
+			SET @next_day := (SELECT MIN(day) FROM basketball.healthy_date_cycles_excl_DNP); # first basketball-trial
+            SET @in_season_comp_day:= DATE_FORMAT(@next_day-INTERVAL 1 YEAR, '%Y-10-15');
+
             
             # check below for end of season injuries
-            DELETE FROM basketball.unhealthy_date_cycles_DNP WHERE day < @prev_day;
-            SET @next_inj_day := (SELECT MIN(day) FROM basketball.unhealthy_date_cycles_DNP);
---             SET @next_next_inj_day := (SELECT MIN(day) FROM basketball.unhealthy_date_cycles_DNP WHERE day > @next_inj_day);
+            DELETE FROM basketball.unhealthy_date_cycles_excl_DNP WHERE day < @prev_day;
+            SET @next_inj_day := (SELECT MIN(day) FROM basketball.unhealthy_date_cycles_excl_DNP WHERE DAY >= @in_season_comp_day);
+--             SET @next_next_inj_day := (SELECT MIN(day) FROM basketball.unhealthy_date_cycles_excl_DNP WHERE day > @next_inj_day);
             
-            SET @next_day := (SELECT CASE 
-										WHEN @next_day IS NULL THEN NULL                                         
+--             AND A.day NOT BETWEEN LAST_DAY(DATE_FORMAT(A.day, '%Y-04-%d')) AND LAST_DAY(DATE_FORMAT(A.day, '%Y-09-%d')) # in season only 
+            
+            SET @prev_day := (SELECT CASE 
+										WHEN @prev_day IS NULL THEN NULL                                         
 --                                         # activated with no apparent relinquish
 --                                         WHEN YEAR(@prev_day) = YEAR(@next_inj_day) AND @next_day BETWEEN @next_inj_day AND @next_next_inj_day THEN @next_next_day
 
                                         # end of season 
 --                                         WHEN YEAR(@next_inj_day) < YEAR(@next_day) THEN DATE_FORMAT(@next_inj_day, '%Y-12-31')
 --                                         WHEN YEAR(@next_inj_day) != YEAR(@next_day) THEN DATE_FORMAT(@prev_day, '%Y-12-31')
-                                        WHEN @next_inj_day BETWEEN @prev_day AND @next_day AND YEAR(@next_inj_day) = YEAR(@next_day) THEN @next_day
-                                        WHEN @next_inj_day BETWEEN @prev_day AND @next_day AND YEAR(@next_inj_day) != YEAR(@next_day) THEN DATE_FORMAT(@next_inj_day, '%Y-12-31')
-                                        ELSE @next_day 
+										## New logic for basketball
+                                        WHEN @next_inj_day > @prev_day 
+											AND @next_inj_day BETWEEN in_season_comp_day AND @next_day THEN @next_inj_day
+										## New logic for basketball
+--                                         WHEN @next_inj_day BETWEEN @prev_day AND @next_day AND YEAR(@next_inj_day) = YEAR(@next_day) THEN @next_day
+--                                         WHEN @next_inj_day BETWEEN @prev_day AND @next_day AND YEAR(@next_inj_day) != YEAR(@next_day) THEN DATE_FORMAT(@next_inj_day, '%Y-12-31')
+                                        ELSE @prev_day 
 									END);
 		END WHILE;
-        DELETE FROM basketball.players_cycler WHERE p_name IN (@name);
+        DELETE FROM basketball.players_cycler WHERE p_name = @name;
         SET @name = (SELECT MIN(p_name) FROM basketball.players_cycler);
+        ########### REGULAR HEALTH CYCLE END (BEFORE INSERTING INTO FINAL TABLE)
         
         REPLACE INTO basketball.player_injury_cycles
         SELECT
@@ -813,17 +818,19 @@ BEGIN
 -- 				ELSE ''
 -- 			END as personal_details_3
 ############
-		FROM player_inj_cycles_prefinal A;
+		FROM basketball.player_inj_cycles_prefinal A;
         TRUNCATE basketball.player_inj_cycles_prefinal;
 
 
 	END WHILE;
-    #DROP TABLES IF EXISTS basketball.healthy_date_cycles_excl_DNP, basketball.players_cycler, basketball.unhealthy_date_cycles_DNP,basketball.player_inj_cycles_prefinal;
+    #DROP TABLES IF EXISTS basketball.healthy_date_cycles_excl_DNP, basketball.players_cycler, basketball.unhealthy_date_cycles_excl_DNP,basketball.player_inj_cycles_prefinal;
 END $$
 DELIMITER ;
 
 CALL basketball.health_cycle_backfill_proc();
 
+
+/*
 
 SELECT 
 	name,
