@@ -401,10 +401,10 @@ BEGIN
 				) MAIN
 			;
 
-            SELECT @next_day; # current healthy ending date
-            SELECT @prev_day; # current unhealthy starting date / previous health cycle ending date
-            SELECT @next_inj_day; # unhealthy starting datez
-            SELECT @in_season_comp_day; # unhealthy starting date
+--             SELECT @next_day; # current healthy ending date
+--             SELECT @prev_day; # current unhealthy starting date / previous health cycle ending date
+--             SELECT @next_inj_day; # unhealthy starting datez
+--             SELECT @in_season_comp_day; # unhealthy starting date
             
 			SET @prev_day := @next_day;
 			DELETE FROM basketball.healthy_date_cycles_excl_DNP WHERE day = @next_day; # THE FOLLOWING CODE IS SPECIFIC TO BASEBALL: OR day < (CASE WHEN @next_day = DATE_FORMAT(@next_day, '%Y-12-31') THEN @next_day ELSE '1990-06-11' END);
@@ -430,7 +430,7 @@ BEGIN
 --                                         WHEN YEAR(@next_inj_day) != YEAR(@next_day) THEN DATE_FORMAT(@prev_day, '%Y-12-31')
 										## New logic for basketball
                                         WHEN @next_inj_day > @prev_day 
-											AND @next_inj_day BETWEEN in_season_comp_day AND @next_day THEN @next_inj_day
+											AND @next_inj_day BETWEEN @in_season_comp_day AND @next_day THEN @next_inj_day
 										## New logic for basketball
 --                                         WHEN @next_inj_day BETWEEN @prev_day AND @next_day AND YEAR(@next_inj_day) = YEAR(@next_day) THEN @next_day
 --                                         WHEN @next_inj_day BETWEEN @prev_day AND @next_day AND YEAR(@next_inj_day) != YEAR(@next_day) THEN DATE_FORMAT(@next_inj_day, '%Y-12-31')
