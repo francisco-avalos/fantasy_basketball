@@ -410,12 +410,17 @@ BEGIN
 			DELETE FROM basketball.healthy_date_cycles_excl_DNP WHERE day = @next_day; # THE FOLLOWING CODE IS SPECIFIC TO BASEBALL: OR day < (CASE WHEN @next_day = DATE_FORMAT(@next_day, '%Y-12-31') THEN @next_day ELSE '1990-06-11' END);
 
 			SET @next_day := (SELECT MIN(day) FROM basketball.healthy_date_cycles_excl_DNP); # first basketball-trial
-            SET @in_season_comp_day:= DATE_FORMAT(@next_day-INTERVAL 1 YEAR, '%Y-10-15');
+--             SET @in_season_comp_day:= DATE_FORMAT(@next_day-INTERVAL 1 YEAR, '%Y-10-15');
+            SET @in_season_comp_day:= (CASE 
+											WHEN MONTH(@next_day) IN (1,2,3,4) THEN DATE_FORMAT(@next_day-INTERVAL 1 YEAR, '%Y-10-15')
+											WHEN MONTH(@next_day) IN (10,11,12) THEN DATE_FORMAT(@next_day, '%Y-10-15')
+										END);
 
             
             # check below for end of season injuries
             DELETE FROM basketball.unhealthy_date_cycles_excl_DNP WHERE day < @prev_day;
             SET @next_inj_day := (SELECT MIN(day) FROM basketball.unhealthy_date_cycles_excl_DNP WHERE DAY >= @in_season_comp_day);
+            SET @next_healthy_day := (SELECT MIN(day) FROM basketball.healthy_date_cycles_excl_DNP WHERE day != @next_day);
 --             SET @next_next_inj_day := (SELECT MIN(day) FROM basketball.unhealthy_date_cycles_excl_DNP WHERE day > @next_inj_day);
             
 --             AND A.day NOT BETWEEN LAST_DAY(DATE_FORMAT(A.day, '%Y-04-%d')) AND LAST_DAY(DATE_FORMAT(A.day, '%Y-09-%d')) # in season only 
@@ -431,6 +436,7 @@ BEGIN
 										## New logic for basketball
                                         WHEN @next_inj_day > @prev_day 
 											AND @next_inj_day BETWEEN @in_season_comp_day AND @next_day THEN @next_inj_day
+										WHEN @next_inj_day > @next_day THEN @next_healthy_day
 										## New logic for basketball
 --                                         WHEN @next_inj_day BETWEEN @prev_day AND @next_day AND YEAR(@next_inj_day) = YEAR(@next_day) THEN @next_day
 --                                         WHEN @next_inj_day BETWEEN @prev_day AND @next_day AND YEAR(@next_inj_day) != YEAR(@next_day) THEN DATE_FORMAT(@next_inj_day, '%Y-12-31')
