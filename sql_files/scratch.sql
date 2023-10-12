@@ -106,14 +106,14 @@ BEGIN
 				acquired AS p_name
 			FROM basketball.hist_player_inj
 			WHERE acquired!=''
-				AND acquired = 'Dwight Howard'
+				AND acquired = 'Al Horford'
 			GROUP BY p_name
 			UNION ALL
 			SELECT 
 				relinquished AS p_name
 			FROM basketball.hist_player_inj
 			WHERE relinquished!=''
-				AND relinquished = 'Dwight Howard'
+				AND relinquished = 'Al Horford'
 			GROUP BY p_name
 		) X
 	WHERE p_name NOT IN (' and to complete 5 days of a work program run by the sheriff''s office"',
@@ -403,8 +403,10 @@ BEGIN
 
 --             SELECT @next_day; # current healthy ending date
 --             SELECT @prev_day; # current unhealthy starting date / previous health cycle ending date
---             SELECT @next_inj_day; # unhealthy starting datez
+--             SELECT @next_inj_day; # unhealthy starting date
 --             SELECT @in_season_comp_day; # unhealthy starting date
+--             SELECT @next_healthy_day;
+			
             
 			SET @prev_day := @next_day;
 			DELETE FROM basketball.healthy_date_cycles_excl_DNP WHERE day = @next_day; # THE FOLLOWING CODE IS SPECIFIC TO BASEBALL: OR day < (CASE WHEN @next_day = DATE_FORMAT(@next_day, '%Y-12-31') THEN @next_day ELSE '1990-06-11' END);
@@ -442,6 +444,10 @@ BEGIN
 --                                         WHEN @next_inj_day BETWEEN @prev_day AND @next_day AND YEAR(@next_inj_day) != YEAR(@next_day) THEN DATE_FORMAT(@next_inj_day, '%Y-12-31')
                                         ELSE @prev_day 
 									END);
+			SET @next_day := (CASE WHEN @next_inj_day IS NULL AND @next_healthy_day IS NULL THEN NULL ELSE @next_day END);
+            SET @prev_day := (CASE WHEN @next_inj_day IS NULL AND @next_healthy_day IS NULL THEN NULL ELSE @prev_day END);
+
+
 		END WHILE;
         DELETE FROM basketball.players_cycler WHERE p_name = @name;
         SET @name = (SELECT MIN(p_name) FROM basketball.players_cycler);
@@ -829,7 +835,7 @@ BEGIN
 
 
 	END WHILE;
-    #DROP TABLES IF EXISTS basketball.healthy_date_cycles_excl_DNP, basketball.players_cycler, basketball.unhealthy_date_cycles_excl_DNP,basketball.player_inj_cycles_prefinal;
+    DROP TABLES IF EXISTS basketball.healthy_date_cycles_excl_DNP, basketball.players_cycler, basketball.unhealthy_date_cycles_excl_DNP,basketball.player_inj_cycles_prefinal;
 END $$
 DELIMITER ;
 
