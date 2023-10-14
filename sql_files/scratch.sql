@@ -22,7 +22,7 @@ CREATE TABLE basketball.player_injury_cycles
   
   `injury_details_1` VARCHAR(150),
 --   `tommy_john_injury_flag_1` INT(1),
-  `suspension_details_1` VARCHAR(150),
+--   `suspension_details_1` VARCHAR(150),
 --   `paternity_leave_1` VARCHAR(100),
 --   `paternity_flag_1` INT(1),
 --   `bereavement_leave_1` VARCHAR(100),
@@ -33,7 +33,7 @@ CREATE TABLE basketball.player_injury_cycles
 
   `injury_details_2` VARCHAR(150),
 --   `tommy_john_injury_flag_2` INT(1),
-  `suspension_details_2` VARCHAR(150),
+--   `suspension_details_2` VARCHAR(150),
 --   `paternity_leave_2` VARCHAR(100),
 --   `paternity_flag_2` INT(1),
 --   `bereavement_leave_2` VARCHAR(100),
@@ -44,7 +44,7 @@ CREATE TABLE basketball.player_injury_cycles
 
   `injury_details_3` VARCHAR(150),
 --   `tommy_john_injury_flag_3` INT(1),
-  `suspension_details_3` VARCHAR(150),
+--   `suspension_details_3` VARCHAR(150),
 --   `paternity_leave_3` VARCHAR(100),
 --   `paternity_flag_3` INT(1),
 --   `bereavement_leave_3` VARCHAR(100),
@@ -55,6 +55,20 @@ CREATE TABLE basketball.player_injury_cycles
   
   PRIMARY KEY (player_name, healthy),
   INDEX (start_health_cycle_team, end_health_cycle_team, unhealthy1, unhealthy2, unhealthy3, unhealthy4, unhealthy5)
+);
+
+DROP TABLE IF EXISTS basketball.unhealthy_date_only_DNP_expanded;
+CREATE TABLE basketball.unhealthy_date_only_DNP_expanded
+(
+	`DAY` date NOT NULL,
+	`name` varchar(150),
+	`dnp_day1` date DEFAULT NULL,
+	`notes1` varchar(300) DEFAULT NULL,
+	`dnp_day2` date DEFAULT NULL,
+	`notes2` varchar(300) DEFAULT NULL,
+	`classification` varchar(13) DEFAULT '',
+	`classification2` varchar(13) DEFAULT '',
+	PRIMARY KEY (DAY, name)
 );
 
 -- TRUNCATE basketball.player_inj_cycles_prefinal;
@@ -106,14 +120,14 @@ BEGIN
 				acquired AS p_name
 			FROM basketball.hist_player_inj
 			WHERE acquired!=''
-				AND acquired = 'Al Horford'
+-- 				AND acquired = 'Joel Embiid'
 			GROUP BY p_name
 			UNION ALL
 			SELECT 
 				relinquished AS p_name
 			FROM basketball.hist_player_inj
 			WHERE relinquished!=''
-				AND relinquished = 'Al Horford'
+-- 				AND relinquished = 'Joel Embiid'
 			GROUP BY p_name
 		) X
 	WHERE p_name NOT IN (' and to complete 5 days of a work program run by the sheriff''s office"',
@@ -135,19 +149,6 @@ BEGIN
 --     SET @name := 'Aaron Boone';
 	
     ########### DNP ANALYSIS START
-	DROP TABLE IF EXISTS basketball.unhealthy_date_only_DNP_expanded;
-	CREATE TABLE basketball.unhealthy_date_only_DNP_expanded
-	(
-		`DAY` date NOT NULL,
-		`name` varchar(150),
-		`dnp_day1` date DEFAULT NULL,
-		`notes1` varchar(300) DEFAULT NULL,
-		`dnp_day2` date DEFAULT NULL,
-		`notes2` varchar(300) DEFAULT NULL,
-		`classification` varchar(13) DEFAULT '',
-		`classification2` varchar(13) DEFAULT '',
-		PRIMARY KEY (DAY, name)
-	);
     
     WHILE @name IS NOT NULL DO
 		DROP TEMPORARY TABLE IF EXISTS basketball.unhealthy_date_only_DNP;
@@ -249,19 +250,26 @@ BEGIN
 
         SET @first_healthy_date := (SELECT MIN(day) FROM basketball.healthy_date_cycles_excl_DNP);
         SET @first_unhealthy_date := (SELECT MIN(day) FROM basketball.unhealthy_date_cycles_excl_DNP);
+--         SELECT @first_healthy_date;
 --         SELECT @first_unhealthy_date;
+--         SELECT @next_day;
+--         SELECT @prev_day;
+--         SELECT @first_unhealthy_date_ref_date;
+        SET @first_unhealthy_date_ref_date := (CASE WHEN MONTH(@first_healthy_date) IN (1,2,3) THEN DATE_FORMAT(@first_healthy_date-INTERVAL 1 YEAR, '%Y-10-01') WHEN MONTH(@first_healthy_date) IN (10,11,12) THEN DATE_FORMAT(@first_healthy_date, '%Y-10-01') END);
 
         DELETE FROM basketball.healthy_date_cycles_excl_DNP
         WHERE DAY = CASE WHEN @first_healthy_date < @first_unhealthy_date THEN @first_healthy_date ELSE NULL END;
 		
 		SET @next_day := (SELECT MIN(day) FROM basketball.healthy_date_cycles_excl_DNP);
+-- 		SET @next_day := (SELECT MIN(day) FROM basketball.healthy_date_cycles_excl_DNP WHERE DAY BETWEEN @first_unhealthy_date_ref_date AND @first_healthy_date);
 --         SET @first_season_half := ();
 --         SET @second_season_half := ();
         SET @first_unhealthy_date_of_season := (
 													SELECT 
 														MIN(day) AS in_season_out 
 													FROM basketball.unhealthy_date_cycles_excl_DNP
-                                                    WHERE day BETWEEN DATE_FORMAT(@next_day-INTERVAL 1 YEAR, '%Y-10-01') AND @next_day
+                                                    WHERE DAY BETWEEN @first_unhealthy_date_ref_date AND @first_healthy_date
+--                                                     WHERE day BETWEEN DATE_FORMAT(@next_day-INTERVAL 1 YEAR, '%Y-10-01') AND @next_day
 --                                                     WHERE day < @next_day
 -- 														AND day >= DATE_FORMAT(@next_day-INTERVAL 1 YEAR, '%Y-10-01')
 												);
@@ -414,8 +422,8 @@ BEGIN
 			SET @next_day := (SELECT MIN(day) FROM basketball.healthy_date_cycles_excl_DNP); # first basketball-trial
 --             SET @in_season_comp_day:= DATE_FORMAT(@next_day-INTERVAL 1 YEAR, '%Y-10-15');
             SET @in_season_comp_day:= (CASE 
-											WHEN MONTH(@next_day) IN (1,2,3,4) THEN DATE_FORMAT(@next_day-INTERVAL 1 YEAR, '%Y-10-15')
-											WHEN MONTH(@next_day) IN (10,11,12) THEN DATE_FORMAT(@next_day, '%Y-10-15')
+											WHEN MONTH(@next_day) IN (1,2,3,4) THEN DATE_FORMAT(@next_day-INTERVAL 1 YEAR, '%Y-10-01')
+											WHEN MONTH(@next_day) IN (10,11,12) THEN DATE_FORMAT(@next_day, '%Y-10-01')
 										END);
 
             
@@ -453,382 +461,520 @@ BEGIN
         SET @name = (SELECT MIN(p_name) FROM basketball.players_cycler);
         ########### REGULAR HEALTH CYCLE END (BEFORE INSERTING INTO FINAL TABLE)
         
+--         REPLACE INTO basketball.player_injury_cycles
+--         SELECT
+-- 			A.*,
+-- ############
+-- 			CASE
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '%(DNP)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), '(DNP)', 1)
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '%(DTD)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), '(DTD)', 1)
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '%placed on IL with%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), 'placed on IL with ', -1)            
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'placed on IL for %' 
+-- 					AND TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) NOT LIKE 'placed on IL for %(out for season)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), ' for ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'placed on IL for %(out for season)' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), '(out for season)', 1), ' for ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'placed on IL recovering from %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), 'placed on IL ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'placed on IR recovering from %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), 'placed on IR ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) = 'placed on IL (out for season)' THEN 'placed on IL (out for season)'
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) = 'placed on IL ineligible' THEN 'ineligible'
+
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '%(out for season)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), '(out for season)', 1)
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '%(out indefinitely)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), '(out indefinitely)', 1)
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'placed on IR with %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), 'placed on IR with ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'placed on IR for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), 'placed on IR for ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '%(out % weeks)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), ' (out ', 1)
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '%(out % weeks)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), ' (out ', 1)
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '%(out % months)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), ' (out ', 1)
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '%(out % month)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), ' (out ', 1)
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '%(out indefinitely)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), '(out indefinitely)', 1)
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '%(out indefinteily)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), '(out indefinteily)', 1)
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '%(date approximate)%' THEN REPLACE(SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), '(date approximate)', 1), '(out for season)', '')
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '%(out for season) (date approximate)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), '(out for season) (date approximate)', 1)
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '%(out % week)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), '(out ', 1)
+
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'broken %' OR TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'bruised %' THEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes)
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'diagnosed with %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), 'diagnosed with ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'dislocated %' THEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes)
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'fractured %' THEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes)
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'torn %' THEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes)
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'strained %' THEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes)
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'sprained %' THEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes)
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'COVID%' THEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes)
+-- 				
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'left %' OR TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'right %' THEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes)
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'stress %' THEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes)
+-- 			END AS injury_details_1,
+-- -- 			IF(TRIM(BOTH '"' from A.first_unhealthy_day_notes) LIKE '%tommy john%', 1, 0) AS tommy_john_injury_flag_1,
+-- 			CASE
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'fined%' 
+-- 					AND TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '% for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), ' for ', -1)
+-- 			
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'arrested and charged with%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), 'arrested and charged with ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'arrested for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), 'arrested for ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'arrested on %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), 'arrested on ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'charged with %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), 'charged with ', -1)
+
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'player began serving suspension %game for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), 'game for ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'player began serving suspension %games for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), 'games for ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'suspended by NBA for % game %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), ' game for ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'suspended by NBA for % games for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), ' games for ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'suspended by team indefinitely for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), ' team indefinitely for ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'suspended by team for %' 
+-- 					AND (TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) NOT LIKE '% game%' AND TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) NOT LIKE '% day%') THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), 'suspended by team for ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'suspended by team for %' 
+-- 					AND (TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '% _ game %' OR TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '% __ game %') THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), ' game for ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'suspended by team for %' 
+-- 					AND (TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '% _ games %' OR TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '% __ games %') THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), ' games for ', -1)
+
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'pleaded guilty to %' THEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes)
+
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'pleaded %' THEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes)
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'sentenced to %' THEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes)
+-- 			END AS suspension_details_1,
+-- -- 			CASE
+-- -- 				WHEN TRIM(BOTH '"' from A.first_unhealthy_day_notes) = 'placed on paternity leave list'
+-- -- 					OR TRIM(BOTH '"' from A.first_unhealthy_day_notes) = 'placed on paternity leave'
+-- -- 					OR TRIM(BOTH '"' from A.first_unhealthy_day_notes) LIKE 'placed on paternity leave list%'
+-- -- 					OR TRIM(BOTH '"' from A.first_unhealthy_day_notes) LIKE '%placed on paternity leave list%'
+-- -- 					OR TRIM(BOTH '"' from A.first_unhealthy_day_notes) LIKE '%placed on paternity leave list' THEN 'paternity leave'
+-- -- 				ELSE ''
+-- -- 			END AS paternity_leave_1,
+-- -- 			CASE
+-- -- 				WHEN TRIM(BOTH '"' from A.first_unhealthy_day_notes) = 'placed on paternity leave list'
+-- -- 					OR TRIM(BOTH '"' from A.first_unhealthy_day_notes) = 'placed on paternity leave'
+-- -- 					OR TRIM(BOTH '"' from A.first_unhealthy_day_notes) LIKE 'placed on paternity leave list%'
+-- -- 					OR TRIM(BOTH '"' from A.first_unhealthy_day_notes) LIKE '%placed on paternity leave list%'
+-- -- 					OR TRIM(BOTH '"' from A.first_unhealthy_day_notes) LIKE '%placed on paternity leave list' THEN 1
+-- -- 				ELSE 0
+-- -- 			END AS paternity_flag_1,
+
+
+-- -- 			CASE
+-- -- 				WHEN TRIM(BOTH '"' from A.first_unhealthy_day_notes) = 'placed on bereavement list'
+-- -- 					OR TRIM(BOTH '"' from A.first_unhealthy_day_notes) LIKE 'placed on bereavement%'
+-- -- 					OR TRIM(BOTH '"' from A.first_unhealthy_day_notes) LIKE '%placed on bereavement%'
+-- -- 					OR TRIM(BOTH '"' from A.first_unhealthy_day_notes) LIKE '%placed on bereavement' THEN 'bereavement list'
+-- -- 				WHEN TRIM(BOTH '"' from A.first_unhealthy_day_notes) LIKE '%bereavement%' THEN 'bereavement list'
+-- -- 				ELSE ''
+-- -- 			END AS bereavement_leave_1,
+-- -- 			CASE
+-- -- 				WHEN TRIM(BOTH '"' from A.first_unhealthy_day_notes) = 'placed on bereavement list'
+-- -- 					OR TRIM(BOTH '"' from A.first_unhealthy_day_notes) LIKE 'placed on bereavement%'
+-- -- 					OR TRIM(BOTH '"' from A.first_unhealthy_day_notes) LIKE '%placed on bereavement%'
+-- -- 					OR TRIM(BOTH '"' from A.first_unhealthy_day_notes) LIKE '%placed on bereavement' THEN 1
+-- -- 				WHEN TRIM(BOTH '"' from A.first_unhealthy_day_notes) LIKE '%bereavement%' THEN 1
+-- -- 				ELSE 0
+-- -- 			END AS bereavement_flag_1,
+-- -- 			CASE 
+-- -- 				WHEN TRIM(BOTH '"' from A.first_unhealthy_day_notes) IN ('placed on restricted list', 
+-- -- 													'placed on restricted list during suspension',
+-- -- 													'placed on restricted list serving suspension', 
+-- -- 													'placed on restricted list by MLB') THEN 'none_given'
+-- -- 				WHEN TRIM(BOTH '"' from A.first_unhealthy_day_notes) LIKE 'placed on restricted list for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' from A.first_unhealthy_day_notes), ' for ',-1)
+-- -- 				WHEN TRIM(BOTH '"' from A.first_unhealthy_day_notes) LIKE 'placed on restricted list with %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' from A.first_unhealthy_day_notes), ' with ',-1)
+-- -- 				WHEN TRIM(BOTH '"' from A.first_unhealthy_day_notes) LIKE 'placed on restricted list due %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' from A.first_unhealthy_day_notes), ' due to ',-1)
+-- -- 				WHEN TRIM(BOTH '"' from A.first_unhealthy_day_notes) LIKE 'placed on restricted list while serving %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' from A.first_unhealthy_day_notes), ' while serving ',-1)
+-- -- 				WHEN TRIM(BOTH '"' from A.first_unhealthy_day_notes) LIKE '%(%)'
+-- -- 					AND TRIM(BOTH '"' from A.first_unhealthy_day_notes) NOT LIKE '%(date approximate)'
+-- -- 					AND TRIM(BOTH '"' from A.first_unhealthy_day_notes) NOT LIKE 'COVID-19%' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(TRIM(BOTH '"' from A.first_unhealthy_day_notes), ')', 1), '(', -1)
+-- -- 				ELSE ''
+-- -- 			END AS restricted_details_1,
+-- 			CASE
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'will undergo %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), ' undergo ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'surgery %' OR TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '% surgery %' THEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes)
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'surgery on %' THEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes)
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'surgery to %' THEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes)
+-- 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'arthroscopic surgery%' THEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes)
+-- 			END AS surgery_details_1,
+-- -- 			CASE
+-- -- 				WHEN TRIM(BOTH '"' from A.first_unhealthy_day_notes) LIKE '%personal%' THEN 'personal'
+-- -- 				ELSE ''
+-- -- 			END as personal_details_1,
+-- 			CASE
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '%(DNP)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), '(DNP)', 1)
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '%(DTD)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), '(DTD)', 1)
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '%placed on IL with%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), 'placed on IL with ', -1)            
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'placed on IL for %' 
+-- 					AND TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) NOT LIKE 'placed on IL for %(out for season)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), ' for ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'placed on IL for %(out for season)' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), '(out for season)', 1), ' for ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'placed on IL recovering from %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), 'placed on IL ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'placed on IR recovering from %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), 'placed on IR ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) = 'placed on IL (out for season)' THEN 'placed on IL (out for season)'
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) = 'placed on IL ineligible' THEN 'ineligible'
+
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '%(out for season)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), '(out for season)', 1)
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '%(out indefinitely)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), '(out indefinitely)', 1)
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'placed on IR with %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), 'placed on IR with ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'placed on IR for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), 'placed on IR for ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '%(out % weeks)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), ' (out ', 1)
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '%(out % weeks)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), ' (out ', 1)
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '%(out % months)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), ' (out ', 1)
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '%(out % month)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), ' (out ', 1)
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '%(out indefinitely)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), '(out indefinitely)', 1)
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '%(out indefinteily)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), '(out indefinteily)', 1)
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '%(date approximate)%' THEN REPLACE(SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), '(date approximate)', 1), '(out for season)', '')
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '%(out for season) (date approximate)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), '(out for season) (date approximate)', 1)
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '%(out % week)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), '(out ', 1)
+
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'broken %' OR TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'bruised %' THEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes)
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'diagnosed with %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), 'diagnosed with ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'dislocated %' THEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes)
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'fractured %' THEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes)
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'torn %' THEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes)
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'strained %' THEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes)
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'sprained %' THEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes)
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'COVID%' THEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes)
+-- 				
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'left %' OR TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'right %' THEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes)
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'stress %' THEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes)
+-- 			END AS injury_details_2,
+-- -- 			IF(TRIM(BOTH '"' from A.second_unhealthy_day_notes) LIKE '%tommy john%', 1, 0) AS tommy_john_injury_flag_2,
+-- 			CASE
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'fined%' 
+-- 					AND TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '% for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), ' for ', -1)
+-- 			
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'arrested and charged with%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), 'arrested and charged with ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'arrested for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), 'arrested for ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'arrested on %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), 'arrested on ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'charged with %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), 'charged with ', -1)
+
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'player began serving suspension %game for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), 'game for ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'player began serving suspension %games for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), 'games for ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'suspended by NBA for % game %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), ' game for ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'suspended by NBA for % games for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), ' games for ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'suspended by team indefinitely for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), ' team indefinitely for ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'suspended by team for %' 
+-- 					AND (TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) NOT LIKE '% game%' AND TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) NOT LIKE '% day%') THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), 'suspended by team for ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'suspended by team for %' 
+-- 					AND (TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '% _ game %' OR TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '% __ game %') THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), ' game for ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'suspended by team for %' 
+-- 					AND (TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '% _ games %' OR TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '% __ games %') THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), ' games for ', -1)
+
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'pleaded guilty to %' THEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes)
+
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'pleaded %' THEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes)
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'sentenced to %' THEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes)
+-- 			END AS suspension_details_2,
+-- -- 			CASE
+-- -- 				WHEN TRIM(BOTH '"' from A.second_unhealthy_day_notes) = 'placed on paternity leave list'
+-- -- 					OR TRIM(BOTH '"' from A.second_unhealthy_day_notes) = 'placed on paternity leave'
+-- -- 					OR TRIM(BOTH '"' from A.second_unhealthy_day_notes) LIKE 'placed on paternity leave list%'
+-- -- 					OR TRIM(BOTH '"' from A.second_unhealthy_day_notes) LIKE '%placed on paternity leave list%'
+-- -- 					OR TRIM(BOTH '"' from A.second_unhealthy_day_notes) LIKE '%placed on paternity leave list' THEN 'paternity leave'
+-- -- 				ELSE ''
+-- -- 			END AS paternity_leave_2,
+-- -- 			CASE
+-- -- 				WHEN TRIM(BOTH '"' from A.second_unhealthy_day_notes) = 'placed on paternity leave list'
+-- -- 					OR TRIM(BOTH '"' from A.second_unhealthy_day_notes) = 'placed on paternity leave'
+-- -- 					OR TRIM(BOTH '"' from A.second_unhealthy_day_notes) LIKE 'placed on paternity leave list%'
+-- -- 					OR TRIM(BOTH '"' from A.second_unhealthy_day_notes) LIKE '%placed on paternity leave list%'
+-- -- 					OR TRIM(BOTH '"' from A.second_unhealthy_day_notes) LIKE '%placed on paternity leave list' THEN 1
+-- -- 				ELSE 0
+-- -- 			END AS paternity_flag_2,
+
+
+-- -- 			CASE
+-- -- 				WHEN TRIM(BOTH '"' from A.second_unhealthy_day_notes) = 'placed on bereavement list'
+-- -- 					OR TRIM(BOTH '"' from A.second_unhealthy_day_notes) LIKE 'placed on bereavement%'
+-- -- 					OR TRIM(BOTH '"' from A.second_unhealthy_day_notes) LIKE '%placed on bereavement%'
+-- -- 					OR TRIM(BOTH '"' from A.second_unhealthy_day_notes) LIKE '%placed on bereavement' THEN 'bereavement list'
+-- -- 				WHEN TRIM(BOTH '"' from A.second_unhealthy_day_notes) LIKE '%bereavement%' THEN 'bereavement list'
+-- -- 				ELSE ''
+-- -- 			END AS bereavement_leave_2,
+-- -- 			CASE
+-- -- 				WHEN TRIM(BOTH '"' from A.second_unhealthy_day_notes) = 'placed on bereavement list'
+-- -- 					OR TRIM(BOTH '"' from A.second_unhealthy_day_notes) LIKE 'placed on bereavement%'
+-- -- 					OR TRIM(BOTH '"' from A.second_unhealthy_day_notes) LIKE '%placed on bereavement%'
+-- -- 					OR TRIM(BOTH '"' from A.second_unhealthy_day_notes) LIKE '%placed on bereavement' THEN 1
+-- -- 				WHEN TRIM(BOTH '"' from A.second_unhealthy_day_notes) LIKE '%bereavement%' THEN 1
+-- -- 				ELSE 0
+-- -- 			END AS bereavement_flag_2,
+-- -- 			CASE 
+-- -- 				WHEN TRIM(BOTH '"' from A.second_unhealthy_day_notes) IN ('placed on restricted list', 
+-- -- 													'placed on restricted list during suspension',
+-- -- 													'placed on restricted list serving suspension', 
+-- -- 													'placed on restricted list by MLB') THEN 'none_given'
+-- -- 				WHEN TRIM(BOTH '"' from A.second_unhealthy_day_notes) LIKE 'placed on restricted list for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' from A.second_unhealthy_day_notes), ' for ',-1)
+-- -- 				WHEN TRIM(BOTH '"' from A.second_unhealthy_day_notes) LIKE 'placed on restricted list with %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' from A.second_unhealthy_day_notes), ' with ',-1)
+-- -- 				WHEN TRIM(BOTH '"' from A.second_unhealthy_day_notes) LIKE 'placed on restricted list due %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' from A.second_unhealthy_day_notes), ' due to ',-1)
+-- -- 				WHEN TRIM(BOTH '"' from A.second_unhealthy_day_notes) LIKE 'placed on restricted list while serving %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' from A.second_unhealthy_day_notes), ' while serving ',-1)
+-- -- 				WHEN TRIM(BOTH '"' from A.second_unhealthy_day_notes) LIKE '%(%)'
+-- -- 					AND TRIM(BOTH '"' from A.second_unhealthy_day_notes) NOT LIKE '%(date approximate)'
+-- -- 					AND TRIM(BOTH '"' from A.second_unhealthy_day_notes) NOT LIKE 'COVID-19%' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(TRIM(BOTH '"' from A.second_unhealthy_day_notes), ')', 1), '(', -1)
+-- -- 				ELSE ''
+-- -- 			END AS restricted_details_2,
+-- 			CASE
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'will undergo %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), ' undergo ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'surgery %' OR TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '% surgery %' THEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes)
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'surgery on %' THEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes)
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'surgery to %' THEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes)
+-- 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'arthroscopic surgery%' THEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes)
+-- 			END AS surgery_details_2,
+-- -- 			CASE
+-- -- 				WHEN TRIM(BOTH '"' from A.second_unhealthy_day_notes) LIKE '%personal%' THEN 'personal'
+-- -- 				ELSE ''
+-- -- 			END as personal_details_2,
+-- 			CASE
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '%(DNP)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), '(DNP)', 1)
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '%(DTD)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), '(DTD)', 1)
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '%placed on IL with%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), 'placed on IL with ', -1)            
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'placed on IL for %' 
+-- 					AND TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) NOT LIKE 'placed on IL for %(out for season)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), ' for ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'placed on IL for %(out for season)' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), '(out for season)', 1), ' for ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'placed on IL recovering from %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), 'placed on IL ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'placed on IR recovering from %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), 'placed on IR ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) = 'placed on IL (out for season)' THEN 'placed on IL (out for season)'
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) = 'placed on IL ineligible' THEN 'ineligible'
+
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '%(out for season)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), '(out for season)', 1)
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '%(out indefinitely)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), '(out indefinitely)', 1)
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'placed on IR with %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), 'placed on IR with ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'placed on IR for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), 'placed on IR for ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '%(out % weeks)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), ' (out ', 1)
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '%(out % weeks)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), ' (out ', 1)
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '%(out % months)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), ' (out ', 1)
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '%(out % month)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), ' (out ', 1)
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '%(out indefinitely)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), '(out indefinitely)', 1)
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '%(out indefinteily)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), '(out indefinteily)', 1)
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '%(date approximate)%' THEN REPLACE(SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), '(date approximate)', 1), '(out for season)', '')
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '%(out for season) (date approximate)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), '(out for season) (date approximate)', 1)
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '%(out % week)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), '(out ', 1)
+
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'broken %' OR TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'bruised %' THEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes)
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'diagnosed with %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), 'diagnosed with ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'dislocated %' THEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes)
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'fractured %' THEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes)
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'torn %' THEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes)
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'strained %' THEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes)
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'sprained %' THEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes)
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'COVID%' THEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes)
+-- 				
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'left %' OR TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'right %' THEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes)
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'stress %' THEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes)
+-- 			END AS injury_details_3,
+-- -- 			IF(TRIM(BOTH '"' from A.third_unhealthy_day_notes) LIKE '%tommy john%', 1, 0) AS tommy_john_injury_flag_3,
+-- 			CASE
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'fined%' 
+-- 					AND TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '% for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), ' for ', -1)
+-- 			
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'arrested and charged with%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), 'arrested and charged with ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'arrested for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), 'arrested for ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'arrested on %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), 'arrested on ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'charged with %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), 'charged with ', -1)
+
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'player began serving suspension %game for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), 'game for ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'player began serving suspension %games for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), 'games for ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'suspended by NBA for % game %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), ' game for ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'suspended by NBA for % games for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), ' games for ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'suspended by team indefinitely for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), ' team indefinitely for ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'suspended by team for %' 
+-- 					AND (TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) NOT LIKE '% game%' AND TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) NOT LIKE '% day%') THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), 'suspended by team for ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'suspended by team for %' 
+-- 					AND (TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '% _ game %' OR TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '% __ game %') THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), ' game for ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'suspended by team for %' 
+-- 					AND (TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '% _ games %' OR TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '% __ games %') THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), ' games for ', -1)
+
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'pleaded guilty to %' THEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes)
+
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'pleaded %' THEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes)
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'sentenced to %' THEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes)
+-- 			END AS suspension_details_3,
+-- -- 			CASE
+-- -- 				WHEN TRIM(BOTH '"' from A.third_unhealthy_day_notes) = 'placed on paternity leave list'
+-- -- 					OR TRIM(BOTH '"' from A.third_unhealthy_day_notes) = 'placed on paternity leave'
+-- -- 					OR TRIM(BOTH '"' from A.third_unhealthy_day_notes) LIKE 'placed on paternity leave list%'
+-- -- 					OR TRIM(BOTH '"' from A.third_unhealthy_day_notes) LIKE '%placed on paternity leave list%'
+-- -- 					OR TRIM(BOTH '"' from A.third_unhealthy_day_notes) LIKE '%placed on paternity leave list' THEN 'paternity leave'
+-- -- 				ELSE ''
+-- -- 			END AS paternity_leave_3,
+-- -- 			CASE
+-- -- 				WHEN TRIM(BOTH '"' from A.third_unhealthy_day_notes) = 'placed on paternity leave list'
+-- -- 					OR TRIM(BOTH '"' from A.third_unhealthy_day_notes) = 'placed on paternity leave'
+-- -- 					OR TRIM(BOTH '"' from A.third_unhealthy_day_notes) LIKE 'placed on paternity leave list%'
+-- -- 					OR TRIM(BOTH '"' from A.third_unhealthy_day_notes) LIKE '%placed on paternity leave list%'
+-- -- 					OR TRIM(BOTH '"' from A.third_unhealthy_day_notes) LIKE '%placed on paternity leave list' THEN 1
+-- -- 				ELSE 0
+-- -- 			END AS paternity_flag_3,
+
+
+-- -- 			CASE
+-- -- 				WHEN TRIM(BOTH '"' from A.third_unhealthy_day_notes) = 'placed on bereavement list'
+-- -- 					OR TRIM(BOTH '"' from A.third_unhealthy_day_notes) LIKE 'placed on bereavement%'
+-- -- 					OR TRIM(BOTH '"' from A.third_unhealthy_day_notes) LIKE '%placed on bereavement%'
+-- -- 					OR TRIM(BOTH '"' from A.third_unhealthy_day_notes) LIKE '%placed on bereavement' THEN 'bereavement list'
+-- -- 				WHEN TRIM(BOTH '"' from A.third_unhealthy_day_notes) LIKE '%bereavement%' THEN 'bereavement list'
+-- -- 				ELSE ''
+-- -- 			END AS bereavement_leave_3,
+-- -- 			CASE
+-- -- 				WHEN TRIM(BOTH '"' from A.third_unhealthy_day_notes) = 'placed on bereavement list'
+-- -- 					OR TRIM(BOTH '"' from A.third_unhealthy_day_notes) LIKE 'placed on bereavement%'
+-- -- 					OR TRIM(BOTH '"' from A.third_unhealthy_day_notes) LIKE '%placed on bereavement%'
+-- -- 					OR TRIM(BOTH '"' from A.third_unhealthy_day_notes) LIKE '%placed on bereavement' THEN 1
+-- -- 				WHEN TRIM(BOTH '"' from A.third_unhealthy_day_notes) LIKE '%bereavement%' THEN 1
+-- -- 				ELSE 0
+-- -- 			END AS bereavement_flag_3,
+-- -- 			CASE 
+-- -- 				WHEN TRIM(BOTH '"' from A.third_unhealthy_day_notes) IN ('placed on restricted list', 
+-- -- 													'placed on restricted list during suspension',
+-- -- 													'placed on restricted list serving suspension', 
+-- -- 													'placed on restricted list by MLB') THEN 'none_given'
+-- -- 				WHEN TRIM(BOTH '"' from A.third_unhealthy_day_notes) LIKE 'placed on restricted list for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' from A.third_unhealthy_day_notes), ' for ',-1)
+-- -- 				WHEN TRIM(BOTH '"' from A.third_unhealthy_day_notes) LIKE 'placed on restricted list with %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' from A.third_unhealthy_day_notes), ' with ',-1)
+-- -- 				WHEN TRIM(BOTH '"' from A.third_unhealthy_day_notes) LIKE 'placed on restricted list due %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' from A.third_unhealthy_day_notes), ' due to ',-1)
+-- -- 				WHEN TRIM(BOTH '"' from A.third_unhealthy_day_notes) LIKE 'placed on restricted list while serving %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' from A.third_unhealthy_day_notes), ' while serving ',-1)
+-- -- 				WHEN TRIM(BOTH '"' from A.third_unhealthy_day_notes) LIKE '%(%)'
+-- -- 					AND TRIM(BOTH '"' from A.third_unhealthy_day_notes) NOT LIKE '%(date approximate)'
+-- -- 					AND TRIM(BOTH '"' from A.third_unhealthy_day_notes) NOT LIKE 'COVID-19%' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(TRIM(BOTH '"' from A.third_unhealthy_day_notes), ')', 1), '(', -1)
+-- -- 				ELSE ''
+-- -- 			END AS restricted_details_3,
+-- 			CASE
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'will undergo %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), ' undergo ', -1)
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'surgery %' OR TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '% surgery %' THEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes)
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'surgery on %' THEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes)
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'surgery to %' THEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes)
+-- 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'arthroscopic surgery%' THEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes)
+-- 			END AS surgery_details_3
+-- -- 			CASEƒ
+-- -- 				WHEN TRIM(BOTH '"' from A.third_unhealthy_day_notes) LIKE '%personal%' THEN 'personal'
+-- -- 				ELSE ''
+-- -- 			END as personal_details_3
+-- ############
+-- 		FROM basketball.player_inj_cycles_prefinal A;
         REPLACE INTO basketball.player_injury_cycles
         SELECT
 			A.*,
 ############
 			CASE
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '%(DNP)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), '(DNP)', 1)
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '%(DTD)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), '(DTD)', 1)
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '%placed on IL with%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), 'placed on IL with ', -1)            
+		        WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '%(DTD)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), '(DTD)', 1)
+		        WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '%placed on IL with%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), 'placed on IL with ', -1)            
 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'placed on IL for %' 
 					AND TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) NOT LIKE 'placed on IL for %(out for season)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), ' for ', -1)
 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'placed on IL for %(out for season)' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), '(out for season)', 1), ' for ', -1)
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'placed on IL recovering from %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), 'placed on IL ', -1)
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'placed on IR recovering from %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), 'placed on IR ', -1)
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) = 'placed on IL (out for season)' THEN 'placed on IL (out for season)'
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) = 'placed on IL ineligible' THEN 'ineligible'
+		        WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'placed on IL recovering from %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), 'placed on IL ', -1)
+		        WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'placed on IR recovering from %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), 'placed on IR ', -1)
+		        WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) = 'placed on IL (out for season)' THEN 'placed on IL (out for season)'
+		        WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) = 'placed on IL ineligible' THEN 'ineligible'
 
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '%(out for season)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), '(out for season)', 1)
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '%(out indefinitely)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), '(out indefinitely)', 1)
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'placed on IR with %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), 'placed on IR with ', -1)
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'placed on IR for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), 'placed on IR for ', -1)
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '%(out % weeks)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), ' (out ', 1)
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '%(out % weeks)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), ' (out ', 1)
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '%(out % months)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), ' (out ', 1)
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '%(out % month)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), ' (out ', 1)
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '%(out indefinitely)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), '(out indefinitely)', 1)
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '%(out indefinteily)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), '(out indefinteily)', 1)
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '%(date approximate)%' THEN REPLACE(SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), '(date approximate)', 1), '(out for season)', '')
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '%(out for season) (date approximate)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), '(out for season) (date approximate)', 1)
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '%(out % week)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), '(out ', 1)
+		        WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '%(out for season)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), '(out for season)', 1)
+		        WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '%(out indefinitely)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), '(out indefinitely)', 1)
+		        WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'placed on IR with %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), 'placed on IR with ', -1)
+		        WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'placed on IR for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), 'placed on IR for ', -1)
+		        WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '%(out % weeks)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), ' (out ', 1)
+		        WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '%(out % weeks)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), ' (out ', 1)
+		        WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '%(out % months)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), ' (out ', 1)
+		        WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '%(out % month)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), ' (out ', 1)
+		        WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '%(out indefinitely)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), '(out indefinitely)', 1)
+		        WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '%(out indefinteily)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), '(out indefinteily)', 1)
+		        WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '%(date approximate)%' THEN REPLACE(SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), '(date approximate)', 1), '(out for season)', '')
+		        WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '%(out for season) (date approximate)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), '(out for season) (date approximate)', 1)
+		        WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '%(out % week)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), '(out ', 1)
 
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'broken %' OR TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'bruised %' THEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes)
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'diagnosed with %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), 'diagnosed with ', -1)
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'dislocated %' THEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes)
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'fractured %' THEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes)
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'torn %' THEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes)
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'strained %' THEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes)
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'sprained %' THEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes)
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'COVID%' THEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes)
-				
+		        WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'broken %' OR TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'bruised %' THEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes)
+		        WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'diagnosed with %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), 'diagnosed with ', -1)
+		        WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'dislocated %' THEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes)
+		        WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'fractured %' THEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes)
+		        WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'torn %' THEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes)
+		        WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'strained %' THEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes)
+		        WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'sprained %' THEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes)
+		        WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'COVID%' THEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes)
+		        
 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'left %' OR TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'right %' THEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes)
 				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'stress %' THEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes)
 			END AS injury_details_1,
--- 			IF(TRIM(BOTH '"' from A.first_unhealthy_day_notes) LIKE '%tommy john%', 1, 0) AS tommy_john_injury_flag_1,
 			CASE
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'fined%' 
-					AND TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '% for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), ' for ', -1)
-			
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'arrested and charged with%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), 'arrested and charged with ', -1)
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'arrested for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), 'arrested for ', -1)
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'arrested on %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), 'arrested on ', -1)
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'charged with %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), 'charged with ', -1)
-
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'player began serving suspension %game for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), 'game for ', -1)
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'player began serving suspension %games for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), 'games for ', -1)
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'suspended by NBA for % game %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), ' game for ', -1)
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'suspended by NBA for % games for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), ' games for ', -1)
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'suspended by team indefinitely for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), ' team indefinitely for ', -1)
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'suspended by team for %' 
-					AND (TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) NOT LIKE '% game%' AND TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) NOT LIKE '% day%') THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), 'suspended by team for ', -1)
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'suspended by team for %' 
-					AND (TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '% _ game %' OR TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '% __ game %') THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), ' game for ', -1)
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'suspended by team for %' 
-					AND (TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '% _ games %' OR TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '% __ games %') THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), ' games for ', -1)
-
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'pleaded guilty to %' THEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes)
-
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'pleaded %' THEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes)
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'sentenced to %' THEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes)
-			END AS suspension_details_1,
--- 			CASE
--- 				WHEN TRIM(BOTH '"' from A.first_unhealthy_day_notes) = 'placed on paternity leave list'
--- 					OR TRIM(BOTH '"' from A.first_unhealthy_day_notes) = 'placed on paternity leave'
--- 					OR TRIM(BOTH '"' from A.first_unhealthy_day_notes) LIKE 'placed on paternity leave list%'
--- 					OR TRIM(BOTH '"' from A.first_unhealthy_day_notes) LIKE '%placed on paternity leave list%'
--- 					OR TRIM(BOTH '"' from A.first_unhealthy_day_notes) LIKE '%placed on paternity leave list' THEN 'paternity leave'
--- 				ELSE ''
--- 			END AS paternity_leave_1,
--- 			CASE
--- 				WHEN TRIM(BOTH '"' from A.first_unhealthy_day_notes) = 'placed on paternity leave list'
--- 					OR TRIM(BOTH '"' from A.first_unhealthy_day_notes) = 'placed on paternity leave'
--- 					OR TRIM(BOTH '"' from A.first_unhealthy_day_notes) LIKE 'placed on paternity leave list%'
--- 					OR TRIM(BOTH '"' from A.first_unhealthy_day_notes) LIKE '%placed on paternity leave list%'
--- 					OR TRIM(BOTH '"' from A.first_unhealthy_day_notes) LIKE '%placed on paternity leave list' THEN 1
--- 				ELSE 0
--- 			END AS paternity_flag_1,
-
-
--- 			CASE
--- 				WHEN TRIM(BOTH '"' from A.first_unhealthy_day_notes) = 'placed on bereavement list'
--- 					OR TRIM(BOTH '"' from A.first_unhealthy_day_notes) LIKE 'placed on bereavement%'
--- 					OR TRIM(BOTH '"' from A.first_unhealthy_day_notes) LIKE '%placed on bereavement%'
--- 					OR TRIM(BOTH '"' from A.first_unhealthy_day_notes) LIKE '%placed on bereavement' THEN 'bereavement list'
--- 				WHEN TRIM(BOTH '"' from A.first_unhealthy_day_notes) LIKE '%bereavement%' THEN 'bereavement list'
--- 				ELSE ''
--- 			END AS bereavement_leave_1,
--- 			CASE
--- 				WHEN TRIM(BOTH '"' from A.first_unhealthy_day_notes) = 'placed on bereavement list'
--- 					OR TRIM(BOTH '"' from A.first_unhealthy_day_notes) LIKE 'placed on bereavement%'
--- 					OR TRIM(BOTH '"' from A.first_unhealthy_day_notes) LIKE '%placed on bereavement%'
--- 					OR TRIM(BOTH '"' from A.first_unhealthy_day_notes) LIKE '%placed on bereavement' THEN 1
--- 				WHEN TRIM(BOTH '"' from A.first_unhealthy_day_notes) LIKE '%bereavement%' THEN 1
--- 				ELSE 0
--- 			END AS bereavement_flag_1,
--- 			CASE 
--- 				WHEN TRIM(BOTH '"' from A.first_unhealthy_day_notes) IN ('placed on restricted list', 
--- 													'placed on restricted list during suspension',
--- 													'placed on restricted list serving suspension', 
--- 													'placed on restricted list by MLB') THEN 'none_given'
--- 				WHEN TRIM(BOTH '"' from A.first_unhealthy_day_notes) LIKE 'placed on restricted list for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' from A.first_unhealthy_day_notes), ' for ',-1)
--- 				WHEN TRIM(BOTH '"' from A.first_unhealthy_day_notes) LIKE 'placed on restricted list with %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' from A.first_unhealthy_day_notes), ' with ',-1)
--- 				WHEN TRIM(BOTH '"' from A.first_unhealthy_day_notes) LIKE 'placed on restricted list due %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' from A.first_unhealthy_day_notes), ' due to ',-1)
--- 				WHEN TRIM(BOTH '"' from A.first_unhealthy_day_notes) LIKE 'placed on restricted list while serving %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' from A.first_unhealthy_day_notes), ' while serving ',-1)
--- 				WHEN TRIM(BOTH '"' from A.first_unhealthy_day_notes) LIKE '%(%)'
--- 					AND TRIM(BOTH '"' from A.first_unhealthy_day_notes) NOT LIKE '%(date approximate)'
--- 					AND TRIM(BOTH '"' from A.first_unhealthy_day_notes) NOT LIKE 'COVID-19%' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(TRIM(BOTH '"' from A.first_unhealthy_day_notes), ')', 1), '(', -1)
--- 				ELSE ''
--- 			END AS restricted_details_1,
-			CASE
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'will undergo %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), ' undergo ', -1)
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'surgery %' OR TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '% surgery %' THEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes)
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'surgery on %' THEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes)
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'surgery to %' THEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes)
-				WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'arthroscopic surgery%' THEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes)
+		        WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'will undergo %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.first_unhealthy_day_notes), ' undergo ', -1)
+		        WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'surgery %' OR TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE '% surgery %' THEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes)
+		        WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'surgery on %' THEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes)
+		        WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'surgery to %' THEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes)
+		        WHEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes) LIKE 'arthroscopic surgery%' THEN TRIM(BOTH '"' FROM A.first_unhealthy_day_notes)
 			END AS surgery_details_1,
--- 			CASE
--- 				WHEN TRIM(BOTH '"' from A.first_unhealthy_day_notes) LIKE '%personal%' THEN 'personal'
--- 				ELSE ''
--- 			END as personal_details_1,
 			CASE
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '%(DNP)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), '(DNP)', 1)
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '%(DTD)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), '(DTD)', 1)
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '%placed on IL with%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), 'placed on IL with ', -1)            
+		        WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '%(DTD)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), '(DTD)', 1)
+		        WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '%placed on IL with%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), 'placed on IL with ', -1)            
 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'placed on IL for %' 
 					AND TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) NOT LIKE 'placed on IL for %(out for season)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), ' for ', -1)
 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'placed on IL for %(out for season)' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), '(out for season)', 1), ' for ', -1)
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'placed on IL recovering from %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), 'placed on IL ', -1)
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'placed on IR recovering from %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), 'placed on IR ', -1)
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) = 'placed on IL (out for season)' THEN 'placed on IL (out for season)'
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) = 'placed on IL ineligible' THEN 'ineligible'
+		        WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'placed on IL recovering from %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), 'placed on IL ', -1)
+		        WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'placed on IR recovering from %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), 'placed on IR ', -1)
+		        WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) = 'placed on IL (out for season)' THEN 'placed on IL (out for season)'
+		        WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) = 'placed on IL ineligible' THEN 'ineligible'
 
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '%(out for season)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), '(out for season)', 1)
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '%(out indefinitely)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), '(out indefinitely)', 1)
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'placed on IR with %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), 'placed on IR with ', -1)
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'placed on IR for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), 'placed on IR for ', -1)
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '%(out % weeks)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), ' (out ', 1)
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '%(out % weeks)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), ' (out ', 1)
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '%(out % months)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), ' (out ', 1)
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '%(out % month)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), ' (out ', 1)
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '%(out indefinitely)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), '(out indefinitely)', 1)
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '%(out indefinteily)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), '(out indefinteily)', 1)
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '%(date approximate)%' THEN REPLACE(SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), '(date approximate)', 1), '(out for season)', '')
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '%(out for season) (date approximate)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), '(out for season) (date approximate)', 1)
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '%(out % week)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), '(out ', 1)
+		        WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '%(out for season)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), '(out for season)', 1)
+		        WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '%(out indefinitely)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), '(out indefinitely)', 1)
+		        WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'placed on IR with %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), 'placed on IR with ', -1)
+		        WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'placed on IR for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), 'placed on IR for ', -1)
+		        WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '%(out % weeks)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), ' (out ', 1)
+		        WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '%(out % weeks)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), ' (out ', 1)
+		        WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '%(out % months)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), ' (out ', 1)
+		        WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '%(out % month)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), ' (out ', 1)
+		        WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '%(out indefinitely)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), '(out indefinitely)', 1)
+		        WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '%(out indefinteily)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), '(out indefinteily)', 1)
+		        WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '%(date approximate)%' THEN REPLACE(SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), '(date approximate)', 1), '(out for season)', '')
+		        WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '%(out for season) (date approximate)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), '(out for season) (date approximate)', 1)
+		        WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '%(out % week)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), '(out ', 1)
 
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'broken %' OR TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'bruised %' THEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes)
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'diagnosed with %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), 'diagnosed with ', -1)
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'dislocated %' THEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes)
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'fractured %' THEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes)
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'torn %' THEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes)
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'strained %' THEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes)
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'sprained %' THEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes)
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'COVID%' THEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes)
-				
+		        WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'broken %' OR TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'bruised %' THEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes)
+		        WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'diagnosed with %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), 'diagnosed with ', -1)
+		        WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'dislocated %' THEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes)
+		        WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'fractured %' THEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes)
+		        WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'torn %' THEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes)
+		        WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'strained %' THEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes)
+		        WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'sprained %' THEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes)
+		        WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'COVID%' THEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes)
+		        
 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'left %' OR TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'right %' THEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes)
 				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'stress %' THEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes)
 			END AS injury_details_2,
--- 			IF(TRIM(BOTH '"' from A.second_unhealthy_day_notes) LIKE '%tommy john%', 1, 0) AS tommy_john_injury_flag_2,
 			CASE
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'fined%' 
-					AND TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '% for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), ' for ', -1)
-			
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'arrested and charged with%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), 'arrested and charged with ', -1)
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'arrested for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), 'arrested for ', -1)
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'arrested on %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), 'arrested on ', -1)
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'charged with %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), 'charged with ', -1)
-
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'player began serving suspension %game for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), 'game for ', -1)
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'player began serving suspension %games for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), 'games for ', -1)
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'suspended by NBA for % game %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), ' game for ', -1)
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'suspended by NBA for % games for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), ' games for ', -1)
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'suspended by team indefinitely for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), ' team indefinitely for ', -1)
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'suspended by team for %' 
-					AND (TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) NOT LIKE '% game%' AND TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) NOT LIKE '% day%') THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), 'suspended by team for ', -1)
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'suspended by team for %' 
-					AND (TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '% _ game %' OR TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '% __ game %') THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), ' game for ', -1)
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'suspended by team for %' 
-					AND (TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '% _ games %' OR TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '% __ games %') THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), ' games for ', -1)
-
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'pleaded guilty to %' THEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes)
-
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'pleaded %' THEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes)
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'sentenced to %' THEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes)
-			END AS suspension_details_2,
--- 			CASE
--- 				WHEN TRIM(BOTH '"' from A.second_unhealthy_day_notes) = 'placed on paternity leave list'
--- 					OR TRIM(BOTH '"' from A.second_unhealthy_day_notes) = 'placed on paternity leave'
--- 					OR TRIM(BOTH '"' from A.second_unhealthy_day_notes) LIKE 'placed on paternity leave list%'
--- 					OR TRIM(BOTH '"' from A.second_unhealthy_day_notes) LIKE '%placed on paternity leave list%'
--- 					OR TRIM(BOTH '"' from A.second_unhealthy_day_notes) LIKE '%placed on paternity leave list' THEN 'paternity leave'
--- 				ELSE ''
--- 			END AS paternity_leave_2,
--- 			CASE
--- 				WHEN TRIM(BOTH '"' from A.second_unhealthy_day_notes) = 'placed on paternity leave list'
--- 					OR TRIM(BOTH '"' from A.second_unhealthy_day_notes) = 'placed on paternity leave'
--- 					OR TRIM(BOTH '"' from A.second_unhealthy_day_notes) LIKE 'placed on paternity leave list%'
--- 					OR TRIM(BOTH '"' from A.second_unhealthy_day_notes) LIKE '%placed on paternity leave list%'
--- 					OR TRIM(BOTH '"' from A.second_unhealthy_day_notes) LIKE '%placed on paternity leave list' THEN 1
--- 				ELSE 0
--- 			END AS paternity_flag_2,
-
-
--- 			CASE
--- 				WHEN TRIM(BOTH '"' from A.second_unhealthy_day_notes) = 'placed on bereavement list'
--- 					OR TRIM(BOTH '"' from A.second_unhealthy_day_notes) LIKE 'placed on bereavement%'
--- 					OR TRIM(BOTH '"' from A.second_unhealthy_day_notes) LIKE '%placed on bereavement%'
--- 					OR TRIM(BOTH '"' from A.second_unhealthy_day_notes) LIKE '%placed on bereavement' THEN 'bereavement list'
--- 				WHEN TRIM(BOTH '"' from A.second_unhealthy_day_notes) LIKE '%bereavement%' THEN 'bereavement list'
--- 				ELSE ''
--- 			END AS bereavement_leave_2,
--- 			CASE
--- 				WHEN TRIM(BOTH '"' from A.second_unhealthy_day_notes) = 'placed on bereavement list'
--- 					OR TRIM(BOTH '"' from A.second_unhealthy_day_notes) LIKE 'placed on bereavement%'
--- 					OR TRIM(BOTH '"' from A.second_unhealthy_day_notes) LIKE '%placed on bereavement%'
--- 					OR TRIM(BOTH '"' from A.second_unhealthy_day_notes) LIKE '%placed on bereavement' THEN 1
--- 				WHEN TRIM(BOTH '"' from A.second_unhealthy_day_notes) LIKE '%bereavement%' THEN 1
--- 				ELSE 0
--- 			END AS bereavement_flag_2,
--- 			CASE 
--- 				WHEN TRIM(BOTH '"' from A.second_unhealthy_day_notes) IN ('placed on restricted list', 
--- 													'placed on restricted list during suspension',
--- 													'placed on restricted list serving suspension', 
--- 													'placed on restricted list by MLB') THEN 'none_given'
--- 				WHEN TRIM(BOTH '"' from A.second_unhealthy_day_notes) LIKE 'placed on restricted list for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' from A.second_unhealthy_day_notes), ' for ',-1)
--- 				WHEN TRIM(BOTH '"' from A.second_unhealthy_day_notes) LIKE 'placed on restricted list with %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' from A.second_unhealthy_day_notes), ' with ',-1)
--- 				WHEN TRIM(BOTH '"' from A.second_unhealthy_day_notes) LIKE 'placed on restricted list due %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' from A.second_unhealthy_day_notes), ' due to ',-1)
--- 				WHEN TRIM(BOTH '"' from A.second_unhealthy_day_notes) LIKE 'placed on restricted list while serving %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' from A.second_unhealthy_day_notes), ' while serving ',-1)
--- 				WHEN TRIM(BOTH '"' from A.second_unhealthy_day_notes) LIKE '%(%)'
--- 					AND TRIM(BOTH '"' from A.second_unhealthy_day_notes) NOT LIKE '%(date approximate)'
--- 					AND TRIM(BOTH '"' from A.second_unhealthy_day_notes) NOT LIKE 'COVID-19%' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(TRIM(BOTH '"' from A.second_unhealthy_day_notes), ')', 1), '(', -1)
--- 				ELSE ''
--- 			END AS restricted_details_2,
-			CASE
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'will undergo %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), ' undergo ', -1)
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'surgery %' OR TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '% surgery %' THEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes)
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'surgery on %' THEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes)
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'surgery to %' THEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes)
-				WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'arthroscopic surgery%' THEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes)
+                WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'will undergo %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.second_unhealthy_day_notes), ' undergo ', -1)
+                WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'surgery %' OR TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE '% surgery %' THEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes)
+                WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'surgery on %' THEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes)
+                WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'surgery to %' THEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes)
+                WHEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes) LIKE 'arthroscopic surgery%' THEN TRIM(BOTH '"' FROM A.second_unhealthy_day_notes)
 			END AS surgery_details_2,
--- 			CASE
--- 				WHEN TRIM(BOTH '"' from A.second_unhealthy_day_notes) LIKE '%personal%' THEN 'personal'
--- 				ELSE ''
--- 			END as personal_details_2,
 			CASE
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '%(DNP)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), '(DNP)', 1)
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '%(DTD)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), '(DTD)', 1)
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '%placed on IL with%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), 'placed on IL with ', -1)            
+		        WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '%(DTD)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), '(DTD)', 1)
+		        WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '%placed on IL with%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), 'placed on IL with ', -1)            
 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'placed on IL for %' 
 					AND TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) NOT LIKE 'placed on IL for %(out for season)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), ' for ', -1)
 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'placed on IL for %(out for season)' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), '(out for season)', 1), ' for ', -1)
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'placed on IL recovering from %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), 'placed on IL ', -1)
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'placed on IR recovering from %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), 'placed on IR ', -1)
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) = 'placed on IL (out for season)' THEN 'placed on IL (out for season)'
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) = 'placed on IL ineligible' THEN 'ineligible'
+		        WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'placed on IL recovering from %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), 'placed on IL ', -1)
+		        WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'placed on IR recovering from %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), 'placed on IR ', -1)
+		        WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) = 'placed on IL (out for season)' THEN 'placed on IL (out for season)'
+		        WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) = 'placed on IL ineligible' THEN 'ineligible'
 
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '%(out for season)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), '(out for season)', 1)
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '%(out indefinitely)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), '(out indefinitely)', 1)
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'placed on IR with %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), 'placed on IR with ', -1)
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'placed on IR for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), 'placed on IR for ', -1)
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '%(out % weeks)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), ' (out ', 1)
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '%(out % weeks)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), ' (out ', 1)
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '%(out % months)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), ' (out ', 1)
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '%(out % month)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), ' (out ', 1)
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '%(out indefinitely)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), '(out indefinitely)', 1)
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '%(out indefinteily)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), '(out indefinteily)', 1)
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '%(date approximate)%' THEN REPLACE(SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), '(date approximate)', 1), '(out for season)', '')
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '%(out for season) (date approximate)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), '(out for season) (date approximate)', 1)
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '%(out % week)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), '(out ', 1)
+		        WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '%(out for season)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), '(out for season)', 1)
+		        WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '%(out indefinitely)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), '(out indefinitely)', 1)
+		        WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'placed on IR with %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), 'placed on IR with ', -1)
+		        WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'placed on IR for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), 'placed on IR for ', -1)
+		        WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '%(out % weeks)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), ' (out ', 1)
+		        WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '%(out % weeks)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), ' (out ', 1)
+		        WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '%(out % months)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), ' (out ', 1)
+		        WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '%(out % month)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), ' (out ', 1)
+		        WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '%(out indefinitely)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), '(out indefinitely)', 1)
+		        WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '%(out indefinteily)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), '(out indefinteily)', 1)
+		        WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '%(date approximate)%' THEN REPLACE(SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), '(date approximate)', 1), '(out for season)', '')
+		        WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '%(out for season) (date approximate)%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), '(out for season) (date approximate)', 1)
+		        WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '%(out % week)' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), '(out ', 1)
 
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'broken %' OR TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'bruised %' THEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes)
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'diagnosed with %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), 'diagnosed with ', -1)
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'dislocated %' THEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes)
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'fractured %' THEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes)
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'torn %' THEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes)
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'strained %' THEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes)
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'sprained %' THEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes)
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'COVID%' THEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes)
-				
+		        WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'broken %' OR TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'bruised %' THEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes)
+		        WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'diagnosed with %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), 'diagnosed with ', -1)
+		        WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'dislocated %' THEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes)
+		        WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'fractured %' THEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes)
+		        WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'torn %' THEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes)
+		        WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'strained %' THEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes)
+		        WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'sprained %' THEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes)
+		        WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'COVID%' THEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes)
+		        
 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'left %' OR TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'right %' THEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes)
 				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'stress %' THEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes)
 			END AS injury_details_3,
--- 			IF(TRIM(BOTH '"' from A.third_unhealthy_day_notes) LIKE '%tommy john%', 1, 0) AS tommy_john_injury_flag_3,
 			CASE
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'fined%' 
-					AND TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '% for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), ' for ', -1)
-			
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'arrested and charged with%' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), 'arrested and charged with ', -1)
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'arrested for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), 'arrested for ', -1)
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'arrested on %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), 'arrested on ', -1)
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'charged with %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), 'charged with ', -1)
-
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'player began serving suspension %game for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), 'game for ', -1)
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'player began serving suspension %games for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), 'games for ', -1)
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'suspended by NBA for % game %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), ' game for ', -1)
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'suspended by NBA for % games for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), ' games for ', -1)
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'suspended by team indefinitely for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), ' team indefinitely for ', -1)
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'suspended by team for %' 
-					AND (TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) NOT LIKE '% game%' AND TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) NOT LIKE '% day%') THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), 'suspended by team for ', -1)
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'suspended by team for %' 
-					AND (TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '% _ game %' OR TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '% __ game %') THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), ' game for ', -1)
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'suspended by team for %' 
-					AND (TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '% _ games %' OR TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '% __ games %') THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), ' games for ', -1)
-
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'pleaded guilty to %' THEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes)
-
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'pleaded %' THEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes)
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'sentenced to %' THEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes)
-			END AS suspension_details_3,
--- 			CASE
--- 				WHEN TRIM(BOTH '"' from A.third_unhealthy_day_notes) = 'placed on paternity leave list'
--- 					OR TRIM(BOTH '"' from A.third_unhealthy_day_notes) = 'placed on paternity leave'
--- 					OR TRIM(BOTH '"' from A.third_unhealthy_day_notes) LIKE 'placed on paternity leave list%'
--- 					OR TRIM(BOTH '"' from A.third_unhealthy_day_notes) LIKE '%placed on paternity leave list%'
--- 					OR TRIM(BOTH '"' from A.third_unhealthy_day_notes) LIKE '%placed on paternity leave list' THEN 'paternity leave'
--- 				ELSE ''
--- 			END AS paternity_leave_3,
--- 			CASE
--- 				WHEN TRIM(BOTH '"' from A.third_unhealthy_day_notes) = 'placed on paternity leave list'
--- 					OR TRIM(BOTH '"' from A.third_unhealthy_day_notes) = 'placed on paternity leave'
--- 					OR TRIM(BOTH '"' from A.third_unhealthy_day_notes) LIKE 'placed on paternity leave list%'
--- 					OR TRIM(BOTH '"' from A.third_unhealthy_day_notes) LIKE '%placed on paternity leave list%'
--- 					OR TRIM(BOTH '"' from A.third_unhealthy_day_notes) LIKE '%placed on paternity leave list' THEN 1
--- 				ELSE 0
--- 			END AS paternity_flag_3,
-
-
--- 			CASE
--- 				WHEN TRIM(BOTH '"' from A.third_unhealthy_day_notes) = 'placed on bereavement list'
--- 					OR TRIM(BOTH '"' from A.third_unhealthy_day_notes) LIKE 'placed on bereavement%'
--- 					OR TRIM(BOTH '"' from A.third_unhealthy_day_notes) LIKE '%placed on bereavement%'
--- 					OR TRIM(BOTH '"' from A.third_unhealthy_day_notes) LIKE '%placed on bereavement' THEN 'bereavement list'
--- 				WHEN TRIM(BOTH '"' from A.third_unhealthy_day_notes) LIKE '%bereavement%' THEN 'bereavement list'
--- 				ELSE ''
--- 			END AS bereavement_leave_3,
--- 			CASE
--- 				WHEN TRIM(BOTH '"' from A.third_unhealthy_day_notes) = 'placed on bereavement list'
--- 					OR TRIM(BOTH '"' from A.third_unhealthy_day_notes) LIKE 'placed on bereavement%'
--- 					OR TRIM(BOTH '"' from A.third_unhealthy_day_notes) LIKE '%placed on bereavement%'
--- 					OR TRIM(BOTH '"' from A.third_unhealthy_day_notes) LIKE '%placed on bereavement' THEN 1
--- 				WHEN TRIM(BOTH '"' from A.third_unhealthy_day_notes) LIKE '%bereavement%' THEN 1
--- 				ELSE 0
--- 			END AS bereavement_flag_3,
--- 			CASE 
--- 				WHEN TRIM(BOTH '"' from A.third_unhealthy_day_notes) IN ('placed on restricted list', 
--- 													'placed on restricted list during suspension',
--- 													'placed on restricted list serving suspension', 
--- 													'placed on restricted list by MLB') THEN 'none_given'
--- 				WHEN TRIM(BOTH '"' from A.third_unhealthy_day_notes) LIKE 'placed on restricted list for %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' from A.third_unhealthy_day_notes), ' for ',-1)
--- 				WHEN TRIM(BOTH '"' from A.third_unhealthy_day_notes) LIKE 'placed on restricted list with %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' from A.third_unhealthy_day_notes), ' with ',-1)
--- 				WHEN TRIM(BOTH '"' from A.third_unhealthy_day_notes) LIKE 'placed on restricted list due %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' from A.third_unhealthy_day_notes), ' due to ',-1)
--- 				WHEN TRIM(BOTH '"' from A.third_unhealthy_day_notes) LIKE 'placed on restricted list while serving %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' from A.third_unhealthy_day_notes), ' while serving ',-1)
--- 				WHEN TRIM(BOTH '"' from A.third_unhealthy_day_notes) LIKE '%(%)'
--- 					AND TRIM(BOTH '"' from A.third_unhealthy_day_notes) NOT LIKE '%(date approximate)'
--- 					AND TRIM(BOTH '"' from A.third_unhealthy_day_notes) NOT LIKE 'COVID-19%' THEN SUBSTRING_INDEX(SUBSTRING_INDEX(TRIM(BOTH '"' from A.third_unhealthy_day_notes), ')', 1), '(', -1)
--- 				ELSE ''
--- 			END AS restricted_details_3,
-			CASE
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'will undergo %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes), ' undergo ', -1)
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'surgery %' OR TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE '% surgery %' THEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes)
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'surgery on %' THEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes)
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'surgery to %' THEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes)
-				WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes) LIKE 'arthroscopic surgery%' THEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes)
+                WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes ) LIKE 'will undergo %' THEN SUBSTRING_INDEX(TRIM(BOTH '"' FROM A.third_unhealthy_day_notes ), ' undergo ', -1)
+                WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes ) LIKE 'surgery %' OR TRIM(BOTH '"' FROM A.third_unhealthy_day_notes ) LIKE '% surgery %' THEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes )
+                WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes ) LIKE 'surgery on %' THEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes )
+                WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes ) LIKE 'surgery to %' THEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes )
+                WHEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes ) LIKE 'arthroscopic surgery%' THEN TRIM(BOTH '"' FROM A.third_unhealthy_day_notes )
 			END AS surgery_details_3
--- 			CASEƒ
--- 				WHEN TRIM(BOTH '"' from A.third_unhealthy_day_notes) LIKE '%personal%' THEN 'personal'
--- 				ELSE ''
--- 			END as personal_details_3
 ############
 		FROM basketball.player_inj_cycles_prefinal A;
         TRUNCATE basketball.player_inj_cycles_prefinal;
@@ -842,6 +988,7 @@ DELIMITER ;
 CALL basketball.health_cycle_backfill_proc();
 
 
+
 /*
 
 SELECT 
@@ -853,7 +1000,7 @@ SELECT
 	DATEDIFF(SUBSTRING_INDEX(GROUP_CONCAT(DAY ORDER BY DAY SEPARATOR ';'), ';', -1), SUBSTRING_INDEX(GROUP_CONCAT(DAY ORDER BY DAY SEPARATOR ';'), ';', 1))+1 AS date_diff
 	
 FROM basketball.unhealthy_date_only_DNP_expanded
-WHERE name = 'Vladimir Radmanovic'
+-- WHERE name = 'Vladimir Radmanovic'
 GROUP BY classification2,notes1,name
 ORDER BY start_day
 LIMIT 10000;

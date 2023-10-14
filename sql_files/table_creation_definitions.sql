@@ -116,7 +116,7 @@
 ########################################################################################################################
 
 -- DROP TABLE IF EXISTS basketball.live_free_agents;
---CREATE TABLE basketball.live_free_agents (
+-- CREATE TABLE basketball.live_free_agents (
 --  `name` varchar(100) NOT NULL,
 --  `date` date NOT NULL,
 --  `team` varchar(100) NOT NULL,
@@ -143,8 +143,8 @@
 --  `plus_minus` int DEFAULT NULL,
 --  `name_code` VARCHAR(75),
 --  PRIMARY KEY (`name`,`date`,`team`,`name_code`)
---) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
---;
+-- ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+-- ;
 
 
 ########################################################################################################################
@@ -311,6 +311,55 @@
 
 
 
+########################################################################################################################
+########################################################################################################################
 
 
+-- DROP TABLE IF EXISTS basketball.player_injury_cycles;
+-- CREATE TABLE basketball.player_injury_cycles
+-- (
+--   `player_name` VARCHAR(50),
+--   `start_health_cycle_team` VARCHAR(50),
+--   `end_health_cycle_team` VARCHAR(50),
+--   `unhealthy1` date DEFAULT NULL,
+--   `first_unhealthy_day_notes` varchar(150) DEFAULT NULL,
+--   `unhealthy2` date DEFAULT NULL,
+--   `second_unhealthy_day_notes` varchar(150) DEFAULT NULL,
+--   `unhealthy3` date DEFAULT NULL,
+--   `third_unhealthy_day_notes` varchar(150) DEFAULT NULL,
+--   `unhealthy4` date DEFAULT NULL,
+--   `fourth_unhealthy_day_notes` varchar(150) DEFAULT NULL,
+--   `unhealthy5` date DEFAULT NULL,
+--   `fifth_unhealthy_day_notes` varchar(150) DEFAULT NULL,
+--   `healthy` date,
+--   `healthy_notes` varchar(150) DEFAULT NULL,
+--   `days_to_recovery` int DEFAULT NULL,
+--   `injury_details_1` VARCHAR(150),
+--   `surgery_details_1` VARCHAR(150),
+--   `injury_details_2` VARCHAR(150),
+--   `surgery_details_2` VARCHAR(150),
+--   `injury_details_3` VARCHAR(150),
+--   `surgery_details_3` VARCHAR(150),
+--   
+--   PRIMARY KEY (player_name, healthy),
+--   INDEX (start_health_cycle_team, end_health_cycle_team, unhealthy1, unhealthy2, unhealthy3, unhealthy4, unhealthy5)
+-- );
+
+
+########################################################################################################################
+########################################################################################################################
+
+-- DROP TABLE IF EXISTS basketball.unhealthy_date_only_DNP_expanded;
+-- CREATE TABLE basketball.unhealthy_date_only_DNP_expanded
+-- (
+-- 	`DAY` date NOT NULL,
+-- 	`name` varchar(150),
+-- 	`dnp_day1` date DEFAULT NULL,
+-- 	`notes1` varchar(300) DEFAULT NULL,
+-- 	`dnp_day2` date DEFAULT NULL,
+-- 	`notes2` varchar(300) DEFAULT NULL,
+-- 	`classification` varchar(13) DEFAULT '',
+-- 	`classification2` varchar(13) DEFAULT '',
+-- 	PRIMARY KEY (DAY, name)
+-- );
 
