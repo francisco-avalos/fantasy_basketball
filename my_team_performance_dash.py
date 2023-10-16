@@ -18,7 +18,11 @@ from my_functions import clean_string, remove_name_suffixes
 
 
 
-exec(open('/Users/franciscoavalosjr/Desktop/basketball-creds.py').read())
+sports_db_admin_host=os.environ.get('sports_db_admin_host')
+sports_db_admin_db='basketball'
+sports_db_admin_user=os.environ.get('sports_db_admin_user')
+sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
+sports_db_admin_port=os.environ.get('sports_db_admin_port')
 
 connection=mysql.connect(host=sports_db_admin_host,
                         database=sports_db_admin_db,
@@ -27,7 +31,7 @@ connection=mysql.connect(host=sports_db_admin_host,
                         port=sports_db_admin_port)
 
 league=League(league_id=leagueid, 
-                year=2023,
+                year=2024,
                 espn_s2=espn_s2,
                 swid=swid, 
                 debug=False)

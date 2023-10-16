@@ -33,7 +33,11 @@ pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', None)
 
 
-exec(open('/Users/franciscoavalosjr/Desktop/basketball-creds.py').read())
+sports_db_admin_host=os.environ.get('sports_db_admin_host')
+sports_db_admin_db='basketball'
+sports_db_admin_user=os.environ.get('sports_db_admin_user')
+sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
+sports_db_admin_port=os.environ.get('sports_db_admin_port')
 
 basketball_seasons=pd.read_csv('/Users/franciscoavalosjr/Downloads/season_dates.csv')
 

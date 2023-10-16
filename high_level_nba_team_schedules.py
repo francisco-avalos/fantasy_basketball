@@ -25,15 +25,19 @@ pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', None)
 
 
-exec(open('/Users/franciscoavalosjr/Desktop/basketball-creds.py').read())
+sports_db_admin_host=os.environ.get('sports_db_admin_host')
+sports_db_admin_db='basketball'
+sports_db_admin_user=os.environ.get('sports_db_admin_user')
+sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
+sports_db_admin_port=os.environ.get('sports_db_admin_port')
 
 league=League(league_id=leagueid, 
-				year=2023,
+				year=2024,
 				espn_s2=espn_s2,
 				swid=swid, 
 				debug=False)
 
-season_end_year=2023
+season_end_year=2024
 
 try:
 	connection=mysql.connect(host=sports_db_admin_host,

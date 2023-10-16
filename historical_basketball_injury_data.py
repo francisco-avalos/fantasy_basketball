@@ -13,7 +13,12 @@ from my_functions import day_injuries_basketball
 from datetime import datetime
 
 
-exec(open('/Users/franciscoavalosjr/Desktop/basketball-creds.py').read())
+sports_db_admin_host=os.environ.get('sports_db_admin_host')
+sports_db_admin_db='basketball'
+sports_db_admin_user=os.environ.get('sports_db_admin_user')
+sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
+sports_db_admin_port=os.environ.get('sports_db_admin_port')
+
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', None)
 
