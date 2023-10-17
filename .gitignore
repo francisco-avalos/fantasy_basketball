@@ -11,3 +11,4 @@ venv
 *.pyc
 .DS_Store
 .env
+oauth2.json
