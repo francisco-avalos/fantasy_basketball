@@ -35,11 +35,26 @@ sports_db_admin_user=os.environ.get('sports_db_admin_user')
 sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
 sports_db_admin_port=os.environ.get('sports_db_admin_port')
 
-league=League(league_id=leagueid, 
-				year=2024,
-				espn_s2=espn_s2,
-				swid=swid, 
-				debug=False)
+
+from yahoo_oauth import OAuth2
+
+
+
+
+
+
+
+
+
+
+
+
+
+# league=League(league_id=leagueid, 
+# 				year=2024,
+# 				espn_s2=espn_s2,
+# 				swid=swid, 
+# 				debug=False)
 
 
 
@@ -60,14 +75,14 @@ league=League(league_id=leagueid,
 
 # Error while connecting to MySQL 1062 (23000): Duplicate entry 'Justin Jackson-2022-10-24-Team.BOSTON_CELTICS-jacksju01' for key 'live_free_agents.PRIMARY'
 
-name_code='jacksju01'
-name_code_list=[name_code]
-df=client.regular_season_player_box_scores(
-    player_identifier=name_code, 
-    season_end_year=2023
-)
-df=pd.DataFrame(df)
-print(df)
+# name_code='jacksju01'
+# name_code_list=[name_code]
+# df=client.regular_season_player_box_scores(
+#     player_identifier=name_code, 
+#     season_end_year=2023
+# )
+# df=pd.DataFrame(df)
+# print(df)
 
 # print(df.head())
 # print(df.shape)
