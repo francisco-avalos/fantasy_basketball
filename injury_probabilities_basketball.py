@@ -8,7 +8,7 @@ import time
 # from scipy.stats import poisson
 
 import mysql.connector as mysql
-# from my_baseball_funcs import return_parenthesis_contents, contains_number, coalesce
+from my_basketball_funcs import return_parenthesis_contents, contains_number, coalesce
 from mysql.connector import Error
 from sksurv.nonparametric import kaplan_meier_estimator
 
