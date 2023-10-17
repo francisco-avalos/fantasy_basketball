@@ -363,3 +363,16 @@
 -- 	PRIMARY KEY (DAY, name)
 -- );
 
+
+
+########################################################################################################################
+########################################################################################################################
+
+-- DROP TABLE IF EXISTS basketball.injury_probabilities;
+-- CREATE TABLE IF NOT EXISTS basketball.injury_probabilities
+-- (
+--   `injury` varchar(509) NOT NULL,
+--   `days` int NOT NULL,
+--   `probabilities` decimal(6,5) DEFAULT NULL,
+--   PRIMARY KEY (`injury`,`days`)
+-- );
