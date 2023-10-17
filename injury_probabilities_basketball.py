@@ -1,11 +1,6 @@
 import os
-# import requests
 import pandas as pd
-# import numpy as np
-# import datetime as dt
 import time
-# import matplotlib.pyplot as plt
-# from scipy.stats import poisson
 
 import mysql.connector as mysql
 from my_basketball_funcs import return_parenthesis_contents, contains_number, coalesce
@@ -262,35 +257,11 @@ column_order=[
     'healthy_notes',
     'days_to_recovery', 
     'injury_details_1', 
-    # 'tommy_john_injury_flag_1',
-    # 'suspension_details_1', 
-    # 'paternity_leave_1', 
-    # 'paternity_flag_1',
-    # 'bereavement_leave_1', 
-    # 'bereavement_flag_1', 
-    # 'restricted_details_1',
     'surgery_details_1', 
-    # 'personal_details_1', 
     'injury_details_2',
-    # 'tommy_john_injury_flag_2', 
-    # 'suspension_details_2', 
-    # 'paternity_leave_2',
-    # 'paternity_flag_2', 
-    # 'bereavement_leave_2', 
-    # 'bereavement_flag_2',
-    # 'restricted_details_2', 
     'surgery_details_2', 
-    # 'personal_details_2',
     'injury_details_3', 
-    # 'tommy_john_injury_flag_3', 
-    # 'suspension_details_3',
-    # 'paternity_leave_3', 
-    # 'paternity_flag_3', 
-    # 'bereavement_leave_3',
-    # 'bereavement_flag_3', 
-    # 'restricted_details_3', 
     'surgery_details_3'
-    # 'personal_details_3'
     ]
 inj_df=inj_df[column_order]
 
