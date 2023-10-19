@@ -376,3 +376,23 @@
 --   `probabilities` decimal(6,5) DEFAULT NULL,
 --   PRIMARY KEY (`injury`,`days`)
 -- );
+
+
+
+
+
+########################################################################################################################
+########################################################################################################################
+
+-- DROP TABLE IF EXISTS basketball.live_free_agents_yahoo;
+-- CREATE TABLE basketball.live_free_agents_yahoo
+-- (
+--  `playerid` varchar(100) NOT NULL,
+--  `name` varchar(100) NOT NULL,
+--  `status` varchar(100) NOT NULL,
+--  `position_type` varchar(100) NOT NULL,
+--  `eligible_positions` varchar(100) NOT NULL,
+--  `percent_owned` INT,
+--  PRIMARY KEY (`playerid`,`name`)
+-- );
+
