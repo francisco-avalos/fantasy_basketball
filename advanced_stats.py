@@ -19,7 +19,7 @@ from datetime import datetime
 from datetime import date
 from datetime import timedelta
 
-from my_basketball_funcs import clean_string, remove_name_suffixes, convert_game_score_to_points
+from my_basketball_funcs import clean_string, remove_name_suffixes
 
 ## Preliminaries, set ups & initiators 
 pd.set_option('display.max_columns', None)
