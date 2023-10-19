@@ -309,7 +309,8 @@
 -- ALTER TABLE basketball.historical_player_data
 -- ADD COLUMN season VARCHAR(7) NOT NULL;
 
-
+-- ALTER TABLE basketball.historical_player_data
+-- ADD INDEX(slug);
 
 ########################################################################################################################
 ########################################################################################################################
