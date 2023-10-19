@@ -177,11 +177,12 @@ app.layout=html.Div(children=[html.H1(children='Free Agent Analysis Helper Tool'
                                                     'turnovers', 'points_scored']),
                               'Number of players',
                              dcc.Input(id='top_n', value=5, type='integer'),
-                             'Include historicals?',
+                             'historicals options',
                              dcc.Dropdown(id='history_id',
-                                            options=[{'label':'Yes','value':'yes'},
-                                                    {'label':'No','value':'no'}],
-                                            value='No'),
+                                            options=[{'label':'history-only','value':'ho'},
+                                                    {'label':'history + current season ','value':'hcs'},
+                                                    {'label':'current season only','value':'cso'}],
+                                            value='cso'),
                              'player_checklist',
                              dcc.Checklist(id='player_list', options=[name for name in fa_df['name'].unique()], value=[name for name in fa_df['name'].unique()], 
                                 style={'height':10000,'width':100}, inline=True)
@@ -194,6 +195,7 @@ app.layout=html.Div(children=[html.H1(children='Free Agent Analysis Helper Tool'
              Input(component_id='calculation', component_property='value'),
              Input(component_id='displayed_fields', component_property='value'),
              Input(component_id='top_n', component_property='value'),
+             Input(component_id="history_id", component_property='value'),
              Input(component_id='player_list', component_property='value')
              )
 
