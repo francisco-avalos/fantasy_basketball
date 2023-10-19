@@ -36,9 +36,6 @@ sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
 sports_db_admin_port=os.environ.get('sports_db_admin_port')
 
 
-from yahoo_oauth import OAuth2
-
-
 
 
 
