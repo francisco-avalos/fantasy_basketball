@@ -39,7 +39,7 @@ sports_db_admin_user=os.environ.get('sports_db_admin_user')
 sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
 sports_db_admin_port=os.environ.get('sports_db_admin_port')
 
-basketball_seasons=pd.read_csv('/Users/franciscoavalosjr/Downloads/season_dates.csv')
+basketball_seasons=pd.read_csv('/Users/franciscoavalosjr/Desktop/basketball-folder/season_dates.csv')
 
 
 try:
@@ -165,17 +165,28 @@ try:
                                     database=sports_db_admin_db,
                                     user=sports_db_admin_user,
                                     password=sports_db_admin_pw,
-                                    port=sports_db_admin_port)
+                                    port=sports_db_admin_port,
+                                    allow_local_infile=True)
             lapsed_time_min=(end_time-start_time)/60
             print(f'Whole {season} took {lapsed_time_min:.02f} minutes to obtain')
             if connection.is_connected():
                 cursor=connection.cursor()
                 print('Connection to database established... Begin insertion into historical table.')
                 start_time=time.perf_counter()
-                for i,row in df.iterrows():
-                    sql='REPLACE INTO `historical_player_data` (`'+cols+'`) VALUES ('+'%s,'*(len(row)-1)+'%s)'
-                    cursor.execute(sql, tuple(row))
-                    connection.commit()
+                
+                file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/historical_player_extract.csv'
+                df.to_csv(file_path,index=False)
+                qry=f"LOAD DATA LOCAL INFILE '{df}' REPLACE INTO TABLE basketball.historical_player_data FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\'' IGNORE ROWS;"
+                cursor.execute(qry)
+                connection.commit()
+                del df
+                os.remove(file_path)
+
+                # for i,row in df.iterrows():
+                #     sql='REPLACE INTO `historical_player_data` (`'+cols+'`) VALUES ('+'%s,'*(len(row)-1)+'%s)'
+                #     cursor.execute(sql, tuple(row))
+                #     connection.commit()
+
                 end_time=time.perf_counter()
                 lapsed_time_min=(end_time-start_time)/60
                 print(f'Insertion to database took {lapsed_time_min:.02f} minutes')
@@ -219,14 +230,25 @@ try:
                                     database=sports_db_admin_db,
                                     user=sports_db_admin_user,
                                     password=sports_db_admin_pw,
-                                    port=sports_db_admin_port)
+                                    port=sports_db_admin_port,
+                                    allow_local_infile=True)
             if connection.is_connected():
                 cursor=connection.cursor()
                 print('Connection to database established... Begin insertion into historical table.')
-                for i,row in df.iterrows():
-                    sql='REPLACE INTO `historical_player_data` (`'+cols+'`) VALUES ('+'%s,'*(len(row)-1)+'%s)'
-                    cursor.execute(sql, tuple(row))
-                    connection.commit()
+
+                file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/historical_player_extract.csv'
+                df.to_csv(file_path,index=False)
+                qry=f"LOAD DATA LOCAL INFILE '{df}' REPLACE INTO TABLE basketball.historical_player_data FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\'' IGNORE ROWS;"
+                cursor.execute(qry)
+                connection.commit()
+                del df
+                os.remove(file_path)
+                
+                # for i,row in df.iterrows():
+                #     sql='REPLACE INTO `historical_player_data` (`'+cols+'`) VALUES ('+'%s,'*(len(row)-1)+'%s)'
+                #     cursor.execute(sql, tuple(row))
+                #     connection.commit()
+
             if(connection.is_connected()):
                 cursor.close()
                 connection.close()
