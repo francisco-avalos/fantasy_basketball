@@ -120,15 +120,24 @@ try:
 							database=sports_db_admin_db,
 							user=sports_db_admin_user,
 							password=sports_db_admin_pw,
-							port=sports_db_admin_port)
+							port=sports_db_admin_port,
+							allow_local_infile=True)
 
 	if connection.is_connected():
 		cursor=connection.cursor()
-		cols="`,`".join([str(i) for i in main_free_agents_df.columns.tolist()])
-		for i,row in main_free_agents_df.iterrows():
-			sql='REPLACE INTO `advanced_stats` (`'+cols+'`) VALUES ('+'%s,'*(len(row)-1)+'%s)'
-			cursor.execute(sql, tuple(row))
-			connection.commit()
+		file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/advanced_data_extract.csv'
+		main_free_agents_df.to_csv(file_path,index=False)
+		qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.advanced_stats FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\'' IGNORE ROWS;"
+		cursor.execute(qry)
+		connection.commit()
+		del main_free_agents_df
+		os.remove(file_path)
+
+		# cols="`,`".join([str(i) for i in main_free_agents_df.columns.tolist()])
+		# for i,row in main_free_agents_df.iterrows():
+		# 	sql='REPLACE INTO `advanced_stats` (`'+cols+'`) VALUES ('+'%s,'*(len(row)-1)+'%s)'
+		# 	cursor.execute(sql, tuple(row))
+		# 	connection.commit()
 	print('advanced_stats table ready to analyze')
 
 except Error as e:
