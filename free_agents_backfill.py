@@ -31,7 +31,11 @@ sports_db_admin_user=os.environ.get('sports_db_admin_user')
 sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
 sports_db_admin_port=os.environ.get('sports_db_admin_port')
 
-season_end_year=2024
+leagueid=os.environ.get('leagueid')
+espn_s2=os.environ.get('espn_s2')
+swid=os.environ.get('swid')
+
+season_end_year=2023
 league=League(league_id=leagueid, 
 				year=season_end_year,
 				espn_s2=espn_s2,
@@ -43,9 +47,9 @@ league=League(league_id=leagueid,
 
 
 
-fa_size=10000
+fa_size=1000
 non_shows=[]
-non_shows_path='/Users/franciscoavalosjr/Desktop/basketball-folder/'
+non_shows_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/'
 
 
 try:
@@ -53,11 +57,12 @@ try:
 							database=sports_db_admin_db,
 							user=sports_db_admin_user,
 							password=sports_db_admin_pw,
-							port=sports_db_admin_port)
-	print('empty live_free_agents table')
-	if connection.is_connected():
-		cursor=connection.cursor()
-		cursor.execute('TRUNCATE basketball.live_free_agents;')
+							port=sports_db_admin_port,
+							allow_local_infile=True)
+	# print('empty live_free_agents table')
+	# if connection.is_connected():
+	# 	cursor=connection.cursor()
+	# 	cursor.execute('TRUNCATE basketball.live_free_agents;')
 
 	if connection.is_connected():
 		cursor=connection.cursor()
@@ -135,22 +140,20 @@ try:
 							database=sports_db_admin_db,
 							user=sports_db_admin_user,
 							password=sports_db_admin_pw,
-							port=sports_db_admin_port)
+							port=sports_db_admin_port,
+							allow_local_infile=True)
 
 	if connection.is_connected():
 		cursor=connection.cursor()
-		qry="REPLACE INTO live_free_agents VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
-		my_data=[]
-		for idx, row in main_free_agents_df.iterrows():
-			my_data.append(tuple(row))
-		cursor.executemany(qry,my_data)
+		cursor.execute('TRUNCATE basketball.live_free_agents;')
+		file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/espn_fa_players.csv'
+		main_free_agents_df.to_csv(file_path,index=False)
+		qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.live_free_agents FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' IGNORE 1 ROWS;"
+		cursor.execute(qry)
 		connection.commit()
-		del my_data, main_free_agents_df
-		# cols="`,`".join([str(i) for i in main_free_agents_df.columns.tolist()])
-		# for i,row in main_free_agents_df.iterrows():
-		# 	sql='REPLACE INTO `live_free_agents` (`'+cols+'`) VALUES ('+'%s,'*(len(row)-1)+'%s)'
-		# 	cursor.execute(sql, tuple(row))
-		# 	connection.commit()
+		del main_free_agents_df
+		os.remove(file_path)
+
 	print('live_free_agents table ready to analyze')
 	
 	export_non_shows_file=os.path.join(non_shows_path, 'non_shows_list.csv')

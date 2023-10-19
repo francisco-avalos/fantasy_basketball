@@ -36,7 +36,20 @@ sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
 sports_db_admin_port=os.environ.get('sports_db_admin_port')
 
 
+leagueid=os.environ.get('leagueid')
+espn_s2=os.environ.get('espn_s2')
+swid=os.environ.get('swid')
 
+fa_size=5
+season_end_year=2023
+league=League(league_id=leagueid, 
+				year=season_end_year,
+				espn_s2=espn_s2,
+				swid=swid, 
+				debug=False)
+
+FA=league.free_agents(size=fa_size)
+print(FA)
 
 
 
