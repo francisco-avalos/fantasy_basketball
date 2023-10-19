@@ -109,19 +109,29 @@ try:
 				main_df['opponent']=main_df['opponent'].astype(str)
 				main_df['outcome']=main_df['outcome'].astype(str)
 
-				cols="`,`".join([str(i) for i in main_df.columns.tolist()])
-
 				connection=mysql.connect(host=sports_db_admin_host,
 										database=sports_db_admin_db,
 										user=sports_db_admin_user,
 										password=sports_db_admin_pw,
-										port=sports_db_admin_port)
+										port=sports_db_admin_port,
+										allow_local_infile=True)
 				cursor=connection.cursor()
 
-				for i,row in main_df.iterrows():
-					sql='REPLACE INTO `my_team_stats` (`'+cols+'`) VALUES ('+'%s,'*(len(row)-1)+'%s)'
-					cursor.execute(sql, tuple(row))
-					connection.commit()
+				file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/my_team_stats_extract.csv'
+				main_df.to_csv(file_path,index=False)
+				qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.my_team_stats FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' IGNORE 1 ROWS;"
+				cursor.execute(qry)
+				connection.commit()
+				del main_df
+				os.remove(file_path)
+
+
+				# cols="`,`".join([str(i) for i in main_df.columns.tolist()])
+				# for i,row in main_df.iterrows():
+				# 	sql='REPLACE INTO `my_team_stats` (`'+cols+'`) VALUES ('+'%s,'*(len(row)-1)+'%s)'
+				# 	cursor.execute(sql, tuple(row))
+				# 	connection.commit()
+
 				print('Backfill to basketball.my_team_stats table complete!')
 		else:
 			print(f'basketball.my_team_stats, data through {output[0]}')
@@ -183,12 +193,27 @@ try:
 				main_df['opponent']=main_df['opponent'].astype(str)
 				main_df['outcome']=main_df['outcome'].astype(str)
 
-				cols="`,`".join([str(i) for i in main_df.columns.tolist()])
+				connection=mysql.connect(host=sports_db_admin_host,
+										database=sports_db_admin_db,
+										user=sports_db_admin_user,
+										password=sports_db_admin_pw,
+										port=sports_db_admin_port,
+										allow_local_infile=True)
+				cursor=connection.cursor()
+				file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/my_team_stats_extract.csv'
+				main_df.to_csv(file_path,index=False)
+				qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.my_team_stats FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' IGNORE 1 ROWS;"
+				cursor.execute(qry)
+				connection.commit()
+				del main_df
+				os.remove(file_path)
 				
-				for i,row in main_df.iterrows():
-					sql='REPLACE INTO `my_team_stats` (`'+cols+'`) VALUES ('+'%s,'*(len(row)-1)+'%s)'
-					cursor.execute(sql, tuple(row))
-					connection.commit()
+				# cols="`,`".join([str(i) for i in main_df.columns.tolist()])
+				
+				# for i,row in main_df.iterrows():
+				# 	sql='REPLACE INTO `my_team_stats` (`'+cols+'`) VALUES ('+'%s,'*(len(row)-1)+'%s)'
+				# 	cursor.execute(sql, tuple(row))
+				# 	connection.commit()
 				
 				cursor=connection.cursor()
 				sql='SELECT MAX(date) AS most_recent_data_date FROM basketball.my_team_stats;'

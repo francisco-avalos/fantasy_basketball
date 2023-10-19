@@ -44,7 +44,8 @@ try:
 							database=sports_db_admin_db,
 							user=sports_db_admin_user,
 							password=sports_db_admin_pw,
-							port=sports_db_admin_port)
+							port=sports_db_admin_port,
+							allow_local_infile=True)
 	if connection.is_connected():
 		cursor=connection.cursor()
 		sql='TRUNCATE basketball.high_level_nba_team_schedules;'
@@ -56,11 +57,20 @@ try:
 	df['start_time']=df['start_time'].astype(str)
 	df['away_team']=df['away_team'].astype(str)
 	df['home_team']=df['home_team'].astype(str)
-	cols="`,`".join([str(i) for i in df.columns.tolist()])
-	for i, row in df.iterrows():
-		sql='REPLACE INTO `high_level_nba_team_schedules` (`'+cols+'`) VALUES ('+'%s, '*(len(row)-1)+'%s)'
-		cursor.execute(sql, tuple(row))
-		connection.commit()
+
+	file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/high_level_nba_team_scheds.csv'
+	df.to_csv(file_path, index=False)
+	qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.high_level_nba_team_schedules FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' IGNORE 1 ROWS;"
+	cursor.execute(qry)
+	connection.commit()
+	del df
+	os.remove(file_path)
+
+	# cols="`,`".join([str(i) for i in df.columns.tolist()])
+	# for i, row in df.iterrows():
+	# 	sql='REPLACE INTO `high_level_nba_team_schedules` (`'+cols+'`) VALUES ('+'%s, '*(len(row)-1)+'%s)'
+	# 	cursor.execute(sql, tuple(row))
+	# 	connection.commit()
 	
 	print('Finished updating high_level_nba_team_schedules table')
 

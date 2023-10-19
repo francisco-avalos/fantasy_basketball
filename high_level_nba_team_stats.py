@@ -111,7 +111,8 @@ try:
 							database=sports_db_admin_db,
 							user=sports_db_admin_user,
 							password=sports_db_admin_pw,
-							port=sports_db_admin_port)
+							port=sports_db_admin_port,
+							allow_local_infile=True)
 	if connection.is_connected():
 		cursor=connection.cursor()
 		sql='SELECT MAX(date) AS most_recent_data_date FROM basketball.high_level_nba_team_stats;'
@@ -133,11 +134,20 @@ try:
 			df['date']=date
 			df['team']=df['team'].astype(str)
 			df['outcome']=df['outcome'].astype(str)
-			cols="`,`".join([str(i) for i in df.columns.tolist()])
-			for i,row in df.iterrows():
-				sql='REPLACE INTO `high_level_nba_team_stats` (`'+cols+'`) VALUES ('+'%s, '*(len(row)-1)+'%s)'
-				cursor.execute(sql, tuple(row))
-				connection.commit()
+			
+			file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/high_level_nba_team_stats.csv'
+			df.to_csv(file_path,index=False)
+			qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.high_level_nba_team_stats FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' IGNORE 1 ROWS;"
+			cursor.execute(qry)
+			connection.commit()
+			del df
+			os.remove(file_path)
+
+			# cols="`,`".join([str(i) for i in df.columns.tolist()])
+			# for i,row in df.iterrows():
+			# 	sql='REPLACE INTO `high_level_nba_team_stats` (`'+cols+'`) VALUES ('+'%s, '*(len(row)-1)+'%s)'
+			# 	cursor.execute(sql, tuple(row))
+			# 	connection.commit()
 			time.sleep(30)
 			print(f'finished for {date}')
 		### new true stuff
@@ -162,11 +172,19 @@ try:
 				df['date']=date
 				df['team']=df['team'].astype(str)
 				df['outcome']=df['outcome'].astype(str)
-				cols="`,`".join([str(i) for i in df.columns.tolist()])
-				for i,row in df.iterrows():
-					sql='REPLACE INTO `high_level_nba_team_stats` (`'+cols+'`) VALUES ('+'%s, '*(len(row)-1)+'%s)'
-					cursor.execute(sql, tuple(row))
-					connection.commit()
+
+				file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/high_level_nba_team_stats.csv'
+				df.to_csv(file_path,index=False)
+				qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.high_level_nba_team_stats FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' IGNORE 1 ROWS;"
+				cursor.execute(qry)
+				connection.commit()
+				del df
+				os.remove(file_path)
+				# cols="`,`".join([str(i) for i in df.columns.tolist()])
+				# for i,row in df.iterrows():
+				# 	sql='REPLACE INTO `high_level_nba_team_stats` (`'+cols+'`) VALUES ('+'%s, '*(len(row)-1)+'%s)'
+				# 	cursor.execute(sql, tuple(row))
+				# 	connection.commit()
 				time.sleep(30)
 				print(f'finished for {date}')
 
