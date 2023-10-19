@@ -176,7 +176,7 @@ try:
                 
                 file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/historical_player_extract.csv'
                 df.to_csv(file_path,index=False)
-                qry=f"LOAD DATA LOCAL INFILE '{df}' REPLACE INTO TABLE basketball.historical_player_data FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\'' IGNORE ROWS;"
+                qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.historical_player_data FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\'' IGNORE ROWS;"
                 cursor.execute(qry)
                 connection.commit()
                 del df
@@ -238,7 +238,7 @@ try:
 
                 file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/historical_player_extract.csv'
                 df.to_csv(file_path,index=False)
-                qry=f"LOAD DATA LOCAL INFILE '{df}' REPLACE INTO TABLE basketball.historical_player_data FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\'' IGNORE ROWS;"
+                qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.historical_player_data FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\'' IGNORE ROWS;"
                 cursor.execute(qry)
                 connection.commit()
                 del df
