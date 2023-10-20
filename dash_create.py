@@ -332,7 +332,6 @@ def graph_update(input_value, focus_field_value, calc_value, display_field, top_
             output.columns=imps
             output=output[display_field]
             output=output.sort_values(by=[focus_field_value],ascending=False).head(player_sample)
-
         else:
             output=df_query.groupby(['name'])[cols].agg(calc_value).reset_index().sort_values(by=[focus_field_value],ascending=False).head(player_sample)
             output.set_index(['name'], inplace=True, drop=True, append=False)
@@ -343,6 +342,14 @@ def graph_update(input_value, focus_field_value, calc_value, display_field, top_
             fig=px.imshow(output[display_field], text_auto=True)
         else:
             fig=px.imshow(output[display_field], text_auto='.2f')
+
+        fig.update_xaxes(side='top')
+
+        fig.layout.height=750
+        fig.layout.width=750
+
+        return fig
+
     elif history_id=='ho':
         if top_n_val=='':
             player_sample=5
@@ -358,7 +365,6 @@ def graph_update(input_value, focus_field_value, calc_value, display_field, top_
             output.columns=imps
             output=output[display_field]
             output=output.sort_values(by=[focus_field_value],ascending=False).head(player_sample)
-
         else:
             output=fa_hist_only_df1.groupby(['name'])[cols].agg(calc_value).reset_index().sort_values(by=[focus_field_value],ascending=False).head(player_sample)
             output.set_index(['name'], inplace=True, drop=True, append=False)
@@ -368,6 +374,14 @@ def graph_update(input_value, focus_field_value, calc_value, display_field, top_
             fig=px.imshow(output[display_field], text_auto=True)
         else:
             fig=px.imshow(output[display_field], text_auto='.2f')
+
+        fig.update_xaxes(side='top')
+
+        fig.layout.height=750
+        fig.layout.width=750
+
+        return fig
+
     elif history_id=='hcs':
         if top_n_val=='':
             player_sample=5
@@ -383,7 +397,6 @@ def graph_update(input_value, focus_field_value, calc_value, display_field, top_
             output.columns=imps
             output=output[display_field]
             output=output.sort_values(by=[focus_field_value],ascending=False).head(player_sample)
-
         else:
             output=fa_hist_and_current_df1.groupby(['name'])[cols].agg(calc_value).reset_index().sort_values(by=[focus_field_value],ascending=False).head(player_sample)
             output.set_index(['name'], inplace=True, drop=True, append=False)
@@ -394,14 +407,12 @@ def graph_update(input_value, focus_field_value, calc_value, display_field, top_
         else:
             fig=px.imshow(output[display_field], text_auto='.2f')
 
+        fig.update_xaxes(side='top')
 
-    fig.update_xaxes(side='top')
+        fig.layout.height=750
+        fig.layout.width=750
 
-    fig.layout.height=750
-    fig.layout.width=750
-
-    return fig
-
+        return fig
 
 if __name__ == '__main__': 
     app.run(port=8006)
