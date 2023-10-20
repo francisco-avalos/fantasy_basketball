@@ -116,9 +116,106 @@ JOIN (SELECT DISTINCT name_code FROM basketball.live_free_agents) FA ON HPD.slug
 WHERE season != '2022-23';"""
 
 
-yahoo_hist_and_current_query="""
+# yahoo_hist_and_current_query="""
+# SELECT 
+#     YP.name,
+#     BBREF.date,
+#     BBREF.team,
+#     BBREF.location,
+#     BBREF.opponent,
+#     BBREF.outcome,
+#     BBREF.seconds_played,
+#     BBREF.made_field_goals,
+#     BBREF.attempted_field_goals,
+#     BBREF.made_three_point_field_goals,
+#     BBREF.attempted_three_point_field_goals,
+#     BBREF.made_free_throws,
+#     BBREF.attempted_free_throws,
+#     BBREF.offensive_rebounds,
+#     BBREF.defensive_rebounds,
+#     BBREF.assists,
+#     BBREF.steals,
+#     BBREF.blocks,
+#     BBREF.turnovers,
+#     BBREF.personal_fouls,
+#     BBREF.points AS points_scored,
+#     BBREF.game_score
+# FROM basketball.live_free_agents_yahoo YP
+# JOIN basketball.master_names_list_temp MNL ON SUBSTRING_INDEX(YP.name, ' ',1) = MNL.first_name
+#     AND (CASE WHEN LENGTH(YP.name)-LENGTH(REPLACE(YP.name, ' ', ''))+1 > 2 THEN SUBSTRING_INDEX(SUBSTRING_INDEX(YP.name, ' ',-2), ' ', 1) ELSE SUBSTRING_INDEX(YP.name, ' ',-1) END) = MNL.last_name
+#     AND (CASE WHEN LENGTH(YP.name)-LENGTH(REPLACE(YP.name, ' ', ''))+1 > 2 THEN SUBSTRING_INDEX(SUBSTRING_INDEX(YP.name, ' ',-2), ' ', -1) ELSE '' END) = MNL.suffix
+# JOIN basketball.historical_player_data BBREF ON MNL.bbrefid = BBREF.slug;
+# """
+# yahoo_hist_only_query="""
+# SELECT 
+#     YP.name,
+#     BBREF.date,
+#     BBREF.team,
+#     BBREF.location,
+#     BBREF.opponent,
+#     BBREF.outcome,
+#     BBREF.seconds_played,
+#     BBREF.made_field_goals,
+#     BBREF.attempted_field_goals,
+#     BBREF.made_three_point_field_goals,
+#     BBREF.attempted_three_point_field_goals,
+#     BBREF.made_free_throws,
+#     BBREF.attempted_free_throws,
+#     BBREF.offensive_rebounds,
+#     BBREF.defensive_rebounds,
+#     BBREF.assists,
+#     BBREF.steals,
+#     BBREF.blocks,
+#     BBREF.turnovers,
+#     BBREF.personal_fouls,
+#     BBREF.points AS points_scored,
+#     BBREF.game_score
+# FROM basketball.live_free_agents_yahoo YP
+# JOIN basketball.master_names_list_temp MNL ON SUBSTRING_INDEX(YP.name, ' ',1) = MNL.first_name
+#     AND (CASE WHEN LENGTH(YP.name)-LENGTH(REPLACE(YP.name, ' ', ''))+1 > 2 THEN SUBSTRING_INDEX(SUBSTRING_INDEX(YP.name, ' ',-2), ' ', 1) ELSE SUBSTRING_INDEX(YP.name, ' ',-1) END) = MNL.last_name
+#     AND (CASE WHEN LENGTH(YP.name)-LENGTH(REPLACE(YP.name, ' ', ''))+1 > 2 THEN SUBSTRING_INDEX(SUBSTRING_INDEX(YP.name, ' ',-2), ' ', -1) ELSE '' END) = MNL.suffix
+# JOIN basketball.historical_player_data BBREF ON MNL.bbrefid = BBREF.slug
+# WHERE BBREF.date < '2023-10-24';
+# """
+# yahoo_current_only_query="""
+# SELECT 
+#     YP.name,
+#     BBREF.date,
+#     BBREF.team,
+#     BBREF.location,
+#     BBREF.opponent,
+#     BBREF.outcome,
+#     BBREF.seconds_played,
+#     BBREF.made_field_goals,
+#     BBREF.attempted_field_goals,
+#     BBREF.made_three_point_field_goals,
+#     BBREF.attempted_three_point_field_goals,
+#     BBREF.made_free_throws,
+#     BBREF.attempted_free_throws,
+#     BBREF.offensive_rebounds,
+#     BBREF.defensive_rebounds,
+#     BBREF.assists,
+#     BBREF.steals,
+#     BBREF.blocks,
+#     BBREF.turnovers,
+#     BBREF.personal_fouls,
+#     BBREF.points AS points_scored,
+#     BBREF.game_score
+# FROM basketball.live_free_agents_yahoo YP
+# JOIN basketball.master_names_list_temp MNL ON SUBSTRING_INDEX(YP.name, ' ',1) = MNL.first_name
+#     AND (CASE WHEN LENGTH(YP.name)-LENGTH(REPLACE(YP.name, ' ', ''))+1 > 2 THEN SUBSTRING_INDEX(SUBSTRING_INDEX(YP.name, ' ',-2), ' ', 1) ELSE SUBSTRING_INDEX(YP.name, ' ',-1) END) = MNL.last_name
+#     AND (CASE WHEN LENGTH(YP.name)-LENGTH(REPLACE(YP.name, ' ', ''))+1 > 2 THEN SUBSTRING_INDEX(SUBSTRING_INDEX(YP.name, ' ',-2), ' ', -1) ELSE '' END) = MNL.suffix
+# JOIN basketball.historical_player_data BBREF ON MNL.bbrefid = BBREF.slug
+# WHERE BBREF.date BETWEEN '2023-10-24' AND '2024-04-14';
+# """
+
+yahoo_query="""
 SELECT 
-    BBREF.*,
+    CASE
+        WHEN BBREF.date BETWEEN '2023-10-24' AND '2024-04-14' THEN 'current_season_only'
+        WHEN BBREF.date < '2023-10-24' THEN 'historicals_only'
+    END current_season_vs_historicals,
+    'history_plus_current' AS all_history,
     YP.name,
     BBREF.date,
     BBREF.team,
@@ -145,73 +242,12 @@ FROM basketball.live_free_agents_yahoo YP
 JOIN basketball.master_names_list_temp MNL ON SUBSTRING_INDEX(YP.name, ' ',1) = MNL.first_name
     AND (CASE WHEN LENGTH(YP.name)-LENGTH(REPLACE(YP.name, ' ', ''))+1 > 2 THEN SUBSTRING_INDEX(SUBSTRING_INDEX(YP.name, ' ',-2), ' ', 1) ELSE SUBSTRING_INDEX(YP.name, ' ',-1) END) = MNL.last_name
     AND (CASE WHEN LENGTH(YP.name)-LENGTH(REPLACE(YP.name, ' ', ''))+1 > 2 THEN SUBSTRING_INDEX(SUBSTRING_INDEX(YP.name, ' ',-2), ' ', -1) ELSE '' END) = MNL.suffix
-JOIN basketball.historical_player_data BBREF ON MNL.bbrefid = BBREF.slug
-;
+JOIN basketball.historical_player_data BBREF ON MNL.bbrefid = BBREF.slug;
 """
-yahoo_hist_only_query="""
-SELECT 
-    BBREF.*,
-    YP.name,
-    BBREF.date,
-    BBREF.team,
-    BBREF.location,
-    BBREF.opponent,
-    BBREF.outcome,
-    BBREF.seconds_played,
-    BBREF.made_field_goals,
-    BBREF.attempted_field_goals,
-    BBREF.made_three_point_field_goals,
-    BBREF.attempted_three_point_field_goals,
-    BBREF.made_free_throws,
-    BBREF.attempted_free_throws,
-    BBREF.offensive_rebounds,
-    BBREF.defensive_rebounds,
-    BBREF.assists,
-    BBREF.steals,
-    BBREF.blocks,
-    BBREF.turnovers,
-    BBREF.personal_fouls,
-    BBREF.points AS points_scored,
-    BBREF.game_score
-FROM basketball.live_free_agents_yahoo YP
-JOIN basketball.master_names_list_temp MNL ON SUBSTRING_INDEX(YP.name, ' ',1) = MNL.first_name
-    AND (CASE WHEN LENGTH(YP.name)-LENGTH(REPLACE(YP.name, ' ', ''))+1 > 2 THEN SUBSTRING_INDEX(SUBSTRING_INDEX(YP.name, ' ',-2), ' ', 1) ELSE SUBSTRING_INDEX(YP.name, ' ',-1) END) = MNL.last_name
-    AND (CASE WHEN LENGTH(YP.name)-LENGTH(REPLACE(YP.name, ' ', ''))+1 > 2 THEN SUBSTRING_INDEX(SUBSTRING_INDEX(YP.name, ' ',-2), ' ', -1) ELSE '' END) = MNL.suffix
-JOIN basketball.historical_player_data BBREF ON MNL.bbrefid = BBREF.slug
-WHERE BBREF.date < '2023-10-24';
-"""
-yahoo_current_only_query="""
-SELECT 
-    BBREF.*,
-    YP.name,
-    BBREF.date,
-    BBREF.team,
-    BBREF.location,
-    BBREF.opponent,
-    BBREF.outcome,
-    BBREF.seconds_played,
-    BBREF.made_field_goals,
-    BBREF.attempted_field_goals,
-    BBREF.made_three_point_field_goals,
-    BBREF.attempted_three_point_field_goals,
-    BBREF.made_free_throws,
-    BBREF.attempted_free_throws,
-    BBREF.offensive_rebounds,
-    BBREF.defensive_rebounds,
-    BBREF.assists,
-    BBREF.steals,
-    BBREF.blocks,
-    BBREF.turnovers,
-    BBREF.personal_fouls,
-    BBREF.points AS points_scored,
-    BBREF.game_score
-FROM basketball.live_free_agents_yahoo YP
-JOIN basketball.master_names_list_temp MNL ON SUBSTRING_INDEX(YP.name, ' ',1) = MNL.first_name
-    AND (CASE WHEN LENGTH(YP.name)-LENGTH(REPLACE(YP.name, ' ', ''))+1 > 2 THEN SUBSTRING_INDEX(SUBSTRING_INDEX(YP.name, ' ',-2), ' ', 1) ELSE SUBSTRING_INDEX(YP.name, ' ',-1) END) = MNL.last_name
-    AND (CASE WHEN LENGTH(YP.name)-LENGTH(REPLACE(YP.name, ' ', ''))+1 > 2 THEN SUBSTRING_INDEX(SUBSTRING_INDEX(YP.name, ' ',-2), ' ', -1) ELSE '' END) = MNL.suffix
-JOIN basketball.historical_player_data BBREF ON MNL.bbrefid = BBREF.slug
-WHERE BBREF.date BETWEEN '2023-10-24' AND '2024-04-14';
-"""
+
+
+
+
 
 
 if connection.is_connected():
@@ -228,17 +264,21 @@ if connection.is_connected():
     fa_hist_only_df=cursor.fetchall()
     fa_hist_only_df=pd.DataFrame(fa_hist_only_df,columns=cursor.column_names)
 
-    cursor.execute(yahoo_hist_only_query)
-    fa_yahoo_hist_only_df=cursor.fetchall()
-    fa_yahoo_hist_only_df=pd.DataFrame(fa_yahoo_hist_only_df,columns=cursor.column_names)
+    cursor.execute(yahoo_query)
+    fa_yahoo_df=cursor.fetchall()
+    fa_yahoo_df=pd.DataFrame(fa_yahoo_df,columns=cursor.column_names)
 
-    cursor.execute(yahoo_hist_and_current_query)
-    fa_yahoo_hist_and_current_df=cursor.fetchall()
-    fa_yahoo_hist_and_current_df=pd.DataFrame(fa_yahoo_hist_and_current_df,columns=cursor.column_names)
+    # cursor.execute(yahoo_hist_only_query)
+    # fa_yahoo_hist_only_df=cursor.fetchall()
+    # fa_yahoo_hist_only_df=pd.DataFrame(fa_yahoo_hist_only_df,columns=cursor.column_names)
 
-    cursor.execute(yahoo_current_only_query)
-    fa_yahoo_current_only_df=cursor.fetchall()
-    fa_yahoo_current_only_df=pd.DataFrame(fa_yahoo_current_only_df,columns=cursor.column_names)
+    # cursor.execute(yahoo_hist_and_current_query)
+    # fa_yahoo_hist_and_current_df=cursor.fetchall()
+    # fa_yahoo_hist_and_current_df=pd.DataFrame(fa_yahoo_hist_and_current_df,columns=cursor.column_names)
+
+    # cursor.execute(yahoo_current_only_query)
+    # fa_yahoo_current_only_df=cursor.fetchall()
+    # fa_yahoo_current_only_df=pd.DataFrame(fa_yahoo_current_only_df,columns=cursor.column_names)
 
 
 if(connection.is_connected()):
@@ -264,34 +304,36 @@ fa_hist_only_df['total_rebounds']=fa_hist_only_df['offensive_rebounds']+fa_hist_
 fa_hist_only_df['minutes_played']=fa_hist_only_df['seconds_played']/60
 
 
+fa_yahoo_df['total_rebounds']=fa_yahoo_df['offensive_rebounds']+fa_yahoo_df['defensive_rebounds']
+fa_yahoo_df['minutes_played']=fa_yahoo_df['seconds_played']/60
 
-default_value=0
-
-
-fa_yahoo_hist_only_df['offensive_rebounds'].fillna(default_value,inplace=True)
-fa_yahoo_hist_only_df['defensive_rebounds'].fillna(default_value,inplace=True)
-fa_yahoo_hist_only_df['seconds_played'].fillna(default_value,inplace=True)
-
-fa_yahoo_hist_only_df['total_rebounds']=fa_yahoo_hist_only_df['offensive_rebounds']+fa_yahoo_hist_only_df['defensive_rebounds']
-fa_yahoo_hist_only_df['minutes_played']=fa_yahoo_hist_only_df['seconds_played']/60
+# default_value=0
 
 
+# fa_yahoo_hist_only_df['offensive_rebounds'].fillna(default_value,inplace=True)
+# fa_yahoo_hist_only_df['defensive_rebounds'].fillna(default_value,inplace=True)
+# fa_yahoo_hist_only_df['seconds_played'].fillna(default_value,inplace=True)
 
-fa_yahoo_hist_and_current_df['offensive_rebounds'].fillna(default_value,inplace=True)
-fa_yahoo_hist_and_current_df['defensive_rebounds'].fillna(default_value,inplace=True)
-fa_yahoo_hist_and_current_df['seconds_played'].fillna(default_value,inplace=True)
-
-fa_yahoo_hist_and_current_df['total_rebounds']=fa_yahoo_hist_and_current_df['offensive_rebounds']+fa_yahoo_hist_and_current_df['defensive_rebounds']
-fa_yahoo_hist_and_current_df['minutes_played']=fa_yahoo_hist_and_current_df['seconds_played']/60
+# fa_yahoo_hist_only_df['total_rebounds']=fa_yahoo_hist_only_df['offensive_rebounds']+fa_yahoo_hist_only_df['defensive_rebounds']
+# fa_yahoo_hist_only_df['minutes_played']=fa_yahoo_hist_only_df['seconds_played']/60
 
 
 
-fa_yahoo_current_only_df['offensive_rebounds'].fillna(default_value,inplace=True)
-fa_yahoo_current_only_df['defensive_rebounds'].fillna(default_value,inplace=True)
-fa_yahoo_current_only_df['seconds_played'].fillna(default_value,inplace=True)
+# fa_yahoo_hist_and_current_df['offensive_rebounds'].fillna(default_value,inplace=True)
+# fa_yahoo_hist_and_current_df['defensive_rebounds'].fillna(default_value,inplace=True)
+# fa_yahoo_hist_and_current_df['seconds_played'].fillna(default_value,inplace=True)
 
-fa_yahoo_current_only_df['total_rebounds']=fa_yahoo_current_only_df['offensive_rebounds']+fa_yahoo_current_only_df['defensive_rebounds']
-fa_yahoo_current_only_df['minutes_played']=fa_yahoo_current_only_df['seconds_played']/60
+# fa_yahoo_hist_and_current_df['total_rebounds']=fa_yahoo_hist_and_current_df['offensive_rebounds']+fa_yahoo_hist_and_current_df['defensive_rebounds']
+# fa_yahoo_hist_and_current_df['minutes_played']=fa_yahoo_hist_and_current_df['seconds_played']/60
+
+
+
+# fa_yahoo_current_only_df['offensive_rebounds'].fillna(default_value,inplace=True)
+# fa_yahoo_current_only_df['defensive_rebounds'].fillna(default_value,inplace=True)
+# fa_yahoo_current_only_df['seconds_played'].fillna(default_value,inplace=True)
+
+# fa_yahoo_current_only_df['total_rebounds']=fa_yahoo_current_only_df['offensive_rebounds']+fa_yahoo_current_only_df['defensive_rebounds']
+# fa_yahoo_current_only_df['minutes_played']=fa_yahoo_current_only_df['seconds_played']/60
 
 
 
@@ -559,19 +601,18 @@ def graph_update(input_value, focus_field_value, calc_value, display_field, top_
             fig.layout.height=750
             fig.layout.width=750
 
-            return fig
+            return fig # fa_yahoo_df
     elif league_id=='yahoo':
         if history_id=='cso':
+            fa_yahoo_df1 = fa_yahoo_df[fa_yahoo_df['all_history']=='history_plus_current']
             if top_n_val=='':
                 player_sample=5
             else:
                 player_sample=int(top_n_val)
-            if len(player_list)!=len(fa_yahoo_current_only_df['name'].unique()):
-                fa_yahoo_current_only_df1=fa_yahoo_current_only_df[fa_yahoo_current_only_df['name'].isin(player_list)]
+            if len(player_list)!=len(fa_yahoo_df1['name'].unique()):
+                fa_yahoo_current_only_df1=fa_yahoo_df1[fa_yahoo_df1['name'].isin(player_list)]
             else:
-                fa_yahoo_current_only_df1=fa_yahoo_current_only_df
-
-            df_query=fa_yahoo_current_only_df1.query("date >= @days_back")
+                fa_yahoo_current_only_df1=fa_yahoo_df1
 
             if calc_value=='weights':
                 output=df_query.groupby(['name']).apply(lambda x: pd.Series([sum(x[v]*x.minutes_played)/sum(x.minutes_played) for v in imps]))
@@ -597,6 +638,7 @@ def graph_update(input_value, focus_field_value, calc_value, display_field, top_
             return fig
 
         elif history_id=='ho':
+            fa_yahoo_hist_only_df = fa_yahoo_df[fa_yahoo_df['current_season_vs_historicals']=='historicals_only']
             if top_n_val=='':
                 player_sample=5
             else:
@@ -629,6 +671,7 @@ def graph_update(input_value, focus_field_value, calc_value, display_field, top_
             return fig
 
         elif history_id=='hcs':
+            fa_yahoo_hist_and_current_df = fa_yahoo_df[fa_yahoo_df['current_season_vs_historicals']=='current_season_only']
             if top_n_val=='':
                 player_sample=5
             else:
@@ -659,7 +702,6 @@ def graph_update(input_value, focus_field_value, calc_value, display_field, top_
             fig.layout.width=750
 
             return fig
-
 
 
 
