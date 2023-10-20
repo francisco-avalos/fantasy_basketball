@@ -264,14 +264,28 @@ fa_hist_only_df['total_rebounds']=fa_hist_only_df['offensive_rebounds']+fa_hist_
 fa_hist_only_df['minutes_played']=fa_hist_only_df['seconds_played']/60
 
 
+
+default_value=0
+
+
+fa_yahoo_hist_only_df['offensive_rebounds'].fillna(default_value,inplace=True)
+fa_yahoo_hist_only_df['defensive_rebounds'].fillna(default_value,inplace=True)
+fa_yahoo_hist_only_df['seconds_played'].fillna(default_value,inplace=True)
+
 fa_yahoo_hist_only_df['total_rebounds']=fa_yahoo_hist_only_df['offensive_rebounds']+fa_yahoo_hist_only_df['defensive_rebounds']
 fa_yahoo_hist_only_df['minutes_played']=fa_yahoo_hist_only_df['seconds_played']/60
+
+
+
+fa_yahoo_hist_and_current_df['offensive_rebounds'].fillna(default_value,inplace=True)
+fa_yahoo_hist_and_current_df['defensive_rebounds'].fillna(default_value,inplace=True)
+fa_yahoo_hist_and_current_df['seconds_played'].fillna(default_value,inplace=True)
 
 fa_yahoo_hist_and_current_df['total_rebounds']=fa_yahoo_hist_and_current_df['offensive_rebounds']+fa_yahoo_hist_and_current_df['defensive_rebounds']
 fa_yahoo_hist_and_current_df['minutes_played']=fa_yahoo_hist_and_current_df['seconds_played']/60
 
 
-default_value=0
+
 fa_yahoo_current_only_df['offensive_rebounds'].fillna(default_value,inplace=True)
 fa_yahoo_current_only_df['defensive_rebounds'].fillna(default_value,inplace=True)
 fa_yahoo_current_only_df['seconds_played'].fillna(default_value,inplace=True)
