@@ -29,6 +29,92 @@ connection=mysql.connect(host=sports_db_admin_host,
                         password=sports_db_admin_pw,
                         port=sports_db_admin_port)
 
+hist_and_current_query="""
+SELECT 
+    EFA.name,
+    EFA.date,
+    EFA.team,
+    EFA.location,
+    EFA.opponent,
+    EFA.outcome,
+    EFA.seconds_played,
+    EFA.made_field_goals,
+    EFA.attempted_field_goals,
+    EFA.made_three_point_field_goals,
+    EFA.attempted_three_point_field_goals,
+    EFA.made_free_throws,
+    EFA.attempted_free_throws,
+    EFA.offensive_rebounds,
+    EFA.defensive_rebounds,
+    EFA.assists,
+    EFA.steals,
+    EFA.blocks,
+    EFA.turnovers,
+    EFA.personal_fouls,
+    EFA.points_scored,
+    EFA.game_score,
+    EFA.name_code
+FROM basketball.live_free_agents EFA
+WHERE EFA.seconds_played!=0
+UNION ALL
+SELECT 
+    HPD.name,
+    HPD.date,
+    HPD.team,
+    HPD.location,
+    HPD.opponent,
+    HPD.outcome,
+    HPD.seconds_played,
+    HPD.made_field_goals,
+    HPD.attempted_field_goals,
+    HPD.made_three_point_field_goals,
+    HPD.attempted_three_point_field_goals,
+    HPD.made_free_throws,
+    HPD.attempted_free_throws,
+    HPD.offensive_rebounds,
+    HPD.defensive_rebounds,
+    HPD.assists,
+    HPD.steals,
+    HPD.blocks,
+    HPD.turnovers,
+    HPD.personal_fouls,
+    HPD.points AS points_scored,
+    HPD.game_score,
+    HPD.slug AS name_code
+FROM basketball.historical_player_data HPD
+JOIN (SELECT DISTINCT name_code FROM basketball.live_free_agents) FA ON HPD.slug = FA.name_code
+WHERE season != '2022-23';"""
+
+
+hist_only_query="""
+SELECT 
+    HPD.name,
+    HPD.date,
+    HPD.team,
+    HPD.location,
+    HPD.opponent,
+    HPD.outcome,
+    HPD.seconds_played,
+    HPD.made_field_goals,
+    HPD.attempted_field_goals,
+    HPD.made_three_point_field_goals,
+    HPD.attempted_three_point_field_goals,
+    HPD.made_free_throws,
+    HPD.attempted_free_throws,
+    HPD.offensive_rebounds,
+    HPD.defensive_rebounds,
+    HPD.assists,
+    HPD.steals,
+    HPD.blocks,
+    HPD.turnovers,
+    HPD.personal_fouls,
+    HPD.points AS points_scored,
+    HPD.game_score,
+    HPD.slug AS name_code
+FROM basketball.historical_player_data HPD
+JOIN (SELECT DISTINCT name_code FROM basketball.live_free_agents) FA ON HPD.slug = FA.name_code
+WHERE season != '2022-23';"""
+
 
 if connection.is_connected():
     cursor=connection.cursor()
@@ -42,6 +128,14 @@ if connection.is_connected():
     cursor.execute('SELECT * FROM basketball.live_free_agents WHERE seconds_played!=0;')
     fa_df=cursor.fetchall()
     fa_df=pd.DataFrame(fa_df, columns=cursor.column_names)
+
+    cursor.execute(hist_and_current_query)
+    fa_hist_and_current_df=cursor.fetchall()
+    fa_hist_and_current_df=pd.DataFrame(fa_hist_and_current_df,columns=cursor.column_names)
+
+    cursor.execute(hist_only_query)
+    fa_hist_only_df=cursor.fetchall()
+    fa_hist_only_df=pd.DataFrame(fa_hist_only_df,columns=cursor.column_names)
 
 if(connection.is_connected()):
     cursor.close()
@@ -200,7 +294,7 @@ app.layout=html.Div(children=[html.H1(children='Free Agent Analysis Helper Tool'
              )
 
 
-def graph_update(input_value, focus_field_value, calc_value, display_field, top_n_val, player_list):
+def graph_update(input_value, focus_field_value, calc_value, display_field, top_n_val, history_id,player_list):
     cols=['made_field_goals', 'made_three_point_field_goals','made_free_throws', 
     'total_rebounds', 'offensive_rebounds', 'defensive_rebounds', 'assists', 
     'steals', 'blocks', 'turnovers', 'personal_fouls', 'points_scored', 'minutes_played']
