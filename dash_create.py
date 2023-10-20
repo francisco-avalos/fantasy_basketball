@@ -118,13 +118,6 @@ WHERE season != '2022-23';"""
 
 if connection.is_connected():
     cursor=connection.cursor()
-    cursor.execute('SELECT MTS.*, C.week_starting_monday, C.week_ending_sunday FROM basketball.my_team_stats MTS JOIN basketball.calendar C ON MTS.date=C.day;')
-    myteam_df=cursor.fetchall()
-    myteam_df=pd.DataFrame(myteam_df, columns=cursor.column_names)
-
-
-if connection.is_connected():
-    cursor=connection.cursor()
     cursor.execute('SELECT * FROM basketball.live_free_agents WHERE seconds_played!=0;')
     fa_df=cursor.fetchall()
     fa_df=pd.DataFrame(fa_df, columns=cursor.column_names)
@@ -149,11 +142,15 @@ pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', None)
 
 
-myteam_df['total_rebounds']=myteam_df['offensive_rebounds']+myteam_df['defensive_rebounds']
-myteam_df['minutes_played']=myteam_df['seconds_played']/60
 
 fa_df['total_rebounds']=fa_df['offensive_rebounds']+fa_df['defensive_rebounds']
 fa_df['minutes_played']=fa_df['seconds_played']/60
+
+fa_hist_and_current_df['total_rebounds']=fa_hist_and_current_df['offensive_rebounds']+fa_hist_and_current_df['defensive_rebounds']
+fa_hist_and_current_df['minutes_played']=fa_hist_and_current_df['seconds_played']/60
+
+fa_hist_only_df['total_rebounds']=fa_hist_only_df['offensive_rebounds']+fa_hist_only_df['defensive_rebounds']
+fa_hist_only_df['minutes_played']=fa_hist_only_df['seconds_played']/60
 
 
 
