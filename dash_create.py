@@ -291,7 +291,7 @@ app.layout=html.Div(children=[html.H1(children='Free Agent Analysis Helper Tool'
              )
 
 
-def graph_update(input_value, focus_field_value, calc_value, display_field, top_n_val, history_id,player_list):
+def graph_update(input_value, focus_field_value, calc_value, display_field, top_n_val,history_id,player_list):
     cols=['made_field_goals', 'made_three_point_field_goals','made_free_throws', 
     'total_rebounds', 'offensive_rebounds', 'defensive_rebounds', 'assists', 
     'steals', 'blocks', 'turnovers', 'personal_fouls', 'points_scored', 'minutes_played']
@@ -299,15 +299,6 @@ def graph_update(input_value, focus_field_value, calc_value, display_field, top_
     days_ago=int(input_value)
     today=dt.date.today()
     days_back=today-dt.timedelta(days=days_ago)
-    
-    if top_n_val=='':
-        player_sample=5
-    else:
-        player_sample=int(top_n_val)
-    if len(player_list)!=len(fa_df['name'].unique()):
-        fa_df1=fa_df[fa_df['name'].isin(player_list)]
-    else:
-        fa_df1=fa_df
 
     imps=[
      'made_field_goals',
@@ -322,25 +313,88 @@ def graph_update(input_value, focus_field_value, calc_value, display_field, top_
      'personal_fouls',
      'points_scored',
      'total_rebounds']
+    
 
-    df_query=fa_df1.query("date >= @days_back")
+    if history_id=='cso':
+        if top_n_val=='':
+            player_sample=5
+        else:
+            player_sample=int(top_n_val)
+        if len(player_list)!=len(fa_df['name'].unique()):
+            fa_df1=fa_df[fa_df['name'].isin(player_list)]
+        else:
+            fa_df1=fa_df
 
-    if calc_value=='weights':
-        output=df_query.groupby(['name']).apply(lambda x: pd.Series([sum(x[v]*x.minutes_played)/sum(x.minutes_played) for v in imps]))
-        output.columns=imps
-        output=output[display_field]
-        output=output.sort_values(by=[focus_field_value],ascending=False).head(player_sample)
+        df_query=fa_df1.query("date >= @days_back")
 
-    else:
-        output=df_query.groupby(['name'])[cols].agg(calc_value).reset_index().sort_values(by=[focus_field_value],ascending=False).head(player_sample)
-        output.set_index(['name'], inplace=True, drop=True, append=False)
-        output.reset_index(inplace=False)
+        if calc_value=='weights':
+            output=df_query.groupby(['name']).apply(lambda x: pd.Series([sum(x[v]*x.minutes_played)/sum(x.minutes_played) for v in imps]))
+            output.columns=imps
+            output=output[display_field]
+            output=output.sort_values(by=[focus_field_value],ascending=False).head(player_sample)
+
+        else:
+            output=df_query.groupby(['name'])[cols].agg(calc_value).reset_index().sort_values(by=[focus_field_value],ascending=False).head(player_sample)
+            output.set_index(['name'], inplace=True, drop=True, append=False)
+            output.reset_index(inplace=False)
 
 
-    if calc_value=='sum':
-        fig=px.imshow(output[display_field], text_auto=True)
-    else:
-        fig=px.imshow(output[display_field], text_auto='.2f')
+        if calc_value=='sum':
+            fig=px.imshow(output[display_field], text_auto=True)
+        else:
+            fig=px.imshow(output[display_field], text_auto='.2f')
+    elif history_id=='ho':
+        if top_n_val=='':
+            player_sample=5
+        else:
+            player_sample=int(top_n_val)
+        if len(player_list)!=len(fa_hist_only_df['name'].unique()):
+            fa_hist_only_df1=fa_hist_only_df[fa_hist_only_df['name'].isin(player_list)]
+        else:
+            fa_hist_only_df1=fa_hist_only_df
+
+        if calc_value=='weights':
+            output=fa_hist_only_df1.groupby(['name']).apply(lambda x: pd.Series([sum(x[v]*x.minutes_played)/sum(x.minutes_played) for v in imps]))
+            output.columns=imps
+            output=output[display_field]
+            output=output.sort_values(by=[focus_field_value],ascending=False).head(player_sample)
+
+        else:
+            output=fa_hist_only_df1.groupby(['name'])[cols].agg(calc_value).reset_index().sort_values(by=[focus_field_value],ascending=False).head(player_sample)
+            output.set_index(['name'], inplace=True, drop=True, append=False)
+            output.reset_index(inplace=False)
+
+        if calc_value=='sum':
+            fig=px.imshow(output[display_field], text_auto=True)
+        else:
+            fig=px.imshow(output[display_field], text_auto='.2f')
+    elif history_id=='hcs':
+        if top_n_val=='':
+            player_sample=5
+        else:
+            player_sample=int(top_n_val)
+        if len(player_list)!=len(fa_hist_and_current_df['name'].unique()):
+            fa_hist_and_current_df1=fa_hist_and_current_df[fa_hist_and_current_df['name'].isin(player_list)]
+        else:
+            fa_hist_and_current_df1=fa_hist_and_current_df
+
+        if calc_value=='weights':
+            output=fa_hist_and_current_df1.groupby(['name']).apply(lambda x: pd.Series([sum(x[v]*x.minutes_played)/sum(x.minutes_played) for v in imps]))
+            output.columns=imps
+            output=output[display_field]
+            output=output.sort_values(by=[focus_field_value],ascending=False).head(player_sample)
+
+        else:
+            output=fa_hist_and_current_df1.groupby(['name'])[cols].agg(calc_value).reset_index().sort_values(by=[focus_field_value],ascending=False).head(player_sample)
+            output.set_index(['name'], inplace=True, drop=True, append=False)
+            output.reset_index(inplace=False)
+
+        if calc_value=='sum':
+            fig=px.imshow(output[display_field], text_auto=True)
+        else:
+            fig=px.imshow(output[display_field], text_auto='.2f')
+
+
     fig.update_xaxes(side='top')
 
     fig.layout.height=750
