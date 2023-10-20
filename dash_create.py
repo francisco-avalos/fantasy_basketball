@@ -116,6 +116,104 @@ JOIN (SELECT DISTINCT name_code FROM basketball.live_free_agents) FA ON HPD.slug
 WHERE season != '2022-23';"""
 
 
+yahoo_hist_and_current_query="""
+SELECT 
+    BBREF.*,
+    YP.name,
+    BBREF.date,
+    BBREF.team,
+    BBREF.location,
+    BBREF.opponent,
+    BBREF.outcome,
+    BBREF.seconds_played,
+    BBREF.made_field_goals,
+    BBREF.attempted_field_goals,
+    BBREF.made_three_point_field_goals,
+    BBREF.attempted_three_point_field_goals,
+    BBREF.made_free_throws,
+    BBREF.attempted_free_throws,
+    BBREF.offensive_rebounds,
+    BBREF.defensive_rebounds,
+    BBREF.assists,
+    BBREF.steals,
+    BBREF.blocks,
+    BBREF.turnovers,
+    BBREF.personal_fouls,
+    BBREF.points AS points_scored,
+    BBREF.game_score
+FROM basketball.live_free_agents_yahoo YP
+JOIN basketball.master_names_list_temp MNL ON SUBSTRING_INDEX(YP.name, ' ',1) = MNL.first_name
+    AND (CASE WHEN LENGTH(YP.name)-LENGTH(REPLACE(YP.name, ' ', ''))+1 > 2 THEN SUBSTRING_INDEX(SUBSTRING_INDEX(YP.name, ' ',-2), ' ', 1) ELSE SUBSTRING_INDEX(YP.name, ' ',-1) END) = MNL.last_name
+    AND (CASE WHEN LENGTH(YP.name)-LENGTH(REPLACE(YP.name, ' ', ''))+1 > 2 THEN SUBSTRING_INDEX(SUBSTRING_INDEX(YP.name, ' ',-2), ' ', -1) ELSE '' END) = MNL.suffix
+JOIN basketball.historical_player_data BBREF ON MNL.bbrefid = BBREF.slug
+;
+"""
+yahoo_hist_only_query="""
+SELECT 
+    BBREF.*,
+    YP.name,
+    BBREF.date,
+    BBREF.team,
+    BBREF.location,
+    BBREF.opponent,
+    BBREF.outcome,
+    BBREF.seconds_played,
+    BBREF.made_field_goals,
+    BBREF.attempted_field_goals,
+    BBREF.made_three_point_field_goals,
+    BBREF.attempted_three_point_field_goals,
+    BBREF.made_free_throws,
+    BBREF.attempted_free_throws,
+    BBREF.offensive_rebounds,
+    BBREF.defensive_rebounds,
+    BBREF.assists,
+    BBREF.steals,
+    BBREF.blocks,
+    BBREF.turnovers,
+    BBREF.personal_fouls,
+    BBREF.points AS points_scored,
+    BBREF.game_score
+FROM basketball.live_free_agents_yahoo YP
+JOIN basketball.master_names_list_temp MNL ON SUBSTRING_INDEX(YP.name, ' ',1) = MNL.first_name
+    AND (CASE WHEN LENGTH(YP.name)-LENGTH(REPLACE(YP.name, ' ', ''))+1 > 2 THEN SUBSTRING_INDEX(SUBSTRING_INDEX(YP.name, ' ',-2), ' ', 1) ELSE SUBSTRING_INDEX(YP.name, ' ',-1) END) = MNL.last_name
+    AND (CASE WHEN LENGTH(YP.name)-LENGTH(REPLACE(YP.name, ' ', ''))+1 > 2 THEN SUBSTRING_INDEX(SUBSTRING_INDEX(YP.name, ' ',-2), ' ', -1) ELSE '' END) = MNL.suffix
+JOIN basketball.historical_player_data BBREF ON MNL.bbrefid = BBREF.slug
+WHERE BBREF.date < '2023-10-24';
+"""
+yahoo_current_only_query="""
+SELECT 
+    BBREF.*,
+    YP.name,
+    BBREF.date,
+    BBREF.team,
+    BBREF.location,
+    BBREF.opponent,
+    BBREF.outcome,
+    BBREF.seconds_played,
+    BBREF.made_field_goals,
+    BBREF.attempted_field_goals,
+    BBREF.made_three_point_field_goals,
+    BBREF.attempted_three_point_field_goals,
+    BBREF.made_free_throws,
+    BBREF.attempted_free_throws,
+    BBREF.offensive_rebounds,
+    BBREF.defensive_rebounds,
+    BBREF.assists,
+    BBREF.steals,
+    BBREF.blocks,
+    BBREF.turnovers,
+    BBREF.personal_fouls,
+    BBREF.points AS points_scored,
+    BBREF.game_score
+FROM basketball.live_free_agents_yahoo YP
+JOIN basketball.master_names_list_temp MNL ON SUBSTRING_INDEX(YP.name, ' ',1) = MNL.first_name
+    AND (CASE WHEN LENGTH(YP.name)-LENGTH(REPLACE(YP.name, ' ', ''))+1 > 2 THEN SUBSTRING_INDEX(SUBSTRING_INDEX(YP.name, ' ',-2), ' ', 1) ELSE SUBSTRING_INDEX(YP.name, ' ',-1) END) = MNL.last_name
+    AND (CASE WHEN LENGTH(YP.name)-LENGTH(REPLACE(YP.name, ' ', ''))+1 > 2 THEN SUBSTRING_INDEX(SUBSTRING_INDEX(YP.name, ' ',-2), ' ', -1) ELSE '' END) = MNL.suffix
+JOIN basketball.historical_player_data BBREF ON MNL.bbrefid = BBREF.slug
+WHERE BBREF.date BETWEEN '2023-10-24' AND '2024-04-14';
+"""
+
+
 if connection.is_connected():
     cursor=connection.cursor()
     cursor.execute('SELECT * FROM basketball.live_free_agents WHERE seconds_played!=0;')
@@ -129,6 +227,19 @@ if connection.is_connected():
     cursor.execute(hist_only_query)
     fa_hist_only_df=cursor.fetchall()
     fa_hist_only_df=pd.DataFrame(fa_hist_only_df,columns=cursor.column_names)
+
+    cursor.execute(yahoo_hist_only_query)
+    fa_yahoo_hist_only_df=cursor.fetchall()
+    fa_yahoo_hist_only_df=pd.DataFrame(fa_yahoo_hist_only_df,columns=cursor.column_names)
+
+    cursor.execute(yahoo_hist_and_current_query)
+    fa_yahoo_hist_and_current_df=cursor.fetchall()
+    fa_yahoo_hist_and_current_df=pd.DataFrame(fa_yahoo_hist_and_current_df,columns=cursor.column_names)
+
+    cursor.execute(yahoo_current_only_query)
+    fa_yahoo_current_only_df=cursor.fetchall()
+    fa_yahoo_current_only_df=pd.DataFrame(fa_yahoo_current_only_df,columns=cursor.column_names)
+
 
 if(connection.is_connected()):
     cursor.close()
@@ -151,6 +262,16 @@ fa_hist_and_current_df['minutes_played']=fa_hist_and_current_df['seconds_played'
 
 fa_hist_only_df['total_rebounds']=fa_hist_only_df['offensive_rebounds']+fa_hist_only_df['defensive_rebounds']
 fa_hist_only_df['minutes_played']=fa_hist_only_df['seconds_played']/60
+
+
+fa_yahoo_hist_only_df['total_rebounds']=fa_yahoo_hist_only_df['offensive_rebounds']+fa_yahoo_hist_only_df['defensive_rebounds']
+fa_yahoo_hist_only_df['minutes_played']=fa_yahoo_hist_only_df['seconds_played']/60
+
+fa_yahoo_hist_and_current_df['total_rebounds']=fa_yahoo_hist_and_current_df['offensive_rebounds']+fa_yahoo_hist_and_current_df['defensive_rebounds']
+fa_yahoo_hist_and_current_df['minutes_played']=fa_yahoo_hist_and_current_df['seconds_played']/60
+
+fa_yahoo_current_only_df['total_rebounds']=fa_yahoo_current_only_df['offensive_rebounds']+fa_yahoo_current_only_df['defensive_rebounds']
+fa_yahoo_current_only_df['minutes_played']=fa_yahoo_current_only_df['seconds_played']/60
 
 
 
@@ -274,6 +395,11 @@ app.layout=html.Div(children=[html.H1(children='Free Agent Analysis Helper Tool'
                                                     {'label':'history + current season ','value':'hcs'},
                                                     {'label':'current season only','value':'cso'}],
                                             value='cso'),
+                             'League',
+                             dcc.Dropdown(id='league_id',
+                                            options=[{'label':'ESPN', 'value':'espn'},
+                                                    {'label':'Yahoo','value':'yahoo'}],
+                                            value='espn'),
                              'player_checklist',
                              dcc.Checklist(id='player_list', options=[name for name in fa_df['name'].unique()], value=[name for name in fa_df['name'].unique()], 
                                 style={'height':10000,'width':100}, inline=True)
@@ -287,11 +413,12 @@ app.layout=html.Div(children=[html.H1(children='Free Agent Analysis Helper Tool'
              Input(component_id='displayed_fields', component_property='value'),
              Input(component_id='top_n', component_property='value'),
              Input(component_id="history_id", component_property='value'),
+             Input(component_id="league_id", component_property='value'),
              Input(component_id='player_list', component_property='value')
              )
 
 
-def graph_update(input_value, focus_field_value, calc_value, display_field, top_n_val,history_id,player_list):
+def graph_update(input_value, focus_field_value, calc_value, display_field, top_n_val,history_id,league_id,player_list):
     cols=['made_field_goals', 'made_three_point_field_goals','made_free_throws', 
     'total_rebounds', 'offensive_rebounds', 'defensive_rebounds', 'assists', 
     'steals', 'blocks', 'turnovers', 'personal_fouls', 'points_scored', 'minutes_played']
@@ -313,106 +440,208 @@ def graph_update(input_value, focus_field_value, calc_value, display_field, top_
      'personal_fouls',
      'points_scored',
      'total_rebounds']
-    
 
-    if history_id=='cso':
-        if top_n_val=='':
-            player_sample=5
-        else:
-            player_sample=int(top_n_val)
-        if len(player_list)!=len(fa_df['name'].unique()):
-            fa_df1=fa_df[fa_df['name'].isin(player_list)]
-        else:
-            fa_df1=fa_df
+    if league_id=='espn':
+        if history_id=='cso':
+            if top_n_val=='':
+                player_sample=5
+            else:
+                player_sample=int(top_n_val)
+            if len(player_list)!=len(fa_df['name'].unique()):
+                fa_df1=fa_df[fa_df['name'].isin(player_list)]
+            else:
+                fa_df1=fa_df
 
-        df_query=fa_df1.query("date >= @days_back")
+            df_query=fa_df1.query("date >= @days_back")
 
-        if calc_value=='weights':
-            output=df_query.groupby(['name']).apply(lambda x: pd.Series([sum(x[v]*x.minutes_played)/sum(x.minutes_played) for v in imps]))
-            output.columns=imps
-            output=output[display_field]
-            output=output.sort_values(by=[focus_field_value],ascending=False).head(player_sample)
-        else:
-            output=df_query.groupby(['name'])[cols].agg(calc_value).reset_index().sort_values(by=[focus_field_value],ascending=False).head(player_sample)
-            output.set_index(['name'], inplace=True, drop=True, append=False)
-            output.reset_index(inplace=False)
+            if calc_value=='weights':
+                output=df_query.groupby(['name']).apply(lambda x: pd.Series([sum(x[v]*x.minutes_played)/sum(x.minutes_played) for v in imps]))
+                output.columns=imps
+                output=output[display_field]
+                output=output.sort_values(by=[focus_field_value],ascending=False).head(player_sample)
+            else:
+                output=df_query.groupby(['name'])[cols].agg(calc_value).reset_index().sort_values(by=[focus_field_value],ascending=False).head(player_sample)
+                output.set_index(['name'], inplace=True, drop=True, append=False)
+                output.reset_index(inplace=False)
 
 
-        if calc_value=='sum':
-            fig=px.imshow(output[display_field], text_auto=True)
-        else:
-            fig=px.imshow(output[display_field], text_auto='.2f')
+            if calc_value=='sum':
+                fig=px.imshow(output[display_field], text_auto=True)
+            else:
+                fig=px.imshow(output[display_field], text_auto='.2f')
 
-        fig.update_xaxes(side='top')
+            fig.update_xaxes(side='top')
 
-        fig.layout.height=750
-        fig.layout.width=750
+            fig.layout.height=750
+            fig.layout.width=750
 
-        return fig
+            return fig
 
-    elif history_id=='ho':
-        if top_n_val=='':
-            player_sample=5
-        else:
-            player_sample=int(top_n_val)
-        if len(player_list)!=len(fa_hist_only_df['name'].unique()):
-            fa_hist_only_df1=fa_hist_only_df[fa_hist_only_df['name'].isin(player_list)]
-        else:
-            fa_hist_only_df1=fa_hist_only_df
+        elif history_id=='ho':
+            if top_n_val=='':
+                player_sample=5
+            else:
+                player_sample=int(top_n_val)
+            if len(player_list)!=len(fa_hist_only_df['name'].unique()):
+                fa_hist_only_df1=fa_hist_only_df[fa_hist_only_df['name'].isin(player_list)]
+            else:
+                fa_hist_only_df1=fa_hist_only_df
 
-        if calc_value=='weights':
-            output=fa_hist_only_df1.groupby(['name']).apply(lambda x: pd.Series([sum(x[v]*x.minutes_played)/sum(x.minutes_played) for v in imps]))
-            output.columns=imps
-            output=output[display_field]
-            output=output.sort_values(by=[focus_field_value],ascending=False).head(player_sample)
-        else:
-            output=fa_hist_only_df1.groupby(['name'])[cols].agg(calc_value).reset_index().sort_values(by=[focus_field_value],ascending=False).head(player_sample)
-            output.set_index(['name'], inplace=True, drop=True, append=False)
-            output.reset_index(inplace=False)
+            if calc_value=='weights':
+                output=fa_hist_only_df1.groupby(['name']).apply(lambda x: pd.Series([sum(x[v]*x.minutes_played)/sum(x.minutes_played) for v in imps]))
+                output.columns=imps
+                output=output[display_field]
+                output=output.sort_values(by=[focus_field_value],ascending=False).head(player_sample)
+            else:
+                output=fa_hist_only_df1.groupby(['name'])[cols].agg(calc_value).reset_index().sort_values(by=[focus_field_value],ascending=False).head(player_sample)
+                output.set_index(['name'], inplace=True, drop=True, append=False)
+                output.reset_index(inplace=False)
 
-        if calc_value=='sum':
-            fig=px.imshow(output[display_field], text_auto=True)
-        else:
-            fig=px.imshow(output[display_field], text_auto='.2f')
+            if calc_value=='sum':
+                fig=px.imshow(output[display_field], text_auto=True)
+            else:
+                fig=px.imshow(output[display_field], text_auto='.2f')
 
-        fig.update_xaxes(side='top')
+            fig.update_xaxes(side='top')
 
-        fig.layout.height=750
-        fig.layout.width=750
+            fig.layout.height=750
+            fig.layout.width=750
 
-        return fig
+            return fig
 
-    elif history_id=='hcs':
-        if top_n_val=='':
-            player_sample=5
-        else:
-            player_sample=int(top_n_val)
-        if len(player_list)!=len(fa_hist_and_current_df['name'].unique()):
-            fa_hist_and_current_df1=fa_hist_and_current_df[fa_hist_and_current_df['name'].isin(player_list)]
-        else:
-            fa_hist_and_current_df1=fa_hist_and_current_df
+        elif history_id=='hcs':
+            if top_n_val=='':
+                player_sample=5
+            else:
+                player_sample=int(top_n_val)
+            if len(player_list)!=len(fa_hist_and_current_df['name'].unique()):
+                fa_hist_and_current_df1=fa_hist_and_current_df[fa_hist_and_current_df['name'].isin(player_list)]
+            else:
+                fa_hist_and_current_df1=fa_hist_and_current_df
 
-        if calc_value=='weights':
-            output=fa_hist_and_current_df1.groupby(['name']).apply(lambda x: pd.Series([sum(x[v]*x.minutes_played)/sum(x.minutes_played) for v in imps]))
-            output.columns=imps
-            output=output[display_field]
-            output=output.sort_values(by=[focus_field_value],ascending=False).head(player_sample)
-        else:
-            output=fa_hist_and_current_df1.groupby(['name'])[cols].agg(calc_value).reset_index().sort_values(by=[focus_field_value],ascending=False).head(player_sample)
-            output.set_index(['name'], inplace=True, drop=True, append=False)
-            output.reset_index(inplace=False)
+            if calc_value=='weights':
+                output=fa_hist_and_current_df1.groupby(['name']).apply(lambda x: pd.Series([sum(x[v]*x.minutes_played)/sum(x.minutes_played) for v in imps]))
+                output.columns=imps
+                output=output[display_field]
+                output=output.sort_values(by=[focus_field_value],ascending=False).head(player_sample)
+            else:
+                output=fa_hist_and_current_df1.groupby(['name'])[cols].agg(calc_value).reset_index().sort_values(by=[focus_field_value],ascending=False).head(player_sample)
+                output.set_index(['name'], inplace=True, drop=True, append=False)
+                output.reset_index(inplace=False)
 
-        if calc_value=='sum':
-            fig=px.imshow(output[display_field], text_auto=True)
-        else:
-            fig=px.imshow(output[display_field], text_auto='.2f')
+            if calc_value=='sum':
+                fig=px.imshow(output[display_field], text_auto=True)
+            else:
+                fig=px.imshow(output[display_field], text_auto='.2f')
 
-        fig.update_xaxes(side='top')
+            fig.update_xaxes(side='top')
 
-        fig.layout.height=750
-        fig.layout.width=750
+            fig.layout.height=750
+            fig.layout.width=750
 
-        return fig
+            return fig
+    elif league_id=='yahoo':
+        if history_id=='cso':
+            if top_n_val=='':
+                player_sample=5
+            else:
+                player_sample=int(top_n_val)
+            if len(player_list)!=len(fa_yahoo_current_only_df['name'].unique()):
+                fa_yahoo_current_only_df1=fa_yahoo_current_only_df[fa_yahoo_current_only_df['name'].isin(player_list)]
+            else:
+                fa_yahoo_current_only_df1=fa_yahoo_current_only_df
+
+            df_query=fa_yahoo_current_only_df1.query("date >= @days_back")
+
+            if calc_value=='weights':
+                output=df_query.groupby(['name']).apply(lambda x: pd.Series([sum(x[v]*x.minutes_played)/sum(x.minutes_played) for v in imps]))
+                output.columns=imps
+                output=output[display_field]
+                output=output.sort_values(by=[focus_field_value],ascending=False).head(player_sample)
+            else:
+                output=df_query.groupby(['name'])[cols].agg(calc_value).reset_index().sort_values(by=[focus_field_value],ascending=False).head(player_sample)
+                output.set_index(['name'], inplace=True, drop=True, append=False)
+                output.reset_index(inplace=False)
+
+
+            if calc_value=='sum':
+                fig=px.imshow(output[display_field], text_auto=True)
+            else:
+                fig=px.imshow(output[display_field], text_auto='.2f')
+
+            fig.update_xaxes(side='top')
+
+            fig.layout.height=750
+            fig.layout.width=750
+
+            return fig
+
+        elif history_id=='ho':
+            if top_n_val=='':
+                player_sample=5
+            else:
+                player_sample=int(top_n_val)
+            if len(player_list)!=len(fa_yahoo_hist_only_df['name'].unique()):
+                fa_yahoo_hist_only_df1=fa_yahoo_hist_only_df[fa_yahoo_hist_only_df['name'].isin(player_list)]
+            else:
+                fa_yahoo_hist_only_df1=fa_yahoo_hist_only_df
+
+            if calc_value=='weights':
+                output=fa_yahoo_hist_only_df1.groupby(['name']).apply(lambda x: pd.Series([sum(x[v]*x.minutes_played)/sum(x.minutes_played) for v in imps]))
+                output.columns=imps
+                output=output[display_field]
+                output=output.sort_values(by=[focus_field_value],ascending=False).head(player_sample)
+            else:
+                output=fa_yahoo_hist_only_df1.groupby(['name'])[cols].agg(calc_value).reset_index().sort_values(by=[focus_field_value],ascending=False).head(player_sample)
+                output.set_index(['name'], inplace=True, drop=True, append=False)
+                output.reset_index(inplace=False)
+
+            if calc_value=='sum':
+                fig=px.imshow(output[display_field], text_auto=True)
+            else:
+                fig=px.imshow(output[display_field], text_auto='.2f')
+
+            fig.update_xaxes(side='top')
+
+            fig.layout.height=750
+            fig.layout.width=750
+
+            return fig
+
+        elif history_id=='hcs':
+            if top_n_val=='':
+                player_sample=5
+            else:
+                player_sample=int(top_n_val)
+            if len(player_list)!=len(fa_yahoo_hist_and_current_df['name'].unique()):
+                fa_yahoo_hist_and_current_df1=fa_yahoo_hist_and_current_df[fa_yahoo_hist_and_current_df['name'].isin(player_list)]
+            else:
+                fa_yahoo_hist_and_current_df1=fa_yahoo_hist_and_current_df
+
+            if calc_value=='weights':
+                output=fa_yahoo_hist_and_current_df1.groupby(['name']).apply(lambda x: pd.Series([sum(x[v]*x.minutes_played)/sum(x.minutes_played) for v in imps]))
+                output.columns=imps
+                output=output[display_field]
+                output=output.sort_values(by=[focus_field_value],ascending=False).head(player_sample)
+            else:
+                output=fa_yahoo_hist_and_current_df1.groupby(['name'])[cols].agg(calc_value).reset_index().sort_values(by=[focus_field_value],ascending=False).head(player_sample)
+                output.set_index(['name'], inplace=True, drop=True, append=False)
+                output.reset_index(inplace=False)
+
+            if calc_value=='sum':
+                fig=px.imshow(output[display_field], text_auto=True)
+            else:
+                fig=px.imshow(output[display_field], text_auto='.2f')
+
+            fig.update_xaxes(side='top')
+
+            fig.layout.height=750
+            fig.layout.width=750
+
+            return fig
+
+
+
 
 if __name__ == '__main__': 
     app.run(port=8006)
