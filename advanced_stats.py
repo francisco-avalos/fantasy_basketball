@@ -127,7 +127,7 @@ try:
 		cursor=connection.cursor()
 		file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/advanced_data_extract.csv'
 		main_free_agents_df.to_csv(file_path,index=False)
-		qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.advanced_stats FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\'' IGNORE ROWS;"
+		qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.advanced_stats FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' IGNORE 1 ROWS;"
 		cursor.execute(qry)
 		connection.commit()
 		del main_free_agents_df
