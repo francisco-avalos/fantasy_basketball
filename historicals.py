@@ -16,10 +16,10 @@ from mysql.connector import errorcode # new guy
 import pandas as pd
 import numpy as np
 import os
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import datetime as dt
-import matplotlib.ticker as mtick
-import seaborn as sn
+# import matplotlib.ticker as mtick
+# import seaborn as sn
 import time
 
 from datetime import datetime
@@ -38,6 +38,7 @@ sports_db_admin_db='basketball'
 sports_db_admin_user=os.environ.get('sports_db_admin_user')
 sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
 sports_db_admin_port=os.environ.get('sports_db_admin_port')
+
 
 basketball_seasons=pd.read_csv('/Users/franciscoavalosjr/Desktop/basketball-folder/season_dates.csv')
 
@@ -176,7 +177,7 @@ try:
                 
                 file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/historical_player_extract.csv'
                 df.to_csv(file_path,index=False)
-                qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.historical_player_data FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\'' IGNORE ROWS;"
+                qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.historical_player_data FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' IGNORE 1 ROWS;"
                 cursor.execute(qry)
                 connection.commit()
                 del df
@@ -238,7 +239,7 @@ try:
 
                 file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/historical_player_extract.csv'
                 df.to_csv(file_path,index=False)
-                qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.historical_player_data FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\'' IGNORE ROWS;"
+                qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.historical_player_data FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' IGNORE 1 ROWS;"
                 cursor.execute(qry)
                 connection.commit()
                 del df
