@@ -491,15 +491,15 @@ def graph_update(input_value, focus_field_value, calc_value, display_field, top_
             else:
                 fa_df1=fa_df
 
-            df_query=fa_df1.query("date >= @days_back")
+            df_query1=fa_df1.query("date >= @days_back")
 
             if calc_value=='weights':
-                output=df_query.groupby(['name']).apply(lambda x: pd.Series([sum(x[v]*x.minutes_played)/sum(x.minutes_played) for v in imps]))
+                output=df_query1.groupby(['name']).apply(lambda x: pd.Series([sum(x[v]*x.minutes_played)/sum(x.minutes_played) for v in imps]))
                 output.columns=imps
                 output=output[display_field]
                 output=output.sort_values(by=[focus_field_value],ascending=False).head(player_sample)
             else:
-                output=df_query.groupby(['name'])[cols].agg(calc_value).reset_index().sort_values(by=[focus_field_value],ascending=False).head(player_sample)
+                output=df_query1.groupby(['name'])[cols].agg(calc_value).reset_index().sort_values(by=[focus_field_value],ascending=False).head(player_sample)
                 output.set_index(['name'], inplace=True, drop=True, append=False)
                 output.reset_index(inplace=False)
 
@@ -580,7 +580,7 @@ def graph_update(input_value, focus_field_value, calc_value, display_field, top_
             fig.layout.height=750
             fig.layout.width=750
 
-            return fig # fa_yahoo_df
+            return fig
     elif league_id=='yahoo':
         if history_id=='cso':
             fa_yahoo_df1 = fa_yahoo_df[fa_yahoo_df['all_history']=='history_plus_current']
