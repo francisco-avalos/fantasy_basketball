@@ -29,185 +29,156 @@ connection=mysql.connect(host=sports_db_admin_host,
                         password=sports_db_admin_pw,
                         port=sports_db_admin_port)
 
-hist_and_current_query="""
-SELECT 
-    EFA.name,
-    EFA.date,
-    EFA.team,
-    EFA.location,
-    EFA.opponent,
-    EFA.outcome,
-    EFA.seconds_played,
-    EFA.made_field_goals,
-    EFA.attempted_field_goals,
-    EFA.made_three_point_field_goals,
-    EFA.attempted_three_point_field_goals,
-    EFA.made_free_throws,
-    EFA.attempted_free_throws,
-    EFA.offensive_rebounds,
-    EFA.defensive_rebounds,
-    EFA.assists,
-    EFA.steals,
-    EFA.blocks,
-    EFA.turnovers,
-    EFA.personal_fouls,
-    EFA.points_scored,
-    EFA.game_score,
-    EFA.name_code
-FROM basketball.live_free_agents EFA
-WHERE EFA.seconds_played!=0
-UNION ALL
-SELECT 
-    HPD.name,
-    HPD.date,
-    HPD.team,
-    HPD.location,
-    HPD.opponent,
-    HPD.outcome,
-    HPD.seconds_played,
-    HPD.made_field_goals,
-    HPD.attempted_field_goals,
-    HPD.made_three_point_field_goals,
-    HPD.attempted_three_point_field_goals,
-    HPD.made_free_throws,
-    HPD.attempted_free_throws,
-    HPD.offensive_rebounds,
-    HPD.defensive_rebounds,
-    HPD.assists,
-    HPD.steals,
-    HPD.blocks,
-    HPD.turnovers,
-    HPD.personal_fouls,
-    HPD.points AS points_scored,
-    HPD.game_score,
-    HPD.slug AS name_code
-FROM basketball.historical_player_data HPD
-JOIN (SELECT DISTINCT name_code FROM basketball.live_free_agents) FA ON HPD.slug = FA.name_code
-WHERE season != '2022-23';"""
-
-
-hist_only_query="""
-SELECT 
-    HPD.name,
-    HPD.date,
-    HPD.team,
-    HPD.location,
-    HPD.opponent,
-    HPD.outcome,
-    HPD.seconds_played,
-    HPD.made_field_goals,
-    HPD.attempted_field_goals,
-    HPD.made_three_point_field_goals,
-    HPD.attempted_three_point_field_goals,
-    HPD.made_free_throws,
-    HPD.attempted_free_throws,
-    HPD.offensive_rebounds,
-    HPD.defensive_rebounds,
-    HPD.assists,
-    HPD.steals,
-    HPD.blocks,
-    HPD.turnovers,
-    HPD.personal_fouls,
-    HPD.points AS points_scored,
-    HPD.game_score,
-    HPD.slug AS name_code
-FROM basketball.historical_player_data HPD
-JOIN (SELECT DISTINCT name_code FROM basketball.live_free_agents) FA ON HPD.slug = FA.name_code
-WHERE season != '2022-23';"""
-
-
-# yahoo_hist_and_current_query="""
+# hist_and_current_query="""
 # SELECT 
-#     YP.name,
-#     BBREF.date,
-#     BBREF.team,
-#     BBREF.location,
-#     BBREF.opponent,
-#     BBREF.outcome,
-#     BBREF.seconds_played,
-#     BBREF.made_field_goals,
-#     BBREF.attempted_field_goals,
-#     BBREF.made_three_point_field_goals,
-#     BBREF.attempted_three_point_field_goals,
-#     BBREF.made_free_throws,
-#     BBREF.attempted_free_throws,
-#     BBREF.offensive_rebounds,
-#     BBREF.defensive_rebounds,
-#     BBREF.assists,
-#     BBREF.steals,
-#     BBREF.blocks,
-#     BBREF.turnovers,
-#     BBREF.personal_fouls,
-#     BBREF.points AS points_scored,
-#     BBREF.game_score
-# FROM basketball.live_free_agents_yahoo YP
-# JOIN basketball.master_names_list_temp MNL ON SUBSTRING_INDEX(YP.name, ' ',1) = MNL.first_name
-#     AND (CASE WHEN LENGTH(YP.name)-LENGTH(REPLACE(YP.name, ' ', ''))+1 > 2 THEN SUBSTRING_INDEX(SUBSTRING_INDEX(YP.name, ' ',-2), ' ', 1) ELSE SUBSTRING_INDEX(YP.name, ' ',-1) END) = MNL.last_name
-#     AND (CASE WHEN LENGTH(YP.name)-LENGTH(REPLACE(YP.name, ' ', ''))+1 > 2 THEN SUBSTRING_INDEX(SUBSTRING_INDEX(YP.name, ' ',-2), ' ', -1) ELSE '' END) = MNL.suffix
-# JOIN basketball.historical_player_data BBREF ON MNL.bbrefid = BBREF.slug;
-# """
-# yahoo_hist_only_query="""
+#     EFA.name,
+#     EFA.date,
+#     EFA.team,
+#     EFA.location,
+#     EFA.opponent,
+#     EFA.outcome,
+#     EFA.seconds_played,
+#     EFA.made_field_goals,
+#     EFA.attempted_field_goals,
+#     EFA.made_three_point_field_goals,
+#     EFA.attempted_three_point_field_goals,
+#     EFA.made_free_throws,
+#     EFA.attempted_free_throws,
+#     EFA.offensive_rebounds,
+#     EFA.defensive_rebounds,
+#     EFA.assists,
+#     EFA.steals,
+#     EFA.blocks,
+#     EFA.turnovers,
+#     EFA.personal_fouls,
+#     EFA.points_scored,
+#     EFA.game_score,
+#     EFA.name_code
+# FROM basketball.live_free_agents EFA
+# WHERE EFA.seconds_played!=0
+# UNION ALL
 # SELECT 
-#     YP.name,
-#     BBREF.date,
-#     BBREF.team,
-#     BBREF.location,
-#     BBREF.opponent,
-#     BBREF.outcome,
-#     BBREF.seconds_played,
-#     BBREF.made_field_goals,
-#     BBREF.attempted_field_goals,
-#     BBREF.made_three_point_field_goals,
-#     BBREF.attempted_three_point_field_goals,
-#     BBREF.made_free_throws,
-#     BBREF.attempted_free_throws,
-#     BBREF.offensive_rebounds,
-#     BBREF.defensive_rebounds,
-#     BBREF.assists,
-#     BBREF.steals,
-#     BBREF.blocks,
-#     BBREF.turnovers,
-#     BBREF.personal_fouls,
-#     BBREF.points AS points_scored,
-#     BBREF.game_score
-# FROM basketball.live_free_agents_yahoo YP
-# JOIN basketball.master_names_list_temp MNL ON SUBSTRING_INDEX(YP.name, ' ',1) = MNL.first_name
-#     AND (CASE WHEN LENGTH(YP.name)-LENGTH(REPLACE(YP.name, ' ', ''))+1 > 2 THEN SUBSTRING_INDEX(SUBSTRING_INDEX(YP.name, ' ',-2), ' ', 1) ELSE SUBSTRING_INDEX(YP.name, ' ',-1) END) = MNL.last_name
-#     AND (CASE WHEN LENGTH(YP.name)-LENGTH(REPLACE(YP.name, ' ', ''))+1 > 2 THEN SUBSTRING_INDEX(SUBSTRING_INDEX(YP.name, ' ',-2), ' ', -1) ELSE '' END) = MNL.suffix
-# JOIN basketball.historical_player_data BBREF ON MNL.bbrefid = BBREF.slug
-# WHERE BBREF.date < '2023-10-24';
-# """
-# yahoo_current_only_query="""
+#     HPD.name,
+#     HPD.date,
+#     HPD.team,
+#     HPD.location,
+#     HPD.opponent,
+#     HPD.outcome,
+#     HPD.seconds_played,
+#     HPD.made_field_goals,
+#     HPD.attempted_field_goals,
+#     HPD.made_three_point_field_goals,
+#     HPD.attempted_three_point_field_goals,
+#     HPD.made_free_throws,
+#     HPD.attempted_free_throws,
+#     HPD.offensive_rebounds,
+#     HPD.defensive_rebounds,
+#     HPD.assists,
+#     HPD.steals,
+#     HPD.blocks,
+#     HPD.turnovers,
+#     HPD.personal_fouls,
+#     HPD.points AS points_scored,
+#     HPD.game_score,
+#     HPD.slug AS name_code
+# FROM basketball.historical_player_data HPD
+# JOIN (SELECT DISTINCT name_code FROM basketball.live_free_agents) FA ON HPD.slug = FA.name_code
+# WHERE season != '2022-23';"""
+
+
+# hist_only_query="""
 # SELECT 
-#     YP.name,
-#     BBREF.date,
-#     BBREF.team,
-#     BBREF.location,
-#     BBREF.opponent,
-#     BBREF.outcome,
-#     BBREF.seconds_played,
-#     BBREF.made_field_goals,
-#     BBREF.attempted_field_goals,
-#     BBREF.made_three_point_field_goals,
-#     BBREF.attempted_three_point_field_goals,
-#     BBREF.made_free_throws,
-#     BBREF.attempted_free_throws,
-#     BBREF.offensive_rebounds,
-#     BBREF.defensive_rebounds,
-#     BBREF.assists,
-#     BBREF.steals,
-#     BBREF.blocks,
-#     BBREF.turnovers,
-#     BBREF.personal_fouls,
-#     BBREF.points AS points_scored,
-#     BBREF.game_score
-# FROM basketball.live_free_agents_yahoo YP
-# JOIN basketball.master_names_list_temp MNL ON SUBSTRING_INDEX(YP.name, ' ',1) = MNL.first_name
-#     AND (CASE WHEN LENGTH(YP.name)-LENGTH(REPLACE(YP.name, ' ', ''))+1 > 2 THEN SUBSTRING_INDEX(SUBSTRING_INDEX(YP.name, ' ',-2), ' ', 1) ELSE SUBSTRING_INDEX(YP.name, ' ',-1) END) = MNL.last_name
-#     AND (CASE WHEN LENGTH(YP.name)-LENGTH(REPLACE(YP.name, ' ', ''))+1 > 2 THEN SUBSTRING_INDEX(SUBSTRING_INDEX(YP.name, ' ',-2), ' ', -1) ELSE '' END) = MNL.suffix
-# JOIN basketball.historical_player_data BBREF ON MNL.bbrefid = BBREF.slug
-# WHERE BBREF.date BETWEEN '2023-10-24' AND '2024-04-14';
-# """
+#     HPD.name,
+#     HPD.date,
+#     HPD.team,
+#     HPD.location,
+#     HPD.opponent,
+#     HPD.outcome,
+#     HPD.seconds_played,
+#     HPD.made_field_goals,
+#     HPD.attempted_field_goals,
+#     HPD.made_three_point_field_goals,
+#     HPD.attempted_three_point_field_goals,
+#     HPD.made_free_throws,
+#     HPD.attempted_free_throws,
+#     HPD.offensive_rebounds,
+#     HPD.defensive_rebounds,
+#     HPD.assists,
+#     HPD.steals,
+#     HPD.blocks,
+#     HPD.turnovers,
+#     HPD.personal_fouls,
+#     HPD.points AS points_scored,
+#     HPD.game_score,
+#     HPD.slug AS name_code
+# FROM basketball.historical_player_data HPD
+# JOIN (SELECT DISTINCT name_code FROM basketball.live_free_agents) FA ON HPD.slug = FA.name_code
+# WHERE season != '2022-23';"""
+
+
+espn_query="""
+SELECT 
+    'history_plus_current' AS all_history,
+    A.*
+FROM 
+    (
+        SELECT  
+            'current_season_only' AS current_season_vs_historicals,
+            ESPN_FA.name,
+            ESPN_FA.date,
+            ESPN_FA.team,
+            ESPN_FA.location,
+            ESPN_FA.opponent,
+            ESPN_FA.outcome,
+            ESPN_FA.seconds_played,
+            ESPN_FA.made_field_goals,
+            ESPN_FA.attempted_field_goals,
+            ESPN_FA.made_three_point_field_goals,
+            ESPN_FA.attempted_three_point_field_goals,
+            ESPN_FA.made_free_throws,
+            ESPN_FA.attempted_free_throws,
+            ESPN_FA.offensive_rebounds,
+            ESPN_FA.defensive_rebounds,
+            ESPN_FA.assists,
+            ESPN_FA.steals,
+            ESPN_FA.blocks,
+            ESPN_FA.turnovers,
+            ESPN_FA.personal_fouls,
+            ESPN_FA.points_scored,
+            ESPN_FA.game_score
+        FROM basketball.live_free_agents ESPN_FA
+        UNION ALL
+        SELECT 
+            'historicals_only' AS current_season_vs_historicals,
+            BBREF.name,
+            BBREF.date,
+            BBREF.team,
+            BBREF.location,
+            BBREF.opponent,
+            BBREF.outcome,
+            BBREF.seconds_played,
+            BBREF.made_field_goals,
+            BBREF.attempted_field_goals,
+            BBREF.made_three_point_field_goals,
+            BBREF.attempted_three_point_field_goals,
+            BBREF.made_free_throws,
+            BBREF.attempted_free_throws,
+            BBREF.offensive_rebounds,
+            BBREF.defensive_rebounds,
+            BBREF.assists,
+            BBREF.steals,
+            BBREF.blocks,
+            BBREF.turnovers,
+            BBREF.personal_fouls,
+            BBREF.points AS points_scored,
+            BBREF.game_score
+        FROM basketball.historical_player_data BBREF
+        WHERE BBREF.slug IN (SELECT DISTINCT name_code FROM basketball.live_free_agents)
+            AND BBREF.date NOT BETWEEN LAST_DAY(DATE_FORMAT(BBREF.date, '%Y-04-%d')) AND LAST_DAY(DATE_FORMAT(BBREF.date, '%Y-09-%d')) # in season only
+            AND BBREF.date < '2023-10-24'
+    ) A
+;
+"""
 
 yahoo_query="""
 SELECT 
@@ -254,17 +225,21 @@ WHERE BBREF.date NOT BETWEEN LAST_DAY(DATE_FORMAT(BBREF.date, '%Y-04-%d')) AND L
 
 if connection.is_connected():
     cursor=connection.cursor()
-    cursor.execute('SELECT * FROM basketball.live_free_agents WHERE seconds_played!=0;')
-    fa_df=cursor.fetchall()
-    fa_df=pd.DataFrame(fa_df, columns=cursor.column_names)
+    # cursor.execute('SELECT * FROM basketball.live_free_agents WHERE seconds_played!=0;')
+    # fa_df=cursor.fetchall()
+    # fa_df=pd.DataFrame(fa_df, columns=cursor.column_names)
 
-    cursor.execute(hist_and_current_query)
-    fa_hist_and_current_df=cursor.fetchall()
-    fa_hist_and_current_df=pd.DataFrame(fa_hist_and_current_df,columns=cursor.column_names)
+    cursor.execute(espn_query)
+    fa_espn_df=cursor.fetchall()
+    fa_espn_df=pd.DataFrame(fa_espn_df,columns=cursor.column_names)
 
-    cursor.execute(hist_only_query)
-    fa_hist_only_df=cursor.fetchall()
-    fa_hist_only_df=pd.DataFrame(fa_hist_only_df,columns=cursor.column_names)
+    # cursor.execute(hist_and_current_query)
+    # fa_hist_and_current_df=cursor.fetchall()
+    # fa_hist_and_current_df=pd.DataFrame(fa_hist_and_current_df,columns=cursor.column_names)
+
+    # cursor.execute(hist_only_query)
+    # fa_hist_only_df=cursor.fetchall()
+    # fa_hist_only_df=pd.DataFrame(fa_hist_only_df,columns=cursor.column_names)
 
     cursor.execute(yahoo_query)
     fa_yahoo_df=cursor.fetchall()
@@ -295,7 +270,7 @@ pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', None)
 
 
-
+fa_df=fa_espn_df[fa_espn_df['current_season_vs_historicals']=='current_season_only']
 fa_df['total_rebounds']=fa_df['offensive_rebounds']+fa_df['defensive_rebounds']
 fa_df['minutes_played']=fa_df['seconds_played']/60
 
@@ -542,6 +517,7 @@ def graph_update(input_value, focus_field_value, calc_value, display_field, top_
             return fig
 
         elif history_id=='ho':
+            fa_hist_only_df=fa_espn_df[fa_espn_df['current_season_vs_historicals']=='historicals_only']
             if top_n_val=='':
                 player_sample=5
             else:
@@ -574,6 +550,7 @@ def graph_update(input_value, focus_field_value, calc_value, display_field, top_
             return fig
 
         elif history_id=='hcs':
+            fa_hist_and_current_df=fa_espn_df[fa_espn_df['all_history']=='history_plus_current']
             if top_n_val=='':
                 player_sample=5
             else:
