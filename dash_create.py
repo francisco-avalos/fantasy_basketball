@@ -593,6 +593,8 @@ def graph_update(input_value,focus_field_value, calc_value,display_field, top_n_
             else:
                 fa_yahoo_current_only_df1=fa_yahoo_df1
 
+            fa_yahoo_current_only_df1=fa_yahoo_current_only_df1.query("date >= @days_back")
+
             if calc_value=='weights':
                 output=fa_yahoo_current_only_df1.groupby(['name']).apply(lambda x: pd.Series([sum(x[v]*x.minutes_played)/sum(x.minutes_played) for v in imps]))
                 output.columns=imps
