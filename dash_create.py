@@ -3,7 +3,7 @@ import dash
 from dash import dcc
 from dash import html
 # import plotly.graph_objects as go
-# import plotly.express as px
+import plotly.express as px
 from dash.dependencies import Input, Output
 
 import mysql.connector as mysql
