@@ -2,8 +2,8 @@ import os
 import dash
 from dash import dcc
 from dash import html
-import plotly.graph_objects as go
-import plotly.express as px
+# import plotly.graph_objects as go
+# import plotly.express as px
 from dash.dependencies import Input, Output
 
 import mysql.connector as mysql
@@ -116,7 +116,7 @@ connection=mysql.connect(host=sports_db_admin_host,
 # WHERE season != '2022-23';"""
 
 
-espn_query="""
+espn_query='''
 SELECT 
     'history_plus_current' AS all_history,
     A.*
@@ -174,13 +174,13 @@ FROM
             BBREF.game_score
         FROM basketball.historical_player_data BBREF
         WHERE BBREF.slug IN (SELECT DISTINCT name_code FROM basketball.live_free_agents)
-            AND BBREF.date NOT BETWEEN LAST_DAY(DATE_FORMAT(BBREF.date, '%Y-04-%d')) AND LAST_DAY(DATE_FORMAT(BBREF.date, '%Y-09-%d')) # in season only
+            AND BBREF.date NOT BETWEEN LAST_DAY(DATE_FORMAT(BBREF.date, '%Y-04-%d')) AND LAST_DAY(DATE_FORMAT(BBREF.date, '%Y-09-%d'))
             AND BBREF.date < '2023-10-24'
     ) A
 ;
-"""
+'''
 
-yahoo_query="""
+yahoo_query='''
 SELECT 
     CASE
         WHEN BBREF.date BETWEEN '2023-10-24' AND '2024-04-14' THEN 'current_season_only'
@@ -214,9 +214,9 @@ JOIN basketball.master_names_list_temp MNL ON SUBSTRING_INDEX(YP.name, ' ',1) = 
     AND (CASE WHEN LENGTH(YP.name)-LENGTH(REPLACE(YP.name, ' ', ''))+1 > 2 THEN SUBSTRING_INDEX(SUBSTRING_INDEX(YP.name, ' ',-2), ' ', 1) ELSE SUBSTRING_INDEX(YP.name, ' ',-1) END) = MNL.last_name
     AND (CASE WHEN LENGTH(YP.name)-LENGTH(REPLACE(YP.name, ' ', ''))+1 > 2 THEN SUBSTRING_INDEX(SUBSTRING_INDEX(YP.name, ' ',-2), ' ', -1) ELSE '' END) = MNL.suffix
 JOIN basketball.historical_player_data BBREF ON MNL.bbrefid = BBREF.slug
-WHERE BBREF.date NOT BETWEEN LAST_DAY(DATE_FORMAT(BBREF.date, '%Y-04-%d')) AND LAST_DAY(DATE_FORMAT(BBREF.date, '%Y-09-%d')) # in season only
+WHERE BBREF.date NOT BETWEEN LAST_DAY(DATE_FORMAT(BBREF.date, '%Y-04-%d')) AND LAST_DAY(DATE_FORMAT(BBREF.date, '%Y-09-%d'))
 ;
-"""
+'''
 
 
 
@@ -424,8 +424,8 @@ app.layout=html.Div(children=[html.H1(children='Free Agent Analysis Helper Tool'
                                                     'turnovers', 'personal_fouls', 'points_scored', 'minutes_played'],
                                           value=['made_field_goals', 'made_three_point_field_goals',
                                                     'made_free_throws','total_rebounds', 'offensive_rebounds', 
-                                                    'assists','steals', 'blocks', 
-                                                    'turnovers', 'points_scored']),
+                                                    'defensive_rebounds','assists','steals', 'blocks', 
+                                                    'turnovers', 'personal_fouls','points_scored','minutes_played']),
                               'Number of players',
                              dcc.Input(id='top_n', value=5, type='integer'),
                              'historicals options',
@@ -457,7 +457,7 @@ app.layout=html.Div(children=[html.H1(children='Free Agent Analysis Helper Tool'
              )
 
 
-def graph_update(input_value, focus_field_value, calc_value, display_field, top_n_val,history_id,league_id,player_list):
+def graph_update(input_value,focus_field_value, calc_value,display_field, top_n_val,history_id,league_id,player_list):
     cols=['made_field_goals', 'made_three_point_field_goals','made_free_throws', 
     'total_rebounds', 'offensive_rebounds', 'defensive_rebounds', 'assists', 
     'steals', 'blocks', 'turnovers', 'personal_fouls', 'points_scored', 'minutes_played']
