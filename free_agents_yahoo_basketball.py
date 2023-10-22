@@ -35,9 +35,13 @@ sc=OAuth2(None,None,from_file='oauth2.json')
 gm=yfa.Game(sc, 'nba')
 league_id=gm.league_ids(year=2023)
 lg=gm.to_league('428.l.18598')
-tk=lg.free_agents('P')
-tk_df=pd.DataFrame(tk)
 
+# tk=lg.free_agents('P')
+tk_df=lg.waivers()
+
+tk_df=pd.DataFrame(tk_df)
+cols_rearranged=['player_id','name','status','position_type','eligible_positions','percent_owned']
+tk_df=tk_df[cols_rearranged]
 
 connection=mysql.connect(host=sports_db_admin_host,
 						database=sports_db_admin_db,
@@ -64,18 +68,18 @@ if connection.is_connected():
        print('MySQL connection is closed')
 
 
-SELECT 
-	YP.playerid AS yahoo_id,
-    YP.name AS yahoo_name,
-    YP.status,
-    MNL.full_name AS source_full_name,
-    MNL.first_name AS source_first_name,
-    MNL.last_name AS source_last_name,
-    MNL.bbrefid,
-    MNL.bday,
-    MNL.age
-FROM basketball.live_free_agents_yahoo YP
-JOIN basketball.master_names_list_temp MNL ON SUBSTRING_INDEX(YP.name, ' ',1) = MNL.first_name
-	AND (CASE WHEN LENGTH(YP.name)-LENGTH(REPLACE(YP.name, ' ', ''))+1 > 2 THEN SUBSTRING_INDEX(SUBSTRING_INDEX(YP.name, ' ',-2), ' ', 1) ELSE SUBSTRING_INDEX(YP.name, ' ',-1) END) = MNL.last_name
-    AND (CASE WHEN LENGTH(YP.name)-LENGTH(REPLACE(YP.name, ' ', ''))+1 > 2 THEN SUBSTRING_INDEX(SUBSTRING_INDEX(YP.name, ' ',-2), ' ', -1) ELSE '' END) = MNL.suffix
-;
+# SELECT 
+# 	YP.playerid AS yahoo_id,
+#     YP.name AS yahoo_name,
+#     YP.status,
+#     MNL.full_name AS source_full_name,
+#     MNL.first_name AS source_first_name,
+#     MNL.last_name AS source_last_name,
+#     MNL.bbrefid,
+#     MNL.bday,
+#     MNL.age
+# FROM basketball.live_free_agents_yahoo YP
+# JOIN basketball.master_names_list_temp MNL ON SUBSTRING_INDEX(YP.name, ' ',1) = MNL.first_name
+# 	AND (CASE WHEN LENGTH(YP.name)-LENGTH(REPLACE(YP.name, ' ', ''))+1 > 2 THEN SUBSTRING_INDEX(SUBSTRING_INDEX(YP.name, ' ',-2), ' ', 1) ELSE SUBSTRING_INDEX(YP.name, ' ',-1) END) = MNL.last_name
+#     AND (CASE WHEN LENGTH(YP.name)-LENGTH(REPLACE(YP.name, ' ', ''))+1 > 2 THEN SUBSTRING_INDEX(SUBSTRING_INDEX(YP.name, ' ',-2), ' ', -1) ELSE '' END) = MNL.suffix
+# ;
