@@ -40,50 +40,49 @@ sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
 sports_db_admin_port=os.environ.get('sports_db_admin_port')
 
 
-sc=OAuth2(None,None,from_file='oauth2.json')
-gm=yfa.Game(sc, 'nba')
-league_id=gm.league_ids(year=2024)
-lg=gm.to_league('428.l.18598')
-# tk=lg.free_agents('PG')
-# tk_df=pd.DataFrame(tk)
-# print(tk_df.head(20))
+# sc=OAuth2(None,None,from_file='oauth2.json')
+# gm=yfa.Game(sc, 'nba')
+# league_id=gm.league_ids(year=2024)
+# lg=gm.to_league('428.l.18598')
+# # tk=lg.free_agents('PG')
+# # tk_df=pd.DataFrame(tk)
+# # print(tk_df.head(20))
 
-# print(lg.stat_categories())
-# print(lg.team_key())
-# print(lg.current_week())
+# # print(lg.stat_categories())
+# # print(lg.team_key())
+# # print(lg.current_week())
 
-wvrs=lg.waivers()
-wvrs=pd.DataFrame(wvrs)
-print(wvrs.head())
-print(wvrs.shape)
-
-
-# tm=lg.to_team('428.l.18598.t.4')
-# my_tm=pd.DataFrame(tm.roster(4))
-# print(my_tm)
+# wvrs=lg.waivers()
+# wvrs=pd.DataFrame(wvrs)
+# print(wvrs.head())
+# print(wvrs.shape)
 
 
+# # tm=lg.to_team('428.l.18598.t.4')
+# # my_tm=pd.DataFrame(tm.roster(4))
+# # print(my_tm)
 
-# yfa_file_loca=yfa.__file__
-# abs_path=os.path.abspath(yfa_file_loca)
-# print(abs_path)
+
+# # yfa_file_loca=yfa.__file__
+# # abs_path=os.path.abspath(yfa_file_loca)
+# # print(abs_path)
 
 
-# leagueid=os.environ.get('leagueid')
-# espn_s2=os.environ.get('espn_s2')
-# swid=os.environ.get('swid')
+leagueid=os.environ.get('leagueid')
+espn_s2=os.environ.get('espn_s2')
+swid=os.environ.get('swid')
 
-# fa_size=50
-# season_end_year=2024
-# league=League(league_id=leagueid, 
-# 				year=season_end_year,
-# 				espn_s2=espn_s2,
-# 				swid=swid, 
-# 				debug=False)
+fa_size=50
+season_end_year=2024
+league=League(league_id=leagueid, 
+				year=season_end_year,
+				espn_s2=espn_s2,
+				swid=swid, 
+				debug=False)
 
-# FA=league.free_agents(size=fa_size)
-# FA=pd.DataFrame(FA)
-# print(FA)
+FA=league.free_agents(size=fa_size)
+FA=pd.DataFrame(FA)
+print(FA)
 
 
 
