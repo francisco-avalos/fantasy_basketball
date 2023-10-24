@@ -433,7 +433,7 @@ app.layout=html.Div(children=[html.H1(children='Free Agent Analysis Helper Tool'
                                             options=[{'label':'history-only','value':'ho'},
                                                     {'label':'history + current season ','value':'hcs'},
                                                     {'label':'current season only','value':'cso'}],
-                                            value='hcs'),
+                                            value='ho'),
                              'League',
                              dcc.Dropdown(id='league_id',
                                             options=[{'label':'ESPN', 'value':'espn'},

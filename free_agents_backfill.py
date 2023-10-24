@@ -35,7 +35,7 @@ leagueid=os.environ.get('leagueid')
 espn_s2=os.environ.get('espn_s2')
 swid=os.environ.get('swid')
 
-season_end_year=2023
+season_end_year=2024
 league=League(league_id=leagueid, 
 				year=season_end_year,
 				espn_s2=espn_s2,
@@ -47,7 +47,7 @@ league=League(league_id=leagueid,
 
 
 
-fa_size=1000
+fa_size=5
 non_shows=[]
 non_shows_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/'
 
@@ -82,7 +82,6 @@ try:
 
 	print('begin process')
 	for fa in FA:
-		fa=remove_name_suffixes(fa)
 		fa=fa.lstrip().rstrip()
 		if fa not in list(master_names_list_df.full_name):
 			for i in master_names_list_df.index:
@@ -123,7 +122,6 @@ try:
 					except:
 						non_shows.append(name_code)
 		time.sleep(5)
-		# print('finished for ', fa)
 		row+=1
 		completion_tracker=row/len(FA)
 		print("Progress {:.2%}".format(completion_tracker), end='\r')

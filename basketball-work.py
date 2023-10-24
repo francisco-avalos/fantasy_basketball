@@ -15,6 +15,7 @@ from basketball_reference_web_scraper.data import Team
 import mysql.connector as mysql
 from mysql.connector import Error
 
+from my_functions import clean_string, remove_name_suffixes
 
 import pandas as pd
 import os
@@ -72,7 +73,7 @@ leagueid=os.environ.get('leagueid')
 espn_s2=os.environ.get('espn_s2')
 swid=os.environ.get('swid')
 
-fa_size=50
+fa_size=5
 season_end_year=2024
 league=League(league_id=leagueid, 
 				year=season_end_year,
@@ -82,6 +83,9 @@ league=League(league_id=leagueid,
 
 FA=league.free_agents(size=fa_size)
 FA=pd.DataFrame(FA)
+FA=clean_string(FA)#.split(',')
+FA=remove_name_suffixes(FA)
+FA=FA.lstrip().rstrip()
 print(FA)
 
 
