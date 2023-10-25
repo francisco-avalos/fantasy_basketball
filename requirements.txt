@@ -30,7 +30,7 @@ Flask==2.2.5
 gunicorn==21.2.0
 idna==2.7
 importlib-metadata==6.8.0
-ipykernel==6.25.2
+ipykernel==6.26.0
 ipython==8.16.1
 ipython-genutils==0.2.0
 itsdangerous==2.1.2
@@ -39,7 +39,7 @@ Jinja2==3.1.2
 joblib==1.3.2
 jsonschema==4.19.1
 jsonschema-specifications==2023.7.1
-jupyter_client==8.4.0
+jupyter_client==8.5.0
 jupyter_core==5.4.0
 jupyterlab-pygments==0.2.2
 lxml==4.5.1
@@ -51,7 +51,7 @@ nbclient==0.8.0
 nbconvert==7.9.2
 nbformat==5.9.2
 nest-asyncio==1.5.8
-notebook==6.4.0
+notebook==6.2.0
 numexpr==2.8.7
 numpy==1.26.0
 objectpath==0.6.1
@@ -95,7 +95,7 @@ terminado==0.17.1
 threadpoolctl==3.2.0
 tinycss2==1.2.1
 tornado==6.3.3
-traitlets==5.11.2
+traitlets==5.12.0
 typing_extensions==4.8.0
 tzdata==2023.3
 Unidecode==1.3.7
