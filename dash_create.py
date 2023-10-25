@@ -438,7 +438,7 @@ app.layout=html.Div(children=[html.H1(children='Free Agent Analysis Helper Tool'
                              dcc.Dropdown(id='league_id',
                                             options=[{'label':'ESPN', 'value':'espn'},
                                                     {'label':'Yahoo','value':'yahoo'}],
-                                            value='espn'),
+                                            value='yahoo'),
                              'player_checklist',
                              dcc.Checklist(id='player_list', options=[name for name in fa_df['name'].unique()], value=[name for name in fa_df['name'].unique()], 
                                 style={'height':10000,'width':100}, inline=True)
