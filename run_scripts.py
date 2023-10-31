@@ -17,6 +17,7 @@ full_list=['advanced_stats.py', 'high_level_nba_team_schedules.py',
 				'historicals.py',
 				'historical_basketball_injury_data.py',
 				'injury_probabilities_basketball.py',
+				'free_agents_yahoo_basketball.py',
 				'free_agents_backfill.py']	
 
 run_fa = input('Execute Free Agents Script?(yes/no) - ')
