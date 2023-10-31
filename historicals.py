@@ -160,7 +160,7 @@ try:
             df['location']=df['location'].astype(str)
             df['opponent']=df['opponent'].astype(str)
             df['outcome']=df['outcome'].astype(str)
-            cols="`,`".join([str(i) for i in df.columns.tolist()])
+            # cols="`,`".join([str(i) for i in df.columns.tolist()])
             end_time=time.perf_counter()
             connection=mysql.connect(host=sports_db_admin_host,
                                     database=sports_db_admin_db,
@@ -226,7 +226,7 @@ try:
             df['location']=df['location'].astype(str)
             df['opponent']=df['opponent'].astype(str)
             df['outcome']=df['outcome'].astype(str)
-            cols="`,`".join([str(i) for i in df.columns.tolist()])
+            # cols="`,`".join([str(i) for i in df.columns.tolist()])
             connection=mysql.connect(host=sports_db_admin_host,
                                     database=sports_db_admin_db,
                                     user=sports_db_admin_user,
