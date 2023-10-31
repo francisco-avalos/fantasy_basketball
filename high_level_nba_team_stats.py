@@ -16,7 +16,7 @@ import os
 import time 
 from datetime import datetime
 from datetime import date
-from datetime import timedelta
+from datetime import timedelta	
 
 
 
@@ -30,6 +30,11 @@ sports_db_admin_db='basketball'
 sports_db_admin_user=os.environ.get('sports_db_admin_user')
 sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
 sports_db_admin_port=os.environ.get('sports_db_admin_port')
+
+
+leagueid=os.environ.get('leagueid')
+espn_s2=os.environ.get('espn_s2')
+swid=os.environ.get('swid')
 
 league=League(league_id=leagueid, 
 				year=2024,
@@ -122,11 +127,13 @@ try:
 	if output[0] is None:
 
 		### new true stuff
-		season_begin='2022-10-18'
+		season_begin='2022-10-24'
 		last_data_date=datetime.strptime(season_begin, '%Y-%m-%d')
 		today=datetime.now()-timedelta(days=1)
 		today=today.strftime('%Y-%m-%d')
 		day_range=pd.date_range(start=last_data_date, end=today)
+
+
 		for day in day_range:
 			df=client.team_box_scores(day=day.day, month=day.month, year=day.year)
 			df=pd.DataFrame(df)
@@ -134,44 +141,16 @@ try:
 			df['date']=date
 			df['team']=df['team'].astype(str)
 			df['outcome']=df['outcome'].astype(str)
-			
-			file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/high_level_nba_team_stats.csv'
-			df.to_csv(file_path,index=False)
-			qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.high_level_nba_team_stats FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' IGNORE 1 ROWS;"
-			cursor.execute(qry)
-			connection.commit()
-			del df
-			os.remove(file_path)
 
-			# cols="`,`".join([str(i) for i in df.columns.tolist()])
-			# for i,row in df.iterrows():
-			# 	sql='REPLACE INTO `high_level_nba_team_stats` (`'+cols+'`) VALUES ('+'%s, '*(len(row)-1)+'%s)'
-			# 	cursor.execute(sql, tuple(row))
-			# 	connection.commit()
-			time.sleep(30)
-			print(f'finished for {date}')
-		### new true stuff
+			connection=mysql.connect(host=sports_db_admin_host,
+									database=sports_db_admin_db,
+									user=sports_db_admin_user,
+									password=sports_db_admin_pw,
+									port=sports_db_admin_port,
+									allow_local_infile=True)
 
-		if(connection.is_connected()):
-			cursor.close()
-			connection.close()
-			print('MySQL connection closed')
-
-	else:
-		last_data_date=output[0]
-		last_data_date=datetime.strptime(str(last_data_date), '%Y-%m-%d')
-		next_date_date=last_data_date+timedelta(days=1)
-		today=datetime.now()-timedelta(days=1)
-		today=today.strftime('%Y-%m-%d')
-		day_range=pd.date_range(start=next_date_date, end=today)
-		for day in day_range:
-			df=client.team_box_scores(day=day.day, month=day.month, year=day.year)
-			df=pd.DataFrame(df)
-			date=day.strftime('%Y-%m-%d')
-			if not df.empty:
-				df['date']=date
-				df['team']=df['team'].astype(str)
-				df['outcome']=df['outcome'].astype(str)
+			if connection.is_connected():
+				cursor=connection.cursor()
 
 				file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/high_level_nba_team_stats.csv'
 				df.to_csv(file_path,index=False)
@@ -180,18 +159,99 @@ try:
 				connection.commit()
 				del df
 				os.remove(file_path)
+
+			if(connection.is_connected()):
+				cursor.close()
+				connection.close()
+				print('MySQL connection closed')
+
+				# file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/advanced_data_extract.csv'
+				# main_free_agents_df.to_csv(file_path,index=False)
+				# qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.advanced_stats FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' IGNORE 1 ROWS;"
+				# cursor.execute(qry)
+				# connection.commit()
+				# del main_free_agents_df
+				# os.remove(file_path)
+
+			# cols="`,`".join([str(i) for i in df.columns.tolist()])
+			# for i,row in df.iterrows():
+			# 	sql='REPLACE INTO `high_level_nba_team_stats` (`'+cols+'`) VALUES ('+'%s, '*(len(row)-1)+'%s)'
+			# 	cursor.execute(sql, tuple(row))
+			# 	connection.commit()
+			time.sleep(5)
+			print(f'finished for {date}')
+		### new true stuff
+	else:
+		last_data_date=output[0]
+		# last_data_date='2023-10-23'
+		last_data_date=datetime.strptime(str(last_data_date), '%Y-%m-%d')
+		next_date_date=last_data_date+timedelta(days=1)
+		today=datetime.now()-timedelta(days=1)
+		today=today.strftime('%Y-%m-%d')
+		day_range=pd.date_range(start=next_date_date, end=today)
+		# print(day_range)
+
+		# connection=mysql.connect(host=sports_db_admin_host,
+		# 						database=sports_db_admin_db,
+		# 						user=sports_db_admin_user,
+		# 						password=sports_db_admin_pw,
+		# 						port=sports_db_admin_port,
+		# 						allow_local_infile=True)
+
+		# if connection.is_connected():
+		# 	cursor=connection.cursor()
+		for day in day_range:
+			df=client.team_box_scores(day=day.day, month=day.month, year=day.year)
+			df=pd.DataFrame(df)
+			date=day.strftime('%Y-%m-%d')
+			df['date']=date
+			df['team']=df['team'].astype(str)
+			df['outcome']=df['outcome'].astype(str)
+			# print(df.head())
+			connection=mysql.connect(host=sports_db_admin_host,
+									database=sports_db_admin_db,
+									user=sports_db_admin_user,
+									password=sports_db_admin_pw,
+									port=sports_db_admin_port,
+									allow_local_infile=True)
+			if connection.is_connected():
+				cursor=connection.cursor()
+				file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/high_level_nba_team_stats.csv'
+				df.to_csv(file_path,index=False)
+				qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.high_level_nba_team_stats FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' IGNORE 1 ROWS;"
+				cursor.execute(qry)
+				connection.commit()
+				del df
+				os.remove(file_path)
+			if(connection.is_connected()):
+				cursor.close()
+				connection.close()
+				# print('MySQL connection closed')
+			# if not df.empty:
+			# 	print(df.shape)
+			# 	df['date']=date
+			# 	df['team']=df['team'].astype(str)
+			# 	df['outcome']=df['outcome'].astype(str)
+
+			# 	file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/high_level_nba_team_stats.csv'
+			# 	df.to_csv(file_path,index=False)
+			# 	qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.high_level_nba_team_stats FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' IGNORE 1 ROWS;"
+			# 	cursor.execute(qry)
+			# 	connection.commit()
+			# 	del df
+			# 	os.remove(file_path)
+
 				# cols="`,`".join([str(i) for i in df.columns.tolist()])
 				# for i,row in df.iterrows():
 				# 	sql='REPLACE INTO `high_level_nba_team_stats` (`'+cols+'`) VALUES ('+'%s, '*(len(row)-1)+'%s)'
 				# 	cursor.execute(sql, tuple(row))
 				# 	connection.commit()
-				time.sleep(30)
-				print(f'finished for {date}')
-
-		if(connection.is_connected()):
-			cursor.close()
-			connection.close()
-			print('MySQL connection closed')
+			print(f'finished for {date}')
+			time.sleep(5)
+		# if(connection.is_connected()):
+		# 	cursor.close()
+		# 	connection.close()
+		# 	print('MySQL connection closed')
 
 except Error as e:
 	print("Error while connecting to MySQL", e)
