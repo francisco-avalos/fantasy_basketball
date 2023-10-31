@@ -2,12 +2,12 @@
 # Reference this repo as the init for behind the R pull 
 # https://github.com/djblechn-su/nba-player-team-ids/tree/master
 
-# 671
+# 576
 SELECT COUNT(*)
 FROM basketball.basketball_references_players
 LIMIT 100;
 
-# 671
+# 542
 SELECT COUNT(*)
 FROM basketball.espn_players
 LIMIT 100
@@ -32,3 +32,15 @@ LIMIT 100;
 SELECT *
 FROM basketball.espn_players
 LIMIT 100;
+
+
+SELECT 
+	MAX(date) AS most_recent_data_date 
+FROM basketball.high_level_nba_team_stats
+;
+
+
+SELECT *
+FROM basketball.high_level_nba_team_schedules
+ORDER BY start_time DESC 
+LIMIT 10000;
