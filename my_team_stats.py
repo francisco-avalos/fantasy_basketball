@@ -13,6 +13,7 @@ from mysql.connector import Error
 
 import pandas as pd
 import os
+import time 
 from datetime import datetime
 from datetime import date
 from datetime import timedelta
@@ -31,6 +32,10 @@ sports_db_admin_user=os.environ.get('sports_db_admin_user')
 sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
 sports_db_admin_port=os.environ.get('sports_db_admin_port')
 
+leagueid=os.environ.get('leagueid')
+espn_s2=os.environ.get('espn_s2')
+swid=os.environ.get('swid')
+
 league=League(league_id=leagueid, 
 				year=2024,
 				espn_s2=espn_s2,
@@ -39,7 +44,7 @@ league=League(league_id=leagueid,
 
 
 
-myteam=league.teams[11]
+myteam=league.teams[10]
 my_players=clean_string(myteam.roster).split(',')
 
 
@@ -61,7 +66,7 @@ try:
 		# 	connection.close()
 
 		if output[0] is None:
-			season_begin='2022-10-18'
+			season_begin='2023-10-24'
 			last_data_date=datetime.strptime(season_begin, '%Y-%m-%d')
 			today=datetime.now()-timedelta(days=1)
 			today=today.strftime('%Y-%m-%d')
@@ -101,7 +106,7 @@ try:
 							copy=insert_df.copy()
 							copy.loc[copy['date']==date, 'points']=points
 							main_df=pd.concat([main_df, copy])
-
+					time.sleep(5)
 				main_df['slug']=main_df['slug'].astype(str)
 				main_df['name']=main_df['name'].astype(str)
 				main_df['team']=main_df['team'].astype(str)
@@ -185,6 +190,7 @@ try:
 							copy=insert_df.copy()
 							copy.loc[copy['date']==date, 'points']=points
 							main_df=pd.concat([main_df, copy])
+					time.sleep(5)
 
 				main_df['slug']=main_df['slug'].astype(str)
 				main_df['name']=main_df['name'].astype(str)
