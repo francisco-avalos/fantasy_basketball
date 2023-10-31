@@ -32,6 +32,10 @@ sports_db_admin_user=os.environ.get('sports_db_admin_user')
 sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
 sports_db_admin_port=os.environ.get('sports_db_admin_port')
 
+leagueid=os.environ.get('leagueid')
+espn_s2=os.environ.get('espn_s2')
+swid=os.environ.get('swid')
+
 league=League(league_id=leagueid, 
 				year=2024,
 				espn_s2=espn_s2,
@@ -52,7 +56,7 @@ keep_out=['anthoca01', 'whiteha01',
 		  'fallta01', 'bledser01', 
 		  'rondora01', 'thomptr01', 
 		  'thomais02', 'hoardja01']
-season_end_year=2023
+season_end_year=2024
 fa_size=1000
 non_shows=[]
 
@@ -105,7 +109,7 @@ try:
 					df=advanced_df[advanced_df['slug']==name_code]
 					if not df.empty:
 						main_free_agents_df=pd.concat([main_free_agents_df, df])
-		# time.sleep(5)
+		time.sleep(5)
 
 	main_free_agents_df['slug']=main_free_agents_df['slug'].astype(str)
 	main_free_agents_df['name']=main_free_agents_df['name'].astype(str)
