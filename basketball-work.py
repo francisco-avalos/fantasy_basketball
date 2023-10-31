@@ -40,6 +40,11 @@ sports_db_admin_user=os.environ.get('sports_db_admin_user')
 sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
 sports_db_admin_port=os.environ.get('sports_db_admin_port')
 
+leagueid=os.environ.get('leagueid')
+espn_s2=os.environ.get('espn_s2')
+swid=os.environ.get('swid')
+
+
 
 # sc=OAuth2(None,None,from_file='oauth2.json')
 # gm=yfa.Game(sc, 'nba')
@@ -69,24 +74,27 @@ sports_db_admin_port=os.environ.get('sports_db_admin_port')
 # # print(abs_path)
 
 
-leagueid=os.environ.get('leagueid')
-espn_s2=os.environ.get('espn_s2')
-swid=os.environ.get('swid')
 
-fa_size=5
-season_end_year=2024
-league=League(league_id=leagueid, 
-				year=season_end_year,
-				espn_s2=espn_s2,
-				swid=swid, 
-				debug=False)
 
-FA=league.free_agents(size=fa_size)
-FA=pd.DataFrame(FA)
-FA=clean_string(FA)#.split(',')
-FA=remove_name_suffixes(FA)
-FA=FA.lstrip().rstrip()
-print(FA)
+
+# leagueid=os.environ.get('leagueid')
+# espn_s2=os.environ.get('espn_s2')
+# swid=os.environ.get('swid')
+
+# fa_size=5
+# season_end_year=2024
+# league=League(league_id=leagueid, 
+# 				year=season_end_year,
+# 				espn_s2=espn_s2,
+# 				swid=swid, 
+# 				debug=False)
+
+# FA=league.free_agents(size=fa_size)
+# FA=pd.DataFrame(FA)
+# FA=clean_string(FA)#.split(',')
+# FA=remove_name_suffixes(FA)
+# FA=FA.lstrip().rstrip()
+# print(FA)
 
 
 
@@ -161,11 +169,18 @@ print(FA)
 
 
 
-# league=League(league_id=leagueid, 
-# 				year=2024,
-# 				espn_s2=espn_s2,
-# 				swid=swid, 
-# 				debug=False)
+league=League(league_id=leagueid, 
+				year=2024,
+				espn_s2=espn_s2,
+				swid=swid, 
+				debug=False)
+
+
+
+myteam=league.teams[10]
+my_players=clean_string(myteam.roster).split(',')
+print(my_players)
+
 
 
 
