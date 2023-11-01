@@ -33,13 +33,17 @@ sports_db_admin_port=os.environ.get('sports_db_admin_port')
 
 sc=OAuth2(None,None,from_file='oauth2.json')
 gm=yfa.Game(sc, 'nba')
-league_id=gm.league_ids(year=2023)
+league_id=gm.league_ids(year=2024)
 lg=gm.to_league('428.l.18598')
 
-# tk=lg.free_agents('P')
-tk_df=lg.waivers()
 
+tk=lg.free_agents('P')
+tk=pd.DataFrame(tk)
+
+tk_df=lg.waivers()
 tk_df=pd.DataFrame(tk_df)
+
+tk_df=pd.concat([tk, tk_df])
 cols_rearranged=['player_id','name','status','position_type','eligible_positions','percent_owned']
 tk_df=tk_df[cols_rearranged]
 
@@ -59,7 +63,7 @@ if connection.is_connected():
 	qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.live_free_agents_yahoo FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' IGNORE 1 ROWS;"
 	cursor.execute(qry)
 	connection.commit()
-	del tk_df
+	del tk_df, tk
 	os.remove(file_path)
 
 if connection.is_connected():
