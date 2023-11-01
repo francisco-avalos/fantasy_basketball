@@ -57,7 +57,7 @@ keep_out=['anthoca01', 'whiteha01',
 		  'rondora01', 'thomptr01', 
 		  'thomais02', 'hoardja01']
 season_end_year=2024
-fa_size=1000
+fa_size=700
 non_shows=[]
 
 
