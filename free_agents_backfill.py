@@ -47,7 +47,7 @@ league=League(league_id=leagueid,
 
 
 
-fa_size=600
+fa_size=700
 non_shows=[]
 non_shows_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/'
 
