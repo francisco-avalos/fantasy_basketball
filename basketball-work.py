@@ -46,22 +46,30 @@ swid=os.environ.get('swid')
 
 
 
-# sc=OAuth2(None,None,from_file='oauth2.json')
-# gm=yfa.Game(sc, 'nba')
-# league_id=gm.league_ids(year=2024)
-# lg=gm.to_league('428.l.18598')
-# # tk=lg.free_agents('PG')
-# # tk_df=pd.DataFrame(tk)
-# # print(tk_df.head(20))
+sc=OAuth2(None,None,from_file='oauth2.json')
+gm=yfa.Game(sc, 'nba')
+league_id=gm.league_ids(year=2024)
+lg=gm.to_league('428.l.18598')
+# tk=lg.free_agents('PG')
+# tk_df=pd.DataFrame(tk)
+# print(tk_df.head(20))
 
-# # print(lg.stat_categories())
-# # print(lg.team_key())
-# # print(lg.current_week())
+# print(lg.stat_categories())
+# print(lg.team_key())
+# print(lg.current_week())
 
-# wvrs=lg.waivers()
-# wvrs=pd.DataFrame(wvrs)
-# print(wvrs.head())
-# print(wvrs.shape)
+wvrs=lg.waivers()
+wvrs=pd.DataFrame(wvrs)
+print(wvrs.head())
+print(wvrs.shape)
+
+# fas=lg.free_agents('P')
+fas=lg.free_agents('ANYTHING_THAT_I_WANT')
+fas=pd.DataFrame(fas)
+print(fas.head())
+print(fas.shape)
+
+# print(yfa.__file__)
 
 
 # # tm=lg.to_team('428.l.18598.t.4')
@@ -169,17 +177,17 @@ swid=os.environ.get('swid')
 
 
 
-league=League(league_id=leagueid, 
-				year=2024,
-				espn_s2=espn_s2,
-				swid=swid, 
-				debug=False)
+# league=League(league_id=leagueid, 
+# 				year=2024,
+# 				espn_s2=espn_s2,
+# 				swid=swid, 
+# 				debug=False)
 
 
 
-myteam=league.teams[10]
-my_players=clean_string(myteam.roster).split(',')
-print(my_players)
+# myteam=league.teams[10]
+# my_players=clean_string(myteam.roster).split(',')
+# print(my_players)
 
 
 
