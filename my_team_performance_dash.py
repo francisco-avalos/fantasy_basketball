@@ -87,7 +87,7 @@ my_safe_players=['Jayson Tatum', 'Kyrie Irving','Jaylen Brown'
 
 
 
-myteam=league.teams[11]
+myteam=league.teams[10]
 current_players=clean_string(myteam.roster).split(',')
 current_players=[remove_name_suffixes(x) for x in current_players]
 current_players=[x.strip(' ') for x in current_players]
@@ -130,8 +130,11 @@ connection=mysql.connect(host=sports_db_admin_host,
                         password=sports_db_admin_pw,
                         port=sports_db_admin_port)
 
-myteam=league.teams[11]
+# myteam=league.teams[11]
 my_players=clean_string(myteam.roster).split(',')
+my_players=[x.strip() for x in my_players]
+
+
 
 main_df=pd.DataFrame()
 if connection.is_connected():
@@ -160,6 +163,7 @@ aggregate=main_df.groupby(['name']).start_time.nunique()
 aggregate=aggregate.reset_index()
 aggregate.columns=['name', 'games_this_week']
 aggregate=aggregate.sort_values(['games_this_week', 'name'], ascending=False)
+
 
 if(connection.is_connected()):
     cursor.close()
