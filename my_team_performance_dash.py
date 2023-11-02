@@ -9,6 +9,7 @@ import matplotlib.ticker as mtick
 import dash_bootstrap_components as dbc
 import plotly.figure_factory as ff
 import random
+import os
 
 
 from mysql.connector import Error
@@ -23,6 +24,10 @@ sports_db_admin_db='basketball'
 sports_db_admin_user=os.environ.get('sports_db_admin_user')
 sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
 sports_db_admin_port=os.environ.get('sports_db_admin_port')
+
+leagueid=os.environ.get('leagueid')
+espn_s2=os.environ.get('espn_s2')
+swid=os.environ.get('swid')
 
 connection=mysql.connect(host=sports_db_admin_host,
                         database=sports_db_admin_db,
@@ -98,20 +103,20 @@ players_at_risk.columns=['Name']
 # so don't add his scores to my team performance for that day
 # same with T.J. McConnell for dec 2
 # same with Tim Hardaway for dec 3
-myteam_df=myteam_df.drop(235)
-myteam_df=myteam_df.drop(249)
-myteam_df=myteam_df.drop(255)
+# myteam_df=myteam_df.drop(235)
+# myteam_df=myteam_df.drop(249)
+# myteam_df=myteam_df.drop(255)
 
-myteam_df=myteam_df.drop(381) # shake milton
-myteam_df=myteam_df.drop(402) # duane washington
-myteam_df=myteam_df.drop(409) # duane washington
-myteam_df=myteam_df.drop(394) # quentin grimes
-myteam_df=myteam_df.drop(401) # moritz wagner
-myteam_df=myteam_df.drop(408) # moritz wagner
-myteam_df=myteam_df.drop(405) # patty mills
+# myteam_df=myteam_df.drop(381) # shake milton
+# myteam_df=myteam_df.drop(402) # duane washington
+# myteam_df=myteam_df.drop(409) # duane washington
+# myteam_df=myteam_df.drop(394) # quentin grimes
+# myteam_df=myteam_df.drop(401) # moritz wagner
+# myteam_df=myteam_df.drop(408) # moritz wagner
+# myteam_df=myteam_df.drop(405) # patty mills
 
-myteam_df=myteam_df.drop(414) # immanuel quickley
-myteam_df=myteam_df.drop(443) # Alec burks
+# myteam_df=myteam_df.drop(414) # immanuel quickley
+# myteam_df=myteam_df.drop(443) # Alec burks
 # print(myteam_df.tail(15))
 
 # myteam_df=myteam_df.drop(414)
