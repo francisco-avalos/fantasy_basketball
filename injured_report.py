@@ -8,29 +8,21 @@ from datetime import datetime
 from datetime import timedelta
 from mysql.connector import Error
 
+import os
 
-exec(open('/Users/franciscoavalosjr/Desktop/basketball-creds.py').read())
+
+
+sports_db_admin_host=os.environ.get('sports_db_admin_host')
+sports_db_admin_db='basketball'
+sports_db_admin_user=os.environ.get('sports_db_admin_user')
+sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
+sports_db_admin_port=os.environ.get('sports_db_admin_port')
+
 
 out_players=[
-# 'https://www.rotowire.com/basketball/player/dangelo-russell-3708',
-'https://www.rotowire.com/basketball/player/tyrese-haliburton-5114',
-'https://www.rotowire.com/basketball/player/anthony-davis-3297',
-'https://www.rotowire.com/basketball/player/jarrett-allen-4122',
-'https://www.rotowire.com/basketball/player/bojan-bogdanovic-3236',
-# 'https://www.rotowire.com/basketball/player/jeremy-sochan-5702',
-# 'https://www.rotowire.com/basketball/player/tim-hardaway-3459',
-'https://www.rotowire.com/basketball/player/devonte-graham-4464'
-# 'https://www.rotowire.com/basketball/player/naz-reid-4806',
-# 'https://www.rotowire.com/basketball/player/norman-powell-3726',
- # 'https://www.rotowire.com/basketball/player/deandre-hunter-4776'
-# 'https://www.rotowire.com/basketball/player/tj-mcconnell-3760',
-# 'https://www.rotowire.com/basketball/player/jimmy-butler-3231',
-# 'https://www.rotowire.com/basketball/player/bones-hyland-5397',
-# 'https://www.rotowire.com/basketball/player/gary-trent-4433',
-# 'https://www.rotowire.com/basketball/player/jrue-holiday-3029',
-# 'https://www.rotowire.com/basketball/player/rj-barrett-4767'
-# 'https://www.rotowire.com/basketball/player/moritz-wagner-4389'
-# 'https://www.rotowire.com/basketball/player/jrue-holiday-3029'
+'https://www.rotowire.com/basketball/player/cameron-johnson-4916',
+'https://www.rotowire.com/basketball/player/kyrie-irving-3186'
+# 'https://www.rotowire.com/basketball/player/klay-thompson-3197'
 ]
 
 
@@ -72,7 +64,8 @@ try:
 							database=sports_db_admin_db,
 							user=sports_db_admin_user,
 							password=sports_db_admin_pw,
-							port=sports_db_admin_port)
+							port=sports_db_admin_port,
+							allow_local_infile=True)
 	cursor=connection.cursor()
 	
 	if connection.is_connected():
@@ -80,10 +73,17 @@ try:
 		cursor.execute('TRUNCATE basketball.injured_player_news;')
 
 	if connection.is_connected():
-		for i,row in df.iterrows():
-			sql='REPLACE INTO `injured_player_news` (`'+cols+'`) VALUES ('+'%s,'*(len(row)-1)+'%s)'
-			cursor.execute(sql, tuple(row))
-			connection.commit()
+		file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/my_team_inj_report.csv'
+		df.to_csv(file_path,index=False)
+		qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.injured_player_news FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' IGNORE 1 ROWS;"
+		cursor.execute(qry)
+		connection.commit()
+		del df
+		os.remove(file_path)
+		# for i,row in df.iterrows():
+		# 	sql='REPLACE INTO `injured_player_news` (`'+cols+'`) VALUES ('+'%s,'*(len(row)-1)+'%s)'
+		# 	cursor.execute(sql, tuple(row))
+		# 	connection.commit()
 except Error as e:
 	print('Error while connecting to MySQL', e)
 
