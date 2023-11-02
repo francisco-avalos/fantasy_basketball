@@ -82,9 +82,7 @@ pd.set_option('display.max_rows', None)
 myteam_df['total_rebounds']=myteam_df['offensive_rebounds']+myteam_df['defensive_rebounds']
 myteam_df['minutes_played']=myteam_df['seconds_played']/60
 
-my_safe_players=['Jordan Poole', 'Anthony Davis',
-                 'Tyrese Haliburton', 'Jrue Holiday',
-                 'Jimmy Butler', 'Jarrett Allen'
+my_safe_players=['Jayson Tatum', 'Kyrie Irving','Jaylen Brown'
 ]
 
 
