@@ -121,7 +121,7 @@ try:
 							main_free_agents_df=pd.concat([main_free_agents_df, df])
 					except:
 						non_shows.append(name_code)
-		time.sleep(5)
+		time.sleep(4)
 		row+=1
 		completion_tracker=row/len(FA)
 		print("Progress {:.2%}".format(completion_tracker), end='\r')
