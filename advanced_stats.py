@@ -109,7 +109,7 @@ try:
 					df=advanced_df[advanced_df['slug']==name_code]
 					if not df.empty:
 						main_free_agents_df=pd.concat([main_free_agents_df, df])
-		time.sleep(5)
+		time.sleep(4) # 5 secs gets 12 requests // 4 seconds gets 15 requests // 3 seconds gets 20 requests, which is close to the >20 requests/min block limit 
 
 	main_free_agents_df['slug']=main_free_agents_df['slug'].astype(str)
 	main_free_agents_df['name']=main_free_agents_df['name'].astype(str)
