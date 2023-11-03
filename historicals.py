@@ -153,7 +153,7 @@ try:
                     print('Completed for ', day)
                 except:
                     print('Holiday possibly', day)
-                time.sleep(5)
+                time.sleep(4)
             df['slug']=df['slug'].astype(str)
             df['name']=df['name'].astype(str)
             df['team']=df['team'].astype(str)
@@ -219,7 +219,7 @@ try:
                     print('Completed for ', day)
                 except:
                     print('Holiday possibly', day)
-                time.sleep(5)
+                time.sleep(4)
             df['slug']=df['slug'].astype(str)
             df['name']=df['name'].astype(str)
             df['team']=df['team'].astype(str)

@@ -106,7 +106,7 @@ try:
 							copy=insert_df.copy()
 							copy.loc[copy['date']==date, 'points']=points
 							main_df=pd.concat([main_df, copy])
-					time.sleep(5)
+					time.sleep(4)
 				main_df['slug']=main_df['slug'].astype(str)
 				main_df['name']=main_df['name'].astype(str)
 				main_df['team']=main_df['team'].astype(str)
@@ -190,7 +190,7 @@ try:
 							copy=insert_df.copy()
 							copy.loc[copy['date']==date, 'points']=points
 							main_df=pd.concat([main_df, copy])
-					time.sleep(5)
+					time.sleep(4)
 
 				main_df['slug']=main_df['slug'].astype(str)
 				main_df['name']=main_df['name'].astype(str)

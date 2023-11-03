@@ -178,7 +178,7 @@ try:
 			# 	sql='REPLACE INTO `high_level_nba_team_stats` (`'+cols+'`) VALUES ('+'%s, '*(len(row)-1)+'%s)'
 			# 	cursor.execute(sql, tuple(row))
 			# 	connection.commit()
-			time.sleep(5)
+			time.sleep(4)
 			print(f'finished for {date}')
 		### new true stuff
 	else:
