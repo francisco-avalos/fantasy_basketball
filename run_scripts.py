@@ -7,7 +7,7 @@ from subprocess import call
 
 
 chime.theme('mario')
-small_list=['advanced_stats.py', 'high_level_nba_team_schedules.py',
+small_list=['high_level_nba_team_schedules.py',
 				'high_level_nba_team_stats.py', 'my_team_stats.py',
 				'historicals.py', 'historical_basketball_injury_data.py',
 				'injury_probabilities_basketball.py',
