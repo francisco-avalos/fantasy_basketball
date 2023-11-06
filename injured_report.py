@@ -24,6 +24,10 @@ out_players=[
 'https://www.rotowire.com/basketball/player/kyrie-irving-3186'
 # 'https://www.rotowire.com/basketball/player/klay-thompson-3197'
 ]
+out_players_yf=[
+'https://www.rotowire.com/basketball/player/markelle-fultz-4100',
+'https://www.rotowire.com/basketball/player/nic-claxton-4827'
+]
 
 
 report_run_date=datetime.now()-timedelta(days=0)
