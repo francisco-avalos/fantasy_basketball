@@ -11,12 +11,17 @@ import plotly.figure_factory as ff
 import random
 import os
 
-
 from mysql.connector import Error
 from dash import dcc, html, Input, Output, dash_table
-from espn_api.basketball import League
+
 from my_functions import clean_string, remove_name_suffixes
 
+# Yahoo
+from yahoo_oauth import OAuth2
+import yahoo_fantasy_api as yfa
+
+# ESPN 
+from espn_api.basketball import League
 
 
 sports_db_admin_host=os.environ.get('sports_db_admin_host')
@@ -29,17 +34,28 @@ leagueid=os.environ.get('leagueid')
 espn_s2=os.environ.get('espn_s2')
 swid=os.environ.get('swid')
 
+
+# my database connect
 connection=mysql.connect(host=sports_db_admin_host,
                         database=sports_db_admin_db,
                         user=sports_db_admin_user,
                         password=sports_db_admin_pw,
                         port=sports_db_admin_port)
 
+# espn connect
 league=League(league_id=leagueid, 
                 year=2024,
                 espn_s2=espn_s2,
                 swid=swid, 
                 debug=False)
+
+
+# yahoo connect
+sc=OAuth2(None,None,from_file='oauth2.json')
+gm=yfa.Game(sc, 'nba')
+league_id=gm.league_ids(year=2024)
+lg=gm.to_league('428.l.18598')
+
 
 
 if connection.is_connected():
@@ -59,6 +75,24 @@ if connection.is_connected():
                     """)
     myteam_df=cursor.fetchall()
     myteam_df=pd.DataFrame(myteam_df, columns=cursor.column_names)
+
+    cursor.execute("""
+                    SELECT 
+                        MTS.*, 
+                        DATE_FORMAT(MTS.date, '%W') AS day_of_week,
+                        CASE
+                            WHEN DATE_FORMAT(MTS.date, '%W') IN ('Saturday', 'Sunday') THEN 'week_end'
+                            ELSE 'week_day'
+                        END AS day_of_week_class,
+                        C.week_starting_monday, 
+                        C.week_ending_sunday 
+                    FROM basketball.my_team_stats_yahoo MTS 
+                    JOIN basketball.calendar C ON MTS.date=C.day;
+                    """)
+    myteam_df_yh=cursor.fetchall()
+    myteam_df_yh=pd.DataFrame(myteam_df_yh, columns=cursor.column_names)
+
+
 
 if connection.is_connected():
     cursor=connection.cursor()
@@ -82,8 +116,13 @@ pd.set_option('display.max_rows', None)
 myteam_df['total_rebounds']=myteam_df['offensive_rebounds']+myteam_df['defensive_rebounds']
 myteam_df['minutes_played']=myteam_df['seconds_played']/60
 
+myteam_df_yh['total_rebounds']=myteam_df_yh['offensive_rebounds']+myteam_df_yh['defensive_rebounds']
+myteam_df_yh['minutes_played']=myteam_df_yh['seconds_played']/60
+
+
 my_safe_players=['Jayson Tatum', 'Kyrie Irving','Jaylen Brown'
 ]
+
 
 
 
@@ -92,9 +131,25 @@ current_players=clean_string(myteam.roster).split(',')
 current_players=[remove_name_suffixes(x) for x in current_players]
 current_players=[x.strip(' ') for x in current_players]
 
+
 players_at_risk=list(set(current_players)-set(my_safe_players))
 players_at_risk=pd.DataFrame(players_at_risk)
 players_at_risk.columns=['Name']
+
+
+
+
+tm=lg.to_team('428.l.18598.t.4')
+my_tm=pd.DataFrame(tm.roster(4))
+current_players_yh=my_tm.name.tolist()
+
+current_players_yh=clean_string(current_players_yh).split(',')
+current_players_yh=[remove_name_suffixes(x) for x in current_players_yh]
+current_players_yh=[x.replace("'","") for x in current_players_yh]
+current_players_yh=[x.replace("'","").strip() for x in current_players_yh]
+
+
+
 
 
 # I picked up bruce brown on November 30 at 10pm, 
@@ -131,14 +186,15 @@ connection=mysql.connect(host=sports_db_admin_host,
                         port=sports_db_admin_port)
 
 # myteam=league.teams[11]
-my_players=clean_string(myteam.roster).split(',')
-my_players=[x.strip() for x in my_players]
+# my_players=clean_string(myteam.roster).split(',')
+# my_players=[x.strip() for x in my_players]
 
 
 
-main_df=pd.DataFrame()
+df_for_agg=pd.DataFrame()
+df_yh_for_agg=pd.DataFrame()
 if connection.is_connected():
-    for p in my_players:
+    for p in current_players:
         cursor=connection.cursor()
         p=remove_name_suffixes(p)
         p=p.strip()
@@ -156,14 +212,39 @@ if connection.is_connected():
         cursor.execute(qry)
         myteam_df1=cursor.fetchall()
         myteam_df1=pd.DataFrame(myteam_df1, columns=cursor.column_names)
-        main_df=pd.concat([main_df, myteam_df1])
+        df_for_agg=pd.concat([df_for_agg, myteam_df1])
+    for p in current_players_yh:
+        cursor=connection.cursor()
+        p=remove_name_suffixes(p)
+        p=p.strip()
+        qry=f"""
+            SELECT
+                name,
+                team,
+                TSCHED.*
+            FROM basketball.my_team_stats_yahoo MTS
+            JOIN basketball.high_level_nba_team_schedules TSCHED ON MTS.team = TSCHED.away_team OR MTS.team = TSCHED.home_team
+            JOIN basketball.calendar CAL ON DATE(SUBDATE(CAST(TSCHED.start_time AS DATETIME), INTERVAL 8 HOUR)) = CAL.day
+            WHERE MTS.name LIKE CONCAT("%", "{p}","%")
+                AND CURDATE() BETWEEN CAL.week_starting_monday AND CAL.week_ending_sunday
+            GROUP BY MTS.name, TSCHED.start_time;"""
+        cursor.execute(qry)
+        my_team_df1_yh=cursor.fetchall()
+        my_team_df1_yh=pd.DataFrame(my_team_df1_yh,columns=cursor.column_names)
+        df_yh_for_agg=pd.concat([df_yh_for_agg,my_team_df1_yh])
 
 
-aggregate=main_df.groupby(['name']).start_time.nunique()
+aggregate=df_for_agg.groupby(['name']).start_time.nunique()
 aggregate=aggregate.reset_index()
 aggregate.columns=['name', 'games_this_week']
 aggregate=aggregate.sort_values(['games_this_week', 'name'], ascending=False)
 
+aggregate_yh=df_yh_for_agg.groupby(['name']).start_time.nunique()
+aggregate_yh=aggregate_yh.reset_index()
+aggregate_yh.columns=['name', 'games_this_week']
+aggregate_yh=aggregate_yh.sort_values(['games_this_week', 'name'], ascending=False)
+
+del df_for_agg, df_yh_for_agg
 
 if(connection.is_connected()):
     cursor.close()
@@ -192,7 +273,29 @@ myteam_df['points']=myteam_df['points'].astype(float)
 myteam_df['total_rebounds']=myteam_df['total_rebounds'].astype(float)
 myteam_df['game_score']=myteam_df['game_score'].astype(float)
 
-# print(myteam_df.dtypes)
+
+
+myteam_df_yh['seconds_played']=myteam_df_yh['seconds_played'].astype(float)
+myteam_df_yh['made_field_goals']=myteam_df_yh['made_field_goals'].astype(float)
+myteam_df_yh['attempted_field_goals']=myteam_df_yh['attempted_field_goals'].astype(float)
+myteam_df_yh['made_three_point_field_goals']=myteam_df_yh['made_three_point_field_goals'].astype(float)
+myteam_df_yh['attempted_three_point_field_goals']=myteam_df_yh['attempted_three_point_field_goals'].astype(float)
+myteam_df_yh['made_free_throws']=myteam_df_yh['made_free_throws'].astype(float)
+myteam_df_yh['attempted_free_throws']=myteam_df_yh['attempted_free_throws'].astype(float)
+myteam_df_yh['offensive_rebounds']=myteam_df_yh['offensive_rebounds'].astype(float)
+myteam_df_yh['defensive_rebounds']=myteam_df_yh['defensive_rebounds'].astype(float)
+myteam_df_yh['assists']=myteam_df_yh['assists'].astype(float)
+myteam_df_yh['steals']=myteam_df_yh['steals'].astype(float)
+myteam_df_yh['blocks']=myteam_df_yh['blocks'].astype(float)
+myteam_df_yh['turnovers']=myteam_df_yh['turnovers'].astype(float)
+myteam_df_yh['personal_fouls']=myteam_df_yh['personal_fouls'].astype(float)
+myteam_df_yh['points']=myteam_df_yh['points'].astype(float)
+myteam_df_yh['total_rebounds']=myteam_df_yh['total_rebounds'].astype(float)
+myteam_df_yh['game_score']=myteam_df_yh['game_score'].astype(float)
+
+
+
+# at this point
 
 app=dash.Dash('francisco app',
             external_stylesheets=[dbc.themes.BOOTSTRAP]
@@ -221,8 +324,14 @@ random.shuffle(mycolors)
 
 # print(myteam_df.head())
 
-def line_plot(metric='points'):
-    myteam_df_x_we=myteam_df.groupby(by=['week_ending_sunday','name'])[metric].sum()
+def line_plot(metric='points',leagueid='ESPN'):
+
+    if leagueid=='ESPN':
+        myteam_df_x_we=myteam_df.groupby(by=['week_ending_sunday','name'])[metric].sum()
+    elif leagueid=='Yahoo':
+        myteam_df_x_we=myteam_df_yh.groupby(by=['week_ending_sunday','name'])[metric].sum()
+
+    
     myteam_df_x_we=myteam_df_x_we.reset_index()
     myteam_df_x_we['pct']=myteam_df_x_we[metric]/myteam_df_x_we.groupby('week_ending_sunday')[metric].transform('sum')
     myteam_df_x_we['pct']=pd.to_numeric(myteam_df_x_we['pct'])
@@ -283,9 +392,15 @@ def line_plot(metric='points'):
 #             barmode='stack'
 # )
 
-def bar_plot(metric='points'):
-    myteam_df_x_we=myteam_df.groupby(by=['week_ending_sunday','name'])[metric].sum()
-    myteam_df_x_we=myteam_df_x_we.reset_index()
+def bar_plot(metric='points',leagueid='ESPN'):
+
+    if leagueid=='ESPN':
+        myteam_df_x_we=myteam_df.groupby(by=['week_ending_sunday','name'])[metric].sum()
+        myteam_df_x_we=myteam_df_x_we.reset_index()
+    elif leagueid=='Yahoo':
+        myteam_df_x_we=myteam_df_yh.groupby(by=['week_ending_sunday','name'])[metric].sum()
+        myteam_df_x_we=myteam_df_x_we.reset_index()
+
     myteam_df_x_we['pct']=myteam_df_x_we[metric]/myteam_df_x_we.groupby('week_ending_sunday')[metric].transform('sum')
     myteam_df_x_we['pct']=pd.to_numeric(myteam_df_x_we['pct'])
     myteam_df_x_we['pct']=myteam_df_x_we['pct'].round(4)
@@ -361,20 +476,32 @@ output=output[output.index.isin(current_players)]
 
 
 
-def heatmap(metric='points'):
+def heatmap(metric='points',leagueid='ESPN'):
 
     imps=[metric]
-    output=myteam_df.groupby(['name']).apply(lambda x: pd.Series([sum(x[v]*x.minutes_played)/sum(x.minutes_played) for v in imps]))
-    output.columns=imps
+    if leagueid=='ESPN':
+        output=myteam_df.groupby(['name']).apply(lambda x: pd.Series([sum(x[v]*x.minutes_played)/sum(x.minutes_played) for v in imps]))
+        output.columns=imps
+        output=output.sort_values(by=metric, ascending=False)
+        output=output[output.index.isin(current_players)]
+    elif leagueid=='Yahoo':
+        output=myteam_df_yh.groupby(['name']).apply(lambda x: pd.Series([sum(x[v]*x.minutes_played)/sum(x.minutes_played) for v in imps]))
+        output.columns=imps
+        output=output.sort_values(by=metric, ascending=False)
+        output=output[output.index.isin(current_players_yh)]
+    # output=myteam_df.groupby(['name']).apply(lambda x: pd.Series([sum(x[v]*x.minutes_played)/sum(x.minutes_played) for v in imps]))
+    # output.columns=imps
     
     # mins_agg=myteam_df.groupby(['name'])['minutes_played'].sum()
 
     # output=pd.merge(output, mins_agg, how='inner', on='name')
 
-    output=output.sort_values(by=metric, ascending=False)
+
+
+
     # output=output.sort_values(by=[focus_field_value],ascending=False).head(player_sample)
 
-    output=output[output.index.isin(current_players)]
+    
     fig=px.imshow(output, 
                     text_auto='.2f', 
                     color_continuous_scale='RdBu_r',
@@ -403,14 +530,22 @@ def heatmap(metric='points'):
     # heat_map.update_xaxes(side='top')
     return fig
 
-def heatmap_weights():
+def heatmap_weights(leagueid='ESPN'):
     metric='minutes_played'
 
-    mins_agg=myteam_df.groupby(['name'])['minutes_played'].sum()
-    mins_agg.columns=metric
-    mins_agg=pd.DataFrame(mins_agg)
-    mins_agg=mins_agg.sort_values(by=metric, ascending=False)
-    mins_agg=mins_agg[mins_agg.index.isin(current_players)]
+    if leagueid=='ESPN':
+        mins_agg=myteam_df.groupby(['name'])['minutes_played'].sum()
+        mins_agg.columns=metric
+        mins_agg=pd.DataFrame(mins_agg)
+        mins_agg=mins_agg.sort_values(by=metric, ascending=False)
+        mins_agg=mins_agg[mins_agg.index.isin(current_players)]
+    elif leagueid=='Yahoo':
+        mins_agg=myteam_df_yh.groupby(['name'])['minutes_played'].sum()
+        mins_agg.columns=metric
+        mins_agg=pd.DataFrame(mins_agg)
+        mins_agg=mins_agg.sort_values(by=metric, ascending=False)
+        mins_agg=mins_agg[mins_agg.index.isin(current_players_yh)]
+
     fig=px.imshow(mins_agg, 
                     text_auto='.2f', 
                     color_continuous_scale='RdBu_r',
@@ -423,19 +558,54 @@ def heatmap_weights():
     return fig
 
 # print(myteam_df[myteam_df['name'].isin(current_players)].head())
-def boxplot_by_player(metric='points'):
-    myteam_df_v1=myteam_df[myteam_df['name'].isin(current_players)]
+def boxplot_by_player(metric='points',leagueid='ESPN'):
+    if leagueid=='ESPN':
+        myteam_df_v1=myteam_df[myteam_df['name'].isin(current_players)]
+    elif leagueid=='Yahoo':
+        myteam_df_v1=myteam_df_yh[myteam_df_yh['name'].isin(current_players_yh)]
+
     fig1=px.box(myteam_df_v1, x='name', y=metric)
     fig1.update_traces(quartilemethod='exclusive')
     return fig1
 
-def boxplot_by_player_weekday_class(metric='points'):
-    myteam_df_v2=myteam_df[myteam_df['name'].isin(current_players)]
+def boxplot_by_player_weekday_class(metric='points',leagueid='ESPN'):
+
+    if leagueid=='ESPN':
+        myteam_df_v2=myteam_df[myteam_df['name'].isin(current_players)]
+    elif leagueid=='Yahoo':
+        myteam_df_v2=myteam_df_yh[myteam_df_yh['name'].isin(current_players_yh)]
+
     fig=px.box(myteam_df_v2, x='name', y=metric, 
                 facet_row='day_of_week_class'
     )
     fig.update_traces(quartilemethod='exclusive')
     return fig
+
+
+# def player_schedule(leagueid='ESPN'):
+
+#     if league_id=='ESPN':
+#         # return dash_table.DataTable(id='my-table',
+#         #                             data=aggregate.to_dict('records'),
+#         #                             columns=[{"name":i,"id":i} for i in aggregate.columns],
+#         #                             style_cell=dict(textAlign='left'),
+#         #                             style_header=dict(backgroundColor="paleturquoise"))
+#         return aggregate.to_dict('records')
+#     elif league_id=='Yahoo':
+#         # return dash_table.DataTable(id='my-table',
+#         #                             data=aggregate_yh.to_dict('records'),
+#         #                             columns=[{"name":i,"id":i} for i in aggregate_yh.columns],
+#         #                             style_cell=dict(textAlign='left'),
+#         #                             style_header=dict(backgroundColor="paleturquoise"))
+#         return aggregate_yh.to_dict('records')
+
+
+
+# def player_schedule_cols(leagueid='Yahoo'):
+#     if leagueid=='ESPN':
+#         return [{"name": i, "id": i} for i in aggregate.columns]
+#     elif leagueid=='Yahoo':
+#         return [{"name": i, "id": i} for i in aggregate_yh.columns]
 
 
 # metric='made_field_goals'
@@ -519,7 +689,17 @@ app.layout=dbc.Container(
                                                   {'label':'Minutes Played','value':'minutes_played'},
                                                   {'label':'Game Score','value':'game_score'}],
                                     value='made_field_goals'
-                    )],
+                                )
+                    ],
+                    lg=3
+                ),
+                dbc.Col(
+                    [dcc.Dropdown(id='id-league',
+                                    options=[{'label':'ESPN','value':'ESPN'},
+                                              {'label':'Yahoo','value':'Yahoo'}],
+                                              value='ESPN'
+                                )
+                    ],
                     lg=3
                 )
             ]
@@ -583,10 +763,13 @@ app.layout=dbc.Container(
                 dbc.Col(
                     [
                         html.H2('Games expected this week by players'),
-                        dash_table.DataTable(data=aggregate.to_dict('records'),
-                                                    columns=[{"name": i, "id": i} for i in aggregate.columns],
-                                                    style_cell=dict(textAlign='left'),
-                                                    style_header=dict(backgroundColor="paleturquoise")
+                        dash_table.DataTable(id='my-table',
+                                                data=aggregate_yh.to_dict('records'),
+                                                # data=player_schedule(),
+                                                columns=[{"name": i, "id": i} for i in aggregate_yh.columns],
+                                                # columns=player_schedule_cols(),
+                                                style_cell=dict(textAlign='left'),
+                                                style_header=dict(backgroundColor="paleturquoise")
                         )
                     ],
                     md=4
@@ -601,18 +784,41 @@ app.layout=dbc.Container(
     Output(component_id='line_plot', component_property='figure'),
     Output(component_id='bar-plot', component_property='figure'),
     Output(component_id='heat-map', component_property='figure'),
+    Output(component_id='heat-map-weights', component_property='figure'),
     Output(component_id='box-plot', component_property='figure'),
     Output(component_id='box-plot-x-week-class', component_property='figure'),
-    Input(component_id='id-dropdown', component_property='value')
+    # Output(component_id='my-table', component_property='data'),
+    # Output(component_id='my-table', component_property='figure'),
+    Input(component_id='id-dropdown', component_property='value'),
+    Input(component_id='id-league',component_property='value')
 )
 
-def update_plots(metric_value):
-    fig_line=line_plot(metric_value)
-    fig_bar=bar_plot(metric_value)
-    fig_heat=heatmap(metric_value)
-    fig_box=boxplot_by_player(metric_value)
-    fig_box_x_week=boxplot_by_player_weekday_class(metric_value)
-    return fig_line, fig_bar, fig_heat, fig_box, fig_box_x_week
+def update_plots(metric_value,league_id):
+    fig_line=line_plot(metric_value,league_id)
+    fig_bar=bar_plot(metric_value,league_id)
+    fig_heat=heatmap(metric_value,league_id)
+    fig_heat_wgts=heatmap_weights(league_id)
+    fig_box=boxplot_by_player(metric_value,league_id)
+    fig_box_x_week=boxplot_by_player_weekday_class(metric_value,league_id)
+    return fig_line, fig_bar, fig_heat, fig_heat_wgts, fig_box, fig_box_x_week
+
+@app.callback(
+    Output('my-table','data'),
+    Output('my-table','columns'),
+    Input('id-league','value')
+)
+
+def update_table(selected_value):
+    if selected_value == 'ESPN':
+        data = aggregate.to_dict('records')
+        columns = [{"name": i, "id": i} for i in aggregate.columns]
+    elif selected_value == 'Yahoo':
+        data = aggregate_yh.to_dict('records')
+        columns = [{"name": i, "id": i} for i in aggregate_yh.columns]
+    return data,columns
+
+
+
 
 
 # app.layout=html.Div(children=[
