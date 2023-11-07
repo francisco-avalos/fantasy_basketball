@@ -49,7 +49,6 @@ for p in out_players:
 	inj_player_name=[n.find('h1').text for n in soup.find_all('div',attrs={'class':'p-card'})]
 	inj_player_name=str(inj_player_name).strip('[]')
 	data.insert(0, inj_player_name)
-	# print(data)
 	df.loc[idx]=data
 	idx+=1
 	time.sleep(5)
@@ -74,12 +73,11 @@ for p in out_players_yf:
 	inj_player_name=[n.find('h1').text for n in soup.find_all('div',attrs={'class':'p-card'})]
 	inj_player_name=str(inj_player_name).strip('[]')
 	data.insert(0, inj_player_name)
-	# print(data)
-	df_yh.loc[idx]=data
+	df_yh.loc[idx_yh]=data
 	idx_yh+=1
 	time.sleep(5)
 
-df_yh.exp_return_date=pd.to_datetime(df.exp_return_date)
+df_yh.exp_return_date=pd.to_datetime(df_yh.exp_return_date)
 df_yh['date_report_ran']=report_run_date
 df_yh['name']=df_yh['name'].apply(lambda x: x.replace('\'', '').replace('"', ''))
 
@@ -89,8 +87,8 @@ df_yh['exp_return_date']=df_yh['exp_return_date'].astype(str)
 df_yh['date_report_ran']=df_yh['date_report_ran'].astype(str)
 
 
+# print(df_yh)
 
-# print(df)
 
 try:
 	connection=mysql.connect(host=sports_db_admin_host,
