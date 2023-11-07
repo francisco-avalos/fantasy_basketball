@@ -100,6 +100,10 @@ if connection.is_connected():
     inj_df=cursor.fetchall()
     inj_df=pd.DataFrame(inj_df, columns=cursor.column_names)
 
+    cursor.execute("""SELECT * FROM basketball.injured_player_news_yh ORDER BY exp_return_date ASC;""")
+    inj_df_yf=cursor.fetchall()
+    inj_df_yf=pd.DataFrame(inj_df_yf, columns=cursor.column_names)
+
 
 if(connection.is_connected()):
     cursor.close()
@@ -138,7 +142,6 @@ players_at_risk.columns=['Name']
 
 
 
-
 tm=lg.to_team('428.l.18598.t.4')
 my_tm=pd.DataFrame(tm.roster(4))
 current_players_yh=my_tm.name.tolist()
@@ -148,7 +151,8 @@ current_players_yh=[remove_name_suffixes(x) for x in current_players_yh]
 current_players_yh=[x.replace("'","") for x in current_players_yh]
 current_players_yh=[x.replace("'","").strip() for x in current_players_yh]
 
-
+current_players_yh_at_risk_df=pd.DataFrame(current_players_yh)
+current_players_yh_at_risk_df.columns=['Name']
 
 
 
@@ -732,10 +736,11 @@ app.layout=dbc.Container(
                 dbc.Col(
                     [
                         html.H2('Players at risk if dropped'),
-                        dash_table.DataTable(data=players_at_risk.to_dict('records'),
-                                                    columns=[{"name": i, "id": i} for i in players_at_risk.columns],
-                                                    style_cell=dict(textAlign='left'),
-                                                    style_header=dict(backgroundColor="paleturquoise")    
+                        dash_table.DataTable(id='id-my-team',
+                                            data=players_at_risk.to_dict('records'),
+                                                columns=[{"name": i, "id": i} for i in players_at_risk.columns],
+                                                style_cell=dict(textAlign='left'),
+                                                style_header=dict(backgroundColor="paleturquoise")    
                         )
                     ],
                     md=4
@@ -745,10 +750,11 @@ app.layout=dbc.Container(
                 dbc.Col(
                     [
                         html.H3('Injured players report'),
-                        dash_table.DataTable(data=inj_df.to_dict('records'),
-                                                    columns=[{"name": i, "id": i} for i in inj_df.columns],
-                                                    style_cell=dict(textAlign='left'),
-                                                    style_header=dict(backgroundColor="paleturquoise")    
+                        dash_table.DataTable(id='id-injured',
+                                            data=inj_df.to_dict('records'),
+                                                columns=[{"name": i, "id": i} for i in inj_df.columns],
+                                                style_cell=dict(textAlign='left'),
+                                                style_header=dict(backgroundColor="paleturquoise")    
                         )
                     ],
                     md=4
@@ -817,8 +823,35 @@ def update_table(selected_value):
         columns = [{"name": i, "id": i} for i in aggregate_yh.columns]
     return data,columns
 
+@app.callback(
+    Output('id-injured','data'),
+    Output('id-injured','columns'),
+    Input('id-league','value')
+)
 
+def update_injured_table(selected_value):
+    if selected_value=='ESPN':
+        data=inj_df.to_dict('records')
+        columns=[{"name":i,"id":i} for i in inj_df.columns]
+    elif selected_value=='Yahoo':
+        data=inj_df_yf.to_dict('records')
+        columns=[{"name":i,"id":i} for i in inj_df_yf.columns]
+    return data,columns
 
+@app.callback(
+    Output('id-my-team','data'),
+    Output('id-my-team','columns'),
+    Input('id-league','value')
+)
+
+def update_at_risk_table(selected_value):
+    if selected_value=='ESPN':
+        data=players_at_risk.to_dict('records')
+        columns=[{"name":i,"id":i} for i in players_at_risk.columns]
+    elif selected_value=='Yahoo':
+        data=current_players_yh_at_risk_df.to_dict('records')
+        columns=[{"name":i,"id":i} for i in current_players_yh_at_risk_df.columns]
+    return data,columns
 
 
 # app.layout=html.Div(children=[
