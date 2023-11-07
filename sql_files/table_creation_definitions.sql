@@ -301,6 +301,20 @@
 -- );
 
 
+########################################################################################################################
+########################################################################################################################
+
+
+-- DROP TABLE IF EXISTS basketball.injured_player_news_yh;
+-- CREATE TABLE basketball.injured_player_news_yh
+-- (
+--   `name` varchar(100) NOT NULL,
+--   `injury` varchar(100) NOT NULL,
+--   `exp_return_date` DATE,
+--   `date_report_ran` DATE,
+--   PRIMARY KEY (`name`, `exp_return_date`)
+-- );
+
 
 ########################################################################################################################
 ########################################################################################################################
@@ -404,34 +418,34 @@
 -- CREATE TABLE basketball.my_team_stats_yahoo LIKE basketball.my_team_stats;
 
 
-DROP TABLE IF EXISTS basketball.my_team_stats_yahoo;
-CREATE TABLE IF NOT EXISTS basketball.my_team_stats_yahoo
-(
-  `date` date NOT NULL,
-  `slug` varchar(50) NOT NULL,
-  `name` varchar(100) NOT NULL,
-  `team` varchar(100) NOT NULL,
-  `location` varchar(100) NOT NULL,
-  `opponent` varchar(100) NOT NULL,
-  `outcome` varchar(100) NOT NULL,
-  `seconds_played` int DEFAULT NULL,
-  `made_field_goals` int DEFAULT NULL,
-  `attempted_field_goals` int DEFAULT NULL,
-  `made_three_point_field_goals` int DEFAULT NULL,
-  `attempted_three_point_field_goals` int DEFAULT NULL,
-  `made_free_throws` int DEFAULT NULL,
-  `attempted_free_throws` int DEFAULT NULL,
-  `offensive_rebounds` int DEFAULT NULL,
-  `defensive_rebounds` int DEFAULT NULL,
-  `assists` int DEFAULT NULL,
-  `steals` int DEFAULT NULL,
-  `blocks` int DEFAULT NULL,
-  `turnovers` int DEFAULT NULL,
-  `personal_fouls` int DEFAULT NULL,
-  `game_score` decimal(10,2) DEFAULT NULL,
-  `points` int DEFAULT NULL,
-  PRIMARY KEY (`date`,`slug`)
-);
+-- DROP TABLE IF EXISTS basketball.my_team_stats_yahoo;
+-- CREATE TABLE IF NOT EXISTS basketball.my_team_stats_yahoo
+-- (
+--   `date` date NOT NULL,
+--   `slug` varchar(50) NOT NULL,
+--   `name` varchar(100) NOT NULL,
+--   `team` varchar(100) NOT NULL,
+--   `location` varchar(100) NOT NULL,
+--   `opponent` varchar(100) NOT NULL,
+--   `outcome` varchar(100) NOT NULL,
+--   `seconds_played` int DEFAULT NULL,
+--   `made_field_goals` int DEFAULT NULL,
+--   `attempted_field_goals` int DEFAULT NULL,
+--   `made_three_point_field_goals` int DEFAULT NULL,
+--   `attempted_three_point_field_goals` int DEFAULT NULL,
+--   `made_free_throws` int DEFAULT NULL,
+--   `attempted_free_throws` int DEFAULT NULL,
+--   `offensive_rebounds` int DEFAULT NULL,
+--   `defensive_rebounds` int DEFAULT NULL,
+--   `assists` int DEFAULT NULL,
+--   `steals` int DEFAULT NULL,
+--   `blocks` int DEFAULT NULL,
+--   `turnovers` int DEFAULT NULL,
+--   `personal_fouls` int DEFAULT NULL,
+--   `game_score` decimal(10,2) DEFAULT NULL,
+--   `points` int DEFAULT NULL,
+--   PRIMARY KEY (`date`,`slug`)
+-- );
 
 
 
