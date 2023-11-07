@@ -58,23 +58,23 @@ lg=gm.to_league('428.l.18598')
 # print(lg.team_key())
 # print(lg.current_week())
 
-wvrs=lg.waivers()
-wvrs=pd.DataFrame(wvrs)
-print(wvrs.head())
-print(wvrs.shape)
+# wvrs=lg.waivers()
+# wvrs=pd.DataFrame(wvrs)
+# print(wvrs.head())
+# print(wvrs.shape)
 
-# fas=lg.free_agents('P')
-fas=lg.free_agents('ANYTHING_THAT_I_WANT')
-fas=pd.DataFrame(fas)
-print(fas.head())
-print(fas.shape)
+# # fas=lg.free_agents('P')
+# fas=lg.free_agents('ANYTHING_THAT_I_WANT')
+# fas=pd.DataFrame(fas)
+# print(fas.head())
+# print(fas.shape)
 
 # print(yfa.__file__)
 
 
-# # tm=lg.to_team('428.l.18598.t.4')
-# # my_tm=pd.DataFrame(tm.roster(4))
-# # print(my_tm)
+tm=lg.to_team('428.l.18598.t.4')
+my_tm=pd.DataFrame(tm.roster(4))
+print(my_tm)
 
 
 # # yfa_file_loca=yfa.__file__
