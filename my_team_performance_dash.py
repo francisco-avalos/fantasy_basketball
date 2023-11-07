@@ -639,6 +639,12 @@ def boxplot_by_player_weekday_class(metric='points',leagueid='ESPN'):
 # print(myteam_df.head())
 
 
+
+app=dash.Dash()
+
+server = app.server
+
+
 app.layout=dbc.Container(
     [
         dbc.Row(
@@ -879,10 +885,11 @@ def update_at_risk_table(selected_value):
 
 
 
+# if __name__ == '__main__': 
+#     app.run(port=8005)
+
 if __name__ == '__main__': 
-    app.run(port=8005)
-
-
+    app.run(port=8006)
 
 
 
