@@ -9,6 +9,6 @@ simple and complex modeling and analysis to their decisions throughtout the seas
 
 A requirements txt file included - pip install /path_to_file/requirements.txt
 
-[Free Agent Analysis Helper Tool](https://fantasy-basketball-dashboard-08a3937daa55.herokuapp.com/)
+[Free Agent Analysis Helper Tool](https://fantasy-basketball-team-dash-aef016454ed4.herokuapp.com/)
 ![Web App Preview](https://github.com/francisco-avalos/fantasy_basketball/assets/26608744/b71fcf1a-a5cd-41e0-a5fc-6dedeaf97c89)
 
