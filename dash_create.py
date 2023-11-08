@@ -277,11 +277,11 @@ pd.set_option('display.max_rows', None)
 
 
 fa_df=fa_espn_df[fa_espn_df['current_season_vs_historicals']=='current_season_only'].copy()
-# fa_df['total_rebounds']=fa_df['offensive_rebounds']+fa_df['defensive_rebounds']
-# fa_df['minutes_played']=fa_df['seconds_played']/60
+fa_df['total_rebounds']=fa_df['offensive_rebounds']+fa_df['defensive_rebounds']
+fa_df['minutes_played']=fa_df['seconds_played']/60
 
-fa_df.loc[:,'total_rebounds']=fa_df['offensive_rebounds']+fa_df['defensive_rebounds']
-fa_df.loc[:,'minutes_played']=fa_df['seconds_played']/60
+# fa_df.loc[:,'total_rebounds']=fa_df['offensive_rebounds']+fa_df['defensive_rebounds']
+# fa_df.loc[:,'minutes_played']=fa_df['seconds_played']/60
 
 # fa_hist_and_current_df['total_rebounds']=fa_hist_and_current_df['offensive_rebounds']+fa_hist_and_current_df['defensive_rebounds']
 # fa_hist_and_current_df['minutes_played']=fa_hist_and_current_df['seconds_played']/60
@@ -290,8 +290,8 @@ fa_df.loc[:,'minutes_played']=fa_df['seconds_played']/60
 # fa_hist_only_df['minutes_played']=fa_hist_only_df['seconds_played']/60
 
 
-fa_yahoo_df.loc[:,'total_rebounds']=fa_yahoo_df['offensive_rebounds']+fa_yahoo_df['defensive_rebounds']
-fa_yahoo_df.loc[:,'minutes_played']=fa_yahoo_df['seconds_played']/60
+fa_yahoo_df['total_rebounds']=fa_yahoo_df['offensive_rebounds']+fa_yahoo_df['defensive_rebounds']
+fa_yahoo_df['minutes_played']=fa_yahoo_df['seconds_played']/60
 
 # default_value=0
 
