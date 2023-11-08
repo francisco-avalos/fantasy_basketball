@@ -25,11 +25,17 @@ from espn_api.basketball import League
 
 
 
-sports_db_admin_host=os.environ.get('basketball_host')
-sports_db_admin_db=os.environ.get('basketball_db')
-sports_db_admin_user=os.environ.get('basketball_user')
-sports_db_admin_pw=os.environ.get('basketball_pw')
-sports_db_admin_port=os.environ.get('basketball_port')
+# sports_db_admin_host=os.environ.get('basketball_host')
+# sports_db_admin_db=os.environ.get('basketball_db')
+# sports_db_admin_user=os.environ.get('basketball_user')
+# sports_db_admin_pw=os.environ.get('basketball_pw')
+# sports_db_admin_port=os.environ.get('basketball_port')
+
+sports_db_admin_host=os.environ.get('sports_db_admin_host')
+sports_db_admin_db='basketball'
+sports_db_admin_user=os.environ.get('sports_db_admin_user')
+sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
+sports_db_admin_port=os.environ.get('sports_db_admin_port')
 
 
 leagueid=os.environ.get('leagueid')
@@ -37,12 +43,7 @@ espn_s2=os.environ.get('espn_s2')
 swid=os.environ.get('swid')
 
 
-# my database connect
-connection=mysql.connect(host=sports_db_admin_host,
-                        database=sports_db_admin_db,
-                        user=sports_db_admin_user,
-                        password=sports_db_admin_pw,
-                        port=sports_db_admin_port)
+
 
 # espn connect
 league=League(league_id=leagueid, 
@@ -52,13 +53,21 @@ league=League(league_id=leagueid,
                 debug=False)
 
 
-# yahoo connect
-sc=OAuth2(None,None,from_file='oauth2.json')
-gm=yfa.Game(sc, 'nba')
-league_id=gm.league_ids(year=2024)
-lg=gm.to_league('428.l.18598')
+# # yahoo connect
+# sc=OAuth2(None,None,from_file='oauth2.json')
+# gm=yfa.Game(sc, 'nba')
+# league_id=gm.league_ids(year=2024)
+# lg=gm.to_league('428.l.18598')
 
 
+
+
+# my database connect
+connection=mysql.connect(host=sports_db_admin_host,
+                        database=sports_db_admin_db,
+                        user=sports_db_admin_user,
+                        password=sports_db_admin_pw,
+                        port=sports_db_admin_port)
 
 if connection.is_connected():
     cursor=connection.cursor()
@@ -94,6 +103,9 @@ if connection.is_connected():
     myteam_df_yh=cursor.fetchall()
     myteam_df_yh=pd.DataFrame(myteam_df_yh, columns=cursor.column_names)
 
+    cursor.execute("""SELECT * FROM basketball.live_yahoo_players""")
+    live_yahoo_players_df=cursor.fetchall()
+    live_yahoo_players_df=pd.DataFrame(live_yahoo_players_df, columns=cursor.column_names)
 
 
 if connection.is_connected():
@@ -118,6 +130,8 @@ else:
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', None)
 
+
+# print(live_yahoo_players_df)
 
 myteam_df['total_rebounds']=myteam_df['offensive_rebounds']+myteam_df['defensive_rebounds']
 myteam_df['minutes_played']=myteam_df['seconds_played']/60
@@ -144,9 +158,11 @@ players_at_risk.columns=['Name']
 
 
 
-tm=lg.to_team('428.l.18598.t.4')
-my_tm=pd.DataFrame(tm.roster(4))
-current_players_yh=my_tm.name.tolist()
+# tm=lg.to_team('428.l.18598.t.4')
+# my_tm=pd.DataFrame(tm.roster(4))
+# current_players_yh=my_tm.name.tolist()
+
+current_players_yh=live_yahoo_players_df.name.tolist()
 
 current_players_yh=clean_string(current_players_yh).split(',')
 current_players_yh=[remove_name_suffixes(x) for x in current_players_yh]

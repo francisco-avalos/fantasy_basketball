@@ -63,6 +63,37 @@ my_tm=pd.DataFrame(tm.roster(4))
 my_players_yh=my_tm.name.tolist()
 
 
+
+
+my_players_yh_cp=pd.DataFrame(my_players_yh).copy()
+my_players_yh_cp.columns=['name']
+
+connection=mysql.connect(host=sports_db_admin_host,
+						database=sports_db_admin_db,
+						user=sports_db_admin_user,
+						password=sports_db_admin_pw,
+						port=sports_db_admin_port,
+						allow_local_infile=True)
+
+if connection.is_connected():
+	cursor=connection.cursor()
+	cursor.execute('TRUNCATE basketball.live_yahoo_players;')
+
+	file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/live_yh_team.csv'
+	my_players_yh_cp.to_csv(file_path,index=False)
+	qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.live_yahoo_players FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' IGNORE 1 ROWS;"
+	cursor.execute(qry)
+	connection.commit()
+	del my_players_yh_cp
+	os.remove(file_path)
+	print('live_yahoo_players updated with recent data')
+
+if(connection.is_connected()):
+	cursor.close()
+	connection.close()
+
+
+
 try:
 	connection=mysql.connect(host=sports_db_admin_host,
 							database=sports_db_admin_db,
@@ -314,7 +345,6 @@ try:
 				del main_df
 				os.remove(file_path)
 
-
 				# cols="`,`".join([str(i) for i in main_df.columns.tolist()])
 				# for i,row in main_df.iterrows():
 				# 	sql='REPLACE INTO `my_team_stats` (`'+cols+'`) VALUES ('+'%s,'*(len(row)-1)+'%s)'
@@ -390,6 +420,7 @@ try:
 										port=sports_db_admin_port,
 										allow_local_infile=True)
 				cursor=connection.cursor()
+
 				file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/my_team_stats_extract_yh.csv'
 				main_df.to_csv(file_path,index=False)
 				qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.my_team_stats_yahoo FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' IGNORE 1 ROWS;"
@@ -397,7 +428,7 @@ try:
 				connection.commit()
 				del main_df
 				os.remove(file_path)
-				
+
 				# cols="`,`".join([str(i) for i in main_df.columns.tolist()])
 				
 				# for i,row in main_df.iterrows():
