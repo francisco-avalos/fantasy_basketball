@@ -16,11 +16,17 @@ import datetime as dt
 # exec(open('/Users/franciscoavalosjr/Desktop/basketball-creds.py').read())
 
 
-sports_db_admin_host=os.environ.get('basketball_host')
-sports_db_admin_db=os.environ.get('basketball_db')
-sports_db_admin_user=os.environ.get('basketball_user')
-sports_db_admin_pw=os.environ.get('basketball_pw')
-sports_db_admin_port=os.environ.get('basketball_port')
+# sports_db_admin_host=os.environ.get('basketball_host')
+# sports_db_admin_db=os.environ.get('basketball_db')
+# sports_db_admin_user=os.environ.get('basketball_user')
+# sports_db_admin_pw=os.environ.get('basketball_pw')
+# sports_db_admin_port=os.environ.get('basketball_port')
+
+sports_db_admin_host=os.environ.get('sports_db_admin_host')
+sports_db_admin_db='basketball'
+sports_db_admin_user=os.environ.get('sports_db_admin_user')
+sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
+sports_db_admin_port=os.environ.get('sports_db_admin_port')
 
 
 connection=mysql.connect(host=sports_db_admin_host,
@@ -270,9 +276,12 @@ pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', None)
 
 
-fa_df=fa_espn_df[fa_espn_df['current_season_vs_historicals']=='current_season_only']
-fa_df['total_rebounds']=fa_df['offensive_rebounds']+fa_df['defensive_rebounds']
-fa_df['minutes_played']=fa_df['seconds_played']/60
+fa_df=fa_espn_df[fa_espn_df['current_season_vs_historicals']=='current_season_only'].copy()
+# fa_df['total_rebounds']=fa_df['offensive_rebounds']+fa_df['defensive_rebounds']
+# fa_df['minutes_played']=fa_df['seconds_played']/60
+
+fa_df.loc[:,'total_rebounds']=fa_df['offensive_rebounds']+fa_df['defensive_rebounds']
+fa_df.loc[:,'minutes_played']=fa_df['seconds_played']/60
 
 # fa_hist_and_current_df['total_rebounds']=fa_hist_and_current_df['offensive_rebounds']+fa_hist_and_current_df['defensive_rebounds']
 # fa_hist_and_current_df['minutes_played']=fa_hist_and_current_df['seconds_played']/60
@@ -281,8 +290,8 @@ fa_df['minutes_played']=fa_df['seconds_played']/60
 # fa_hist_only_df['minutes_played']=fa_hist_only_df['seconds_played']/60
 
 
-fa_yahoo_df['total_rebounds']=fa_yahoo_df['offensive_rebounds']+fa_yahoo_df['defensive_rebounds']
-fa_yahoo_df['minutes_played']=fa_yahoo_df['seconds_played']/60
+fa_yahoo_df.loc[:,'total_rebounds']=fa_yahoo_df['offensive_rebounds']+fa_yahoo_df['defensive_rebounds']
+fa_yahoo_df.loc[:,'minutes_played']=fa_yahoo_df['seconds_played']/60
 
 # default_value=0
 
