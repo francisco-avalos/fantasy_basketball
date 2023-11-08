@@ -25,17 +25,17 @@ from espn_api.basketball import League
 
 
 
-# sports_db_admin_host=os.environ.get('basketball_host')
-# sports_db_admin_db=os.environ.get('basketball_db')
-# sports_db_admin_user=os.environ.get('basketball_user')
-# sports_db_admin_pw=os.environ.get('basketball_pw')
-# sports_db_admin_port=os.environ.get('basketball_port')
+sports_db_admin_host=os.environ.get('basketball_host')
+sports_db_admin_db=os.environ.get('basketball_db')
+sports_db_admin_user=os.environ.get('basketball_user')
+sports_db_admin_pw=os.environ.get('basketball_pw')
+sports_db_admin_port=os.environ.get('basketball_port')
 
-sports_db_admin_host=os.environ.get('sports_db_admin_host')
-sports_db_admin_db='basketball'
-sports_db_admin_user=os.environ.get('sports_db_admin_user')
-sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
-sports_db_admin_port=os.environ.get('sports_db_admin_port')
+# sports_db_admin_host=os.environ.get('sports_db_admin_host')
+# sports_db_admin_db='basketball'
+# sports_db_admin_user=os.environ.get('sports_db_admin_user')
+# sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
+# sports_db_admin_port=os.environ.get('sports_db_admin_port')
 
 
 leagueid=os.environ.get('leagueid')
