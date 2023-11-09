@@ -135,35 +135,39 @@ try:
 
 
 		for day in day_range:
-			df=client.team_box_scores(day=day.day, month=day.month, year=day.year)
-			df=pd.DataFrame(df)
-			date=day.strftime('%Y-%m-%d')
-			df['date']=date
-			df['team']=df['team'].astype(str)
-			df['outcome']=df['outcome'].astype(str)
+			try:
+				df=client.team_box_scores(day=day.day, month=day.month, year=day.year)
+				df=pd.DataFrame(df)
+				date=day.strftime('%Y-%m-%d')
+				df['date']=date
+				df['team']=df['team'].astype(str)
+				df['outcome']=df['outcome'].astype(str)
 
-			connection=mysql.connect(host=sports_db_admin_host,
-									database=sports_db_admin_db,
-									user=sports_db_admin_user,
-									password=sports_db_admin_pw,
-									port=sports_db_admin_port,
-									allow_local_infile=True)
+				connection=mysql.connect(host=sports_db_admin_host,
+										database=sports_db_admin_db,
+										user=sports_db_admin_user,
+										password=sports_db_admin_pw,
+										port=sports_db_admin_port,
+										allow_local_infile=True)
 
-			if connection.is_connected():
-				cursor=connection.cursor()
+				if connection.is_connected():
+					cursor=connection.cursor()
 
-				file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/high_level_nba_team_stats.csv'
-				df.to_csv(file_path,index=False)
-				qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.high_level_nba_team_stats FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' IGNORE 1 ROWS;"
-				cursor.execute(qry)
-				connection.commit()
-				del df
-				os.remove(file_path)
+					file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/high_level_nba_team_stats.csv'
+					df.to_csv(file_path,index=False)
+					qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.high_level_nba_team_stats FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' IGNORE 1 ROWS;"
+					cursor.execute(qry)
+					connection.commit()
+					del df
+					os.remove(file_path)
 
-			if(connection.is_connected()):
-				cursor.close()
-				connection.close()
-				print('MySQL connection closed')
+				if(connection.is_connected()):
+					cursor.close()
+					connection.close()
+					print('MySQL connection closed')
+			except:
+				print(f'No game for {day}')
+
 
 				# file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/advanced_data_extract.csv'
 				# main_free_agents_df.to_csv(file_path,index=False)
@@ -201,31 +205,35 @@ try:
 		# if connection.is_connected():
 		# 	cursor=connection.cursor()
 		for day in day_range:
-			df=client.team_box_scores(day=day.day, month=day.month, year=day.year)
-			df=pd.DataFrame(df)
-			date=day.strftime('%Y-%m-%d')
-			df['date']=date
-			df['team']=df['team'].astype(str)
-			df['outcome']=df['outcome'].astype(str)
-			# print(df.head())
-			connection=mysql.connect(host=sports_db_admin_host,
-									database=sports_db_admin_db,
-									user=sports_db_admin_user,
-									password=sports_db_admin_pw,
-									port=sports_db_admin_port,
-									allow_local_infile=True)
-			if connection.is_connected():
-				cursor=connection.cursor()
-				file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/high_level_nba_team_stats.csv'
-				df.to_csv(file_path,index=False)
-				qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.high_level_nba_team_stats FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' IGNORE 1 ROWS;"
-				cursor.execute(qry)
-				connection.commit()
-				del df
-				os.remove(file_path)
-			if(connection.is_connected()):
-				cursor.close()
-				connection.close()
+			try:
+				df=client.team_box_scores(day=day.day, month=day.month, year=day.year)
+				df=pd.DataFrame(df)
+				date=day.strftime('%Y-%m-%d')
+				df['date']=date
+				df['team']=df['team'].astype(str)
+				df['outcome']=df['outcome'].astype(str)
+				# print(df.head())
+				connection=mysql.connect(host=sports_db_admin_host,
+										database=sports_db_admin_db,
+										user=sports_db_admin_user,
+										password=sports_db_admin_pw,
+										port=sports_db_admin_port,
+										allow_local_infile=True)
+				if connection.is_connected():
+					cursor=connection.cursor()
+					file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/high_level_nba_team_stats.csv'
+					df.to_csv(file_path,index=False)
+					qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.high_level_nba_team_stats FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' IGNORE 1 ROWS;"
+					cursor.execute(qry)
+					connection.commit()
+					del df
+					os.remove(file_path)
+				if(connection.is_connected()):
+					cursor.close()
+					connection.close()				
+			except:
+				print(f'No game for {day}')
+
 				# print('MySQL connection closed')
 			# if not df.empty:
 			# 	print(df.shape)
