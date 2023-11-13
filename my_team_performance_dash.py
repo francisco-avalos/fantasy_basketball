@@ -16,26 +16,24 @@ from dash import dcc, html, Input, Output, dash_table
 
 from my_functions import clean_string, remove_name_suffixes
 
-# Yahoo
-from yahoo_oauth import OAuth2
-import yahoo_fantasy_api as yfa
+
 
 # ESPN 
 from espn_api.basketball import League
 
 
 
-# sports_db_admin_host=os.environ.get('basketball_host')
-# sports_db_admin_db=os.environ.get('basketball_db')
-# sports_db_admin_user=os.environ.get('basketball_user')
-# sports_db_admin_pw=os.environ.get('basketball_pw')
-# sports_db_admin_port=os.environ.get('basketball_port')
+sports_db_admin_host=os.environ.get('basketball_host')
+sports_db_admin_db=os.environ.get('basketball_db')
+sports_db_admin_user=os.environ.get('basketball_user')
+sports_db_admin_pw=os.environ.get('basketball_pw')
+sports_db_admin_port=os.environ.get('basketball_port')
 
-sports_db_admin_host=os.environ.get('sports_db_admin_host')
-sports_db_admin_db='basketball'
-sports_db_admin_user=os.environ.get('sports_db_admin_user')
-sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
-sports_db_admin_port=os.environ.get('sports_db_admin_port')
+# sports_db_admin_host=os.environ.get('sports_db_admin_host')
+# sports_db_admin_db='basketball'
+# sports_db_admin_user=os.environ.get('sports_db_admin_user')
+# sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
+# sports_db_admin_port=os.environ.get('sports_db_admin_port')
 
 
 leagueid=os.environ.get('leagueid')
@@ -52,12 +50,6 @@ league=League(league_id=leagueid,
                 swid=swid, 
                 debug=False)
 
-
-# # yahoo connect
-# sc=OAuth2(None,None,from_file='oauth2.json')
-# gm=yfa.Game(sc, 'nba')
-# league_id=gm.league_ids(year=2024)
-# lg=gm.to_league('428.l.18598')
 
 
 
