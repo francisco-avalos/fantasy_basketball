@@ -25,17 +25,17 @@ from espn_api.basketball import League
 
 
 
-sports_db_admin_host=os.environ.get('basketball_host')
-sports_db_admin_db=os.environ.get('basketball_db')
-sports_db_admin_user=os.environ.get('basketball_user')
-sports_db_admin_pw=os.environ.get('basketball_pw')
-sports_db_admin_port=os.environ.get('basketball_port')
+# sports_db_admin_host=os.environ.get('basketball_host')
+# sports_db_admin_db=os.environ.get('basketball_db')
+# sports_db_admin_user=os.environ.get('basketball_user')
+# sports_db_admin_pw=os.environ.get('basketball_pw')
+# sports_db_admin_port=os.environ.get('basketball_port')
 
-# sports_db_admin_host=os.environ.get('sports_db_admin_host')
-# sports_db_admin_db='basketball'
-# sports_db_admin_user=os.environ.get('sports_db_admin_user')
-# sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
-# sports_db_admin_port=os.environ.get('sports_db_admin_port')
+sports_db_admin_host=os.environ.get('sports_db_admin_host')
+sports_db_admin_db='basketball'
+sports_db_admin_user=os.environ.get('sports_db_admin_user')
+sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
+sports_db_admin_port=os.environ.get('sports_db_admin_port')
 
 
 leagueid=os.environ.get('leagueid')
@@ -658,10 +658,15 @@ def boxplot_by_player_weekday_class(metric='points',leagueid='ESPN'):
 
 
 
-app=dash.Dash()
+app=dash.Dash(__name__,external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 server = app.server
 
+config={
+    'displayModeBar': False,
+    'displaylogo': False,                                       
+    'modeBarButtonsToRemove': ['zoom2d', 'hoverCompareCartesian', 'hoverClosestCartesian', 'toggleSpikelines']
+  }
 
 app.layout=dbc.Container(
     [
@@ -673,16 +678,16 @@ app.layout=dbc.Container(
                 dbc.Col(
                     [
                         html.H3('Minutes-Played Weighted Production'),
-                        dcc.Graph(id='heat-map', figure=heatmap())
+                        dcc.Graph(id='heat-map', figure=heatmap(), config=config)
                     ], 
-                    width=6, 
+                    # width=6
                     align='start'
                 ),
                 dbc.Col(
                     [
-                        dcc.Graph(id='heat-map-weights', figure=heatmap_weights())
+                        dcc.Graph(id='heat-map-weights', figure=heatmap_weights(), config=config)
                     ],
-                    width=6,
+                    # width=6
                     align='end'
                 )
             ]
@@ -690,7 +695,7 @@ app.layout=dbc.Container(
         dbc.Row(
             [
                 dbc.Col(
-                    [dcc.Graph(id='line_plot', figure=line_plot())],
+                    [dcc.Graph(id='line_plot', figure=line_plot(), config=config)],
                     md=4
                     # align='start',
                     # offset=0
@@ -735,7 +740,7 @@ app.layout=dbc.Container(
         dbc.Row(
             [
                 dbc.Col(
-                    [dcc.Graph(id='bar-plot', figure=bar_plot())],
+                    [dcc.Graph(id='bar-plot', figure=bar_plot(), config=config)],
                     width=8,
                     align='end'
                 )
@@ -744,14 +749,14 @@ app.layout=dbc.Container(
         dbc.Row(
             [
                 dbc.Col(
-                    [dcc.Graph(id='box-plot', figure=boxplot_by_player())]
+                    [dcc.Graph(id='box-plot', figure=boxplot_by_player(), config=config)]
                 )
             ]
         ),
         dbc.Row(
             [
                 dbc.Col(
-                    [dcc.Graph(id='box-plot-x-week-class', figure=boxplot_by_player_weekday_class())]
+                    [dcc.Graph(id='box-plot-x-week-class', figure=boxplot_by_player_weekday_class(), config=config)]
                 )
             ]
         ),
@@ -759,7 +764,7 @@ app.layout=dbc.Container(
             [
                 dbc.Col(
                     [
-                        html.H2('Players at risk if dropped'),
+                        html.H2('Players at risk of being picked up if dropped'),
                         dash_table.DataTable(id='id-my-team',
                                             data=players_at_risk.to_dict('records'),
                                                 columns=[{"name": i, "id": i} for i in players_at_risk.columns],
@@ -767,7 +772,7 @@ app.layout=dbc.Container(
                                                 style_header=dict(backgroundColor="paleturquoise")    
                         )
                     ],
-                    md=4
+                    md=3
                     # align='center'
                     # width={'size':1, 'order':'last'}
                 ),
@@ -784,12 +789,7 @@ app.layout=dbc.Container(
                     md=4
                     # align='center'
                     # width={'size':1, 'order':'last'}
-                )
-
-            ]
-        ),
-        dbc.Row(
-            [
+                ),
                 dbc.Col(
                     [
                         html.H2('Games expected this week by players'),
@@ -802,10 +802,29 @@ app.layout=dbc.Container(
                                                 style_header=dict(backgroundColor="paleturquoise")
                         )
                     ],
-                    md=4
+                    md=2
                 )
+
             ]
-        )
+        ),
+        # dbc.Row(
+        #     [
+        #         dbc.Col(
+        #             [
+        #                 html.H2('Games expected this week by players'),
+        #                 dash_table.DataTable(id='my-table',
+        #                                         data=aggregate_yh.to_dict('records'),
+        #                                         # data=player_schedule(),
+        #                                         columns=[{"name": i, "id": i} for i in aggregate_yh.columns],
+        #                                         # columns=player_schedule_cols(),
+        #                                         style_cell=dict(textAlign='left'),
+        #                                         style_header=dict(backgroundColor="paleturquoise")
+        #                 )
+        #             ],
+        #             md=4
+        #         )
+        #     ]
+        # )
     ]
 )
 

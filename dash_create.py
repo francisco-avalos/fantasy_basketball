@@ -16,12 +16,14 @@ import datetime as dt
 # exec(open('/Users/franciscoavalosjr/Desktop/basketball-creds.py').read())
 
 
+# use for production deployment
 sports_db_admin_host=os.environ.get('basketball_host')
 sports_db_admin_db=os.environ.get('basketball_db')
 sports_db_admin_user=os.environ.get('basketball_user')
 sports_db_admin_pw=os.environ.get('basketball_pw')
 sports_db_admin_port=os.environ.get('basketball_port')
 
+# use for local execution 
 # sports_db_admin_host=os.environ.get('sports_db_admin_host')
 # sports_db_admin_db='basketball'
 # sports_db_admin_user=os.environ.get('sports_db_admin_user')
@@ -379,11 +381,17 @@ app=dash.Dash()
 
 server = app.server
 
+config={
+    'displayModeBar': False,
+    'displaylogo': False,                                       
+    'modeBarButtonsToRemove': ['zoom2d', 'hoverCompareCartesian', 'hoverClosestCartesian', 'toggleSpikelines']
+  }
+
 app.layout=html.Div(children=[html.H1(children='Free Agent Analysis Helper Tool',
                                         style={'textAlign':'center'}),
                               html.Div(children='Analysis tool to screen potential star players',
                                         style={'textAlign':'center', 'color':'red'}), 
-                             dcc.Graph(figure=player_stats(), id='line_plot'),
+                             dcc.Graph(figure=player_stats(), id='line_plot',config=config),
                               'How many days back?\n',
                               dcc.Input(id='my_input', value=7, type='integer'),
                               'Focus Field\n',
