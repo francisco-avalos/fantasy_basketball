@@ -1,1 +1,1 @@
-web: gunicorn dash_create:server
+web: gunicorn index:server
