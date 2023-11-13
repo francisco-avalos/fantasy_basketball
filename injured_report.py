@@ -20,16 +20,18 @@ sports_db_admin_port=os.environ.get('sports_db_admin_port')
 
 
 out_players=[
-'https://www.rotowire.com/basketball/player/cameron-johnson-4916'
+# 'https://www.rotowire.com/basketball/player/cameron-johnson-4916'
 # 'https://www.rotowire.com/basketball/player/lonnie-walker-4435'
 # 'https://www.rotowire.com/basketball/player/kyrie-irving-3186'
 # 'https://www.rotowire.com/basketball/player/klay-thompson-3197'
 ]
 out_players_yf=[
-'https://www.rotowire.com/basketball/player/markelle-fultz-4100',
-'https://www.rotowire.com/basketball/player/nic-claxton-4827',
-'https://www.rotowire.com/basketball/player/cj-mccollum-3437',
-'https://www.rotowire.com/basketball/player/anthony-davis-3297'
+'https://www.rotowire.com/basketball/player/tre-jones-5111',
+'https://www.rotowire.com/basketball/player/cj-mccollum-3437'
+# 'https://www.rotowire.com/basketball/player/markelle-fultz-4100',
+# 'https://www.rotowire.com/basketball/player/nic-claxton-4827',
+# 
+# 'https://www.rotowire.com/basketball/player/anthony-davis-3297'
 ]
 
 
