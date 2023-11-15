@@ -1,29 +1,28 @@
-from dash import html, dcc
-from dash.dependencies import Input, Output
-from home import create_page_home
-from page_2 import create_page_2
-from page_3 import create_page_3
-from dash_create import app
+from dash import dcc
+from dash import html
+import dash
 
-server = app.server
-app.config.suppress_callback_exceptions = True
+from dash_create import app
+from dash_create import server
+from layouts import sales, page2, page3
+import callbacks
 
 app.layout = html.Div([
     dcc.Location(id='url', refresh=False),
     html.Div(id='page-content')
 ])
 
-
-@app.callback(Output('page-content', 'children'),
-              [Input('url', 'pathname')])
+@app.callback(dash.dependencies.Output('page-content', 'children'),
+              [dash.dependencies.Input('url', 'pathname')])
 def display_page(pathname):
-    if pathname == '/page-2':
-        return create_page_2()
-    if pathname == '/page-3':
-        return create_page_3()
+    if pathname == '/apps/sales-overview':
+         return sales
+    elif pathname == '/apps/page2':
+         return page2
+    elif pathname == '/apps/page3':
+         return page3
     else:
-        return create_page_home()
-
+        return sales # This is the "home page"
 
 if __name__ == '__main__':
     app.run_server(debug=False)
