@@ -13,22 +13,26 @@ from mysql.connector import Error
 import datetime as dt
 
 
-app = dash.Dash(__name__, suppress_callback_exceptions=True, external_stylesheets=[dbc.themes.COSMO])
+app=dash.Dash(__name__, 
+    suppress_callback_exceptions=True, # so we don't have error messages popping up in my user's face of bad code
+    external_stylesheets=[dbc.themes.LUX])
+
+server = app.server
 
 
-# # use for production deployment
-# sports_db_admin_host=os.environ.get('basketball_host')
-# sports_db_admin_db=os.environ.get('basketball_db')
-# sports_db_admin_user=os.environ.get('basketball_user')
-# sports_db_admin_pw=os.environ.get('basketball_pw')
-# sports_db_admin_port=os.environ.get('basketball_port')
+# # # use for production deployment
+# # sports_db_admin_host=os.environ.get('basketball_host')
+# # sports_db_admin_db=os.environ.get('basketball_db')
+# # sports_db_admin_user=os.environ.get('basketball_user')
+# # sports_db_admin_pw=os.environ.get('basketball_pw')
+# # sports_db_admin_port=os.environ.get('basketball_port')
 
-# # use for local execution 
-# # sports_db_admin_host=os.environ.get('sports_db_admin_host')
-# # sports_db_admin_db='basketball'
-# # sports_db_admin_user=os.environ.get('sports_db_admin_user')
-# # sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
-# # sports_db_admin_port=os.environ.get('sports_db_admin_port')
+# #use for local execution 
+# sports_db_admin_host=os.environ.get('sports_db_admin_host')
+# sports_db_admin_db='basketball'
+# sports_db_admin_user=os.environ.get('sports_db_admin_user')
+# sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
+# sports_db_admin_port=os.environ.get('sports_db_admin_port')
 
 
 # connection=mysql.connect(host=sports_db_admin_host,
