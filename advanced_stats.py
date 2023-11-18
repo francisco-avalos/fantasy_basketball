@@ -51,10 +51,12 @@ league=League(league_id=leagueid,
 
 
 keep_out=['anthoca01', 'whiteha01', 
-		  'aldrila01', 'walkeke02',
-		  'couside01', 'howardw01',
-		  'fallta01', 'bledser01', 
-		  'rondora01', 'thomptr01', 
+		  'aldrila01', #'walkeke02',
+		  #'couside01', 
+		  #'howardw01',
+		  #'fallta01', 
+		  'bledser01', 
+		  'rondora01', #'thomptr01', 
 		  'thomais02', 'hoardja01']
 season_end_year=2024
 fa_size=700
@@ -82,34 +84,42 @@ try:
 		connection.close()
 
 	FA=league.free_agents(size=fa_size)
+	time.sleep(4)
 
 	main_free_agents_df=pd.DataFrame()
 	FA=clean_string(FA).split(',')
 
 	advanced_df=pd.DataFrame(client.players_advanced_season_totals(season_end_year=season_end_year))
+	# row=0
 
 	for fa in FA:
-		fa=remove_name_suffixes(fa)
-		fa=fa.lstrip().rstrip()
-		if fa not in list(master_names_list_df.full_name):
-			for i in master_names_list_df.index:
-				full_name=unidecode.unidecode(master_names_list_df.loc[i, 'full_name'])
-				first_name=unidecode.unidecode(master_names_list_df.loc[i, 'first_name'])
-				last_name=unidecode.unidecode(master_names_list_df.loc[i, 'last_name'])
-				name_code=master_names_list_df.loc[i, 'bbrefid']
-				if (fa in full_name) & (name_code not in keep_out):
-					df=advanced_df[advanced_df['slug']==name_code]
-					if not df.empty:
-						main_free_agents_df=pd.concat([main_free_agents_df, df])
-		elif fa in list(master_names_list_df.full_name):
-			for i in master_names_list_df.index:
-				full_name=master_names_list_df.loc[i, 'full_name']
-				name_code=master_names_list_df.loc[i, 'bbrefid']
-				if (fa in full_name) & (name_code not in keep_out):
-					df=advanced_df[advanced_df['slug']==name_code]
-					if not df.empty:
-						main_free_agents_df=pd.concat([main_free_agents_df, df])
-		time.sleep(4) # 5 secs gets 12 requests // 4 seconds gets 15 requests // 3 seconds gets 20 requests, which is close to the >20 requests/min block limit 
+		try:
+			fa=remove_name_suffixes(fa)
+			fa=fa.lstrip().rstrip()
+			if fa not in list(master_names_list_df.full_name):
+				for i in master_names_list_df.index:
+					full_name=unidecode.unidecode(master_names_list_df.loc[i, 'full_name'])
+					first_name=unidecode.unidecode(master_names_list_df.loc[i, 'first_name'])
+					last_name=unidecode.unidecode(master_names_list_df.loc[i, 'last_name'])
+					name_code=master_names_list_df.loc[i, 'bbrefid']
+					if (fa in full_name) & (name_code not in keep_out):
+						df=advanced_df[advanced_df['slug']==name_code]
+						if not df.empty:
+							main_free_agents_df=pd.concat([main_free_agents_df, df])
+			elif fa in list(master_names_list_df.full_name):
+				for i in master_names_list_df.index:
+					full_name=master_names_list_df.loc[i, 'full_name']
+					name_code=master_names_list_df.loc[i, 'bbrefid']
+					if (fa in full_name) & (name_code not in keep_out):
+						df=advanced_df[advanced_df['slug']==name_code]
+						if not df.empty:
+							main_free_agents_df=pd.concat([main_free_agents_df, df])
+			# row+=1
+			# completion_tracker=row/len(FA)
+			# print()
+			# time.sleep(4) # 5 secs gets 12 requests // 4 seconds gets 15 requests // 3 seconds gets 20 requests, which is close to the >20 requests/min block limit 
+		except:
+			print(f'{fa} not captured')
 
 	main_free_agents_df['slug']=main_free_agents_df['slug'].astype(str)
 	main_free_agents_df['name']=main_free_agents_df['name'].astype(str)
