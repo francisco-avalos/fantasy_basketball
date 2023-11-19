@@ -26,9 +26,10 @@ out_players=[
 # 'https://www.rotowire.com/basketball/player/klay-thompson-3197'
 ]
 out_players_yf=[
-'https://www.rotowire.com/basketball/player/tre-jones-5111',
-'https://www.rotowire.com/basketball/player/cj-mccollum-3437'
-# 'https://www.rotowire.com/basketball/player/markelle-fultz-4100',
+# 'https://www.rotowire.com/basketball/player/tre-jones-5111',
+'https://www.rotowire.com/basketball/player/cj-mccollum-3437',
+'https://www.rotowire.com/basketball/player/killian-hayes-5121',
+'https://www.rotowire.com/basketball/player/markelle-fultz-4100'
 # 'https://www.rotowire.com/basketball/player/nic-claxton-4827',
 # 
 # 'https://www.rotowire.com/basketball/player/anthony-davis-3297'
