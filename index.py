@@ -15,7 +15,7 @@ app.layout = html.Div([
 @app.callback(dash.dependencies.Output('page-content', 'children'),
               [dash.dependencies.Input('url', 'pathname')])
 def display_page(pathname):
-    if pathname == '/apps/sales-overview':
+    if pathname == '/apps/free-agent-screening':
          return sales
     elif pathname == '/apps/page2':
          return page2
