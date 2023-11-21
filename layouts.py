@@ -490,6 +490,7 @@ config={
 
 
 
+
 ####################################################################################################
 # 001 - SALES
 ####################################################################################################
@@ -554,68 +555,6 @@ config={
 #                              dcc.Checklist(id='player_list', options=[name for name in fa_df['name'].unique()], value=[name for name in fa_df['name'].unique()], 
 #                                 style={'height':10000,'width':100}, inline=True)
 #                              ])
-
-
-# # # template without reordering 
-# sales = html.Div([
-
-#     html.H1(children='Free Agent Analysis Helper Tool',style={'textAlign':'center'}),
-#     html.Div(children='Analysis tool to screen potential star players',style={'textAlign':'center', 'color':'red'}), 
-#     dcc.Graph(figure=player_stats(), id='line_plot',config=config),
-#     'How many days back?\n',
-#     dcc.Input(id='my_input', value=7, type='integer'),
-#     'Focus Field\n',
-#     html.Div(dcc.Dropdown(id='dropdown',
-#         options=[{'label':'Made Field Goals','value':'made_field_goals'},
-#                           {'label':'Made 3p Field Goals','value':'made_three_point_field_goals'},
-#                           {'label':'Made Free Throws','value':'made_free_throws'},
-#                           {'label':'Total Rebounds','value':'total_rebounds'},
-#                           {'label':'Offensive Rebounds','value':'offensive_rebounds'},
-#                           {'label':'Defensive Rebounds','value':'defensive_rebounds'},
-#                           {'label':'Assists','value':'assists'},
-#                           {'label':'Steals','value':'steals'},
-#                           {'label':'Blocks','value':'blocks'},
-#                           {'label':'Turnovers','value':'turnovers'},
-#                           {'label':'Personal Fouls','value':'personal_fouls'},
-#                           {'label':'Points','value':'points_scored'},
-#                           {'label':'Minutes Played','value':'minutes_played'}],
-#                  value='points_scored')),
-#     'Calculation type',
-#     dcc.Dropdown(id='calculation', 
-#                   options=[{'label':'Total', 'value':'sum'},
-#                            {'label':'Average(non-weighted))', 'value':'mean'},
-#                            {'label':'Weighted Average', 'value':'weights'},
-#                            {'label':'Standard Deviation', 'value':'std'}],
-#                   value='weights'),
-#     'Fields to display',
-#     dcc.Checklist(id='displayed_fields', 
-#                    options=['made_field_goals', 'made_three_point_field_goals',
-#                             'made_free_throws','total_rebounds', 'offensive_rebounds', 
-#                             'defensive_rebounds', 'assists','steals', 'blocks', 
-#                             'turnovers', 'personal_fouls', 'points_scored', 'minutes_played'],
-#                   value=['made_field_goals', 'made_three_point_field_goals',
-#                             'made_free_throws','total_rebounds', 'offensive_rebounds', 
-#                             'defensive_rebounds','assists','steals', 'blocks', 
-#                             'turnovers', 'points_scored']),
-#     'Number of players',
-#     dcc.Input(id='top_n', value=5, type='integer'),
-#     'historicals options',
-#     dcc.Dropdown(id='history_id',
-#                     options=[{'label':'history-only','value':'ho'},
-#                             {'label':'history + current season ','value':'hcs'},
-#                             {'label':'current season only','value':'cso'}],
-#                     value='cso'),
-#     'League',
-#     dcc.Dropdown(id='league_id',
-#                     options=[{'label':'ESPN', 'value':'espn'},
-#                             {'label':'Yahoo','value':'yahoo'}],
-#                     value='yahoo'),
-#     'player_checklist',
-#     dcc.Checklist(id='player_list', options=[name for name in fa_df['name'].unique()], value=[name for name in fa_df['name'].unique()], 
-#         style={'height':10000,'width':100}, inline=True)
-# ])
-
-
 
 
 #im here
