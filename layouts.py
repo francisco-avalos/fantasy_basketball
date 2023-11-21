@@ -29,11 +29,27 @@ corporate_colors = {
     'light-grey' : 'rgb(208, 206, 206)'
 }
 
+externalgraph_rowstyling = {
+    'margin-left' : '15px',
+    'margin-right' : '15px'
+}
+
+externalgraph_colstyling = {
+    'border-radius' : '10px',
+    'border-style' : 'solid',
+    'border-width' : '1px',
+    'border-color' : corporate_colors['superdark-green'],
+    'background-color' : corporate_colors['superdark-green'],
+    'box-shadow' : '0px 0px 17px 0px rgba(186, 218, 212, .5)',
+    'padding-top' : '5px'
+}
+
 
 navbarcurrentpage = {
     'text-decoration' : 'underline',
-    'text-decoration-color' : corporate_colors['pink-red'],
-    'text-shadow': '0px 0px 1px rgb(251, 251, 252)'
+    'text-decoration-color' : corporate_colors['white'],
+    'text-shadow': '0px 0px 1px rgb(251, 251, 252)',
+    'color':corporate_colors['white']
 }
 
 
@@ -298,8 +314,8 @@ def get_header():
         html.Div([], className = 'col-2'), #Same as img width, allowing to have the title centrally aligned
 
         html.Div([
-            html.H1(children='Performance Dashboard',
-                    style = {'textAlign' : 'center'}
+            html.H1(children='Fantasy Basketball Analytics',
+                    style = {'textAlign' : 'center', 'color':corporate_colors['white']}
             )],
             className='col-8',
             style = {'padding-top' : '1%'}
@@ -307,8 +323,8 @@ def get_header():
 
         html.Div([
             html.Img(
-                    src = app.get_asset_url('basketball_hoops.png'),
-                    height = '43 px',
+                    src = app.get_asset_url('basketball_hoops.jpg'),
+                    height = '75 px',
                     width = 'auto')
             ],
             className = 'col-2',
@@ -336,16 +352,16 @@ def get_navbar(p = 'sales'):
 
         html.Div([
             dcc.Link(
-                html.H4(children = 'Sales Overview',
+                html.H4(children = 'Free Agent Screen Tool',
                         style = navbarcurrentpage),
-                href='/apps/sales-overview'
+                href='/apps/free-agent-screening'
                 )
         ],
         className='col-2'),
 
         html.Div([
             dcc.Link(
-                html.H4(children = 'Page 2'),
+                html.H4(children = 'Current Team Performance', style={'color':corporate_colors['white']}),
                 href='/apps/page2'
                 )
         ],
@@ -353,13 +369,13 @@ def get_navbar(p = 'sales'):
 
         html.Div([
             dcc.Link(
-                html.H4(children = 'Page 3'),
+                html.H4(children = 'Predictive Modeling', style={'color':corporate_colors['white']}),
                 href='/apps/page3'
                 )
         ],
         className='col-2'),
 
-        html.Div([], className = 'col-3')
+        html.Div([], className = 'col-')
 
     ],
     className = 'row',
@@ -373,15 +389,15 @@ def get_navbar(p = 'sales'):
 
         html.Div([
             dcc.Link(
-                html.H4(children = 'Sales Overview'),
-                href='/apps/sales-overview'
+                html.H4(children = 'Free Agent Screening Tool', style={'color':corporate_colors['white']}),
+                href='/apps/free-agent-screening'
                 )
         ],
         className='col-2'),
 
         html.Div([
             dcc.Link(
-                html.H4(children = 'Page 2',
+                html.H4(children = 'Current Team Performance',
                         style = navbarcurrentpage),
                 href='/apps/page2'
                 )
@@ -390,7 +406,7 @@ def get_navbar(p = 'sales'):
 
         html.Div([
             dcc.Link(
-                html.H4(children = 'Page 3'),
+                html.H4(children = 'Predictive Modeling', style={'color':corporate_colors['white']}),
                 href='/apps/page3'
                 )
         ],
@@ -410,15 +426,15 @@ def get_navbar(p = 'sales'):
 
         html.Div([
             dcc.Link(
-                html.H4(children = 'Sales Overview'),
-                href='/apps/sales-overview'
+                html.H4(children = 'Free Agent Screening Tool', style={'color':corporate_colors['white']}),
+                href='/apps/free-agent-screening'
                 )
         ],
         className='col-2'),
 
         html.Div([
             dcc.Link(
-                html.H4(children = 'Page 2'),
+                html.H4(children = 'Current Team Performance', style={'color':corporate_colors['white']}),
                 href='/apps/page2'
                 )
         ],
@@ -426,8 +442,8 @@ def get_navbar(p = 'sales'):
 
         html.Div([
             dcc.Link(
-                html.H4(children = 'Page 3',
-                        style = navbarcurrentpage),
+                html.H4(children = 'Predictive Modeling',
+                        style = navbarcurrentpage), 
                 href='/apps/page3'
                 )
         ],
@@ -479,6 +495,7 @@ config={
 ####################################################################################################
 
 
+# this is my original html code below
 # sales = layout=html.Div(children=[html.H1(children='Free Agent Analysis Helper Tool',
 #                                         style={'textAlign':'center'}),
 #                               html.Div(children='Analysis tool to screen potential star players',
@@ -538,198 +555,527 @@ config={
 #                                 style={'height':10000,'width':100}, inline=True)
 #                              ])
 
-sales = layout=html.Div([
 
-    html.H1(children='Free Agent Analysis Helper Tool',style={'textAlign':'center'}),
-    html.Div(children='Analysis tool to screen potential star players',style={'textAlign':'center', 'color':'red'}), 
-    dcc.Graph(figure=player_stats(), id='line_plot',config=config),
-    'How many days back?\n',
-    dcc.Input(id='my_input', value=7, type='integer'),
-    'Focus Field\n',
-    html.Div(dcc.Dropdown(id='dropdown',
-        options=[{'label':'Made Field Goals','value':'made_field_goals'},
-                          {'label':'Made 3p Field Goals','value':'made_three_point_field_goals'},
-                          {'label':'Made Free Throws','value':'made_free_throws'},
-                          {'label':'Total Rebounds','value':'total_rebounds'},
-                          {'label':'Offensive Rebounds','value':'offensive_rebounds'},
-                          {'label':'Defensive Rebounds','value':'defensive_rebounds'},
-                          {'label':'Assists','value':'assists'},
-                          {'label':'Steals','value':'steals'},
-                          {'label':'Blocks','value':'blocks'},
-                          {'label':'Turnovers','value':'turnovers'},
-                          {'label':'Personal Fouls','value':'personal_fouls'},
-                          {'label':'Points','value':'points_scored'},
-                          {'label':'Minutes Played','value':'minutes_played'}],
-                 value='points_scored')),
-    'Calculation type',
-    dcc.Dropdown(id='calculation', 
-                  options=[{'label':'Total', 'value':'sum'},
-                           {'label':'Average(non-weighted))', 'value':'mean'},
-                           {'label':'Weighted Average', 'value':'weights'},
-                           {'label':'Standard Deviation', 'value':'std'}],
-                  value='weights'),
-    'Fields to display',
-    dcc.Checklist(id='displayed_fields', 
-                   options=['made_field_goals', 'made_three_point_field_goals',
-                            'made_free_throws','total_rebounds', 'offensive_rebounds', 
-                            'defensive_rebounds', 'assists','steals', 'blocks', 
-                            'turnovers', 'personal_fouls', 'points_scored', 'minutes_played'],
-                  value=['made_field_goals', 'made_three_point_field_goals',
-                            'made_free_throws','total_rebounds', 'offensive_rebounds', 
-                            'defensive_rebounds','assists','steals', 'blocks', 
-                            'turnovers', 'points_scored']),
-    'Number of players',
-    dcc.Input(id='top_n', value=5, type='integer'),
-    'historicals options',
-    dcc.Dropdown(id='history_id',
-                    options=[{'label':'history-only','value':'ho'},
-                            {'label':'history + current season ','value':'hcs'},
-                            {'label':'current season only','value':'cso'}],
-                    value='cso'),
-    'League',
-    dcc.Dropdown(id='league_id',
-                    options=[{'label':'ESPN', 'value':'espn'},
-                            {'label':'Yahoo','value':'yahoo'}],
-                    value='yahoo'),
-    'player_checklist',
-    dcc.Checklist(id='player_list', options=[name for name in fa_df['name'].unique()], value=[name for name in fa_df['name'].unique()], 
-        style={'height':10000,'width':100}, inline=True)
+# # # template without reordering 
+# sales = html.Div([
+
+#     html.H1(children='Free Agent Analysis Helper Tool',style={'textAlign':'center'}),
+#     html.Div(children='Analysis tool to screen potential star players',style={'textAlign':'center', 'color':'red'}), 
+#     dcc.Graph(figure=player_stats(), id='line_plot',config=config),
+#     'How many days back?\n',
+#     dcc.Input(id='my_input', value=7, type='integer'),
+#     'Focus Field\n',
+#     html.Div(dcc.Dropdown(id='dropdown',
+#         options=[{'label':'Made Field Goals','value':'made_field_goals'},
+#                           {'label':'Made 3p Field Goals','value':'made_three_point_field_goals'},
+#                           {'label':'Made Free Throws','value':'made_free_throws'},
+#                           {'label':'Total Rebounds','value':'total_rebounds'},
+#                           {'label':'Offensive Rebounds','value':'offensive_rebounds'},
+#                           {'label':'Defensive Rebounds','value':'defensive_rebounds'},
+#                           {'label':'Assists','value':'assists'},
+#                           {'label':'Steals','value':'steals'},
+#                           {'label':'Blocks','value':'blocks'},
+#                           {'label':'Turnovers','value':'turnovers'},
+#                           {'label':'Personal Fouls','value':'personal_fouls'},
+#                           {'label':'Points','value':'points_scored'},
+#                           {'label':'Minutes Played','value':'minutes_played'}],
+#                  value='points_scored')),
+#     'Calculation type',
+#     dcc.Dropdown(id='calculation', 
+#                   options=[{'label':'Total', 'value':'sum'},
+#                            {'label':'Average(non-weighted))', 'value':'mean'},
+#                            {'label':'Weighted Average', 'value':'weights'},
+#                            {'label':'Standard Deviation', 'value':'std'}],
+#                   value='weights'),
+#     'Fields to display',
+#     dcc.Checklist(id='displayed_fields', 
+#                    options=['made_field_goals', 'made_three_point_field_goals',
+#                             'made_free_throws','total_rebounds', 'offensive_rebounds', 
+#                             'defensive_rebounds', 'assists','steals', 'blocks', 
+#                             'turnovers', 'personal_fouls', 'points_scored', 'minutes_played'],
+#                   value=['made_field_goals', 'made_three_point_field_goals',
+#                             'made_free_throws','total_rebounds', 'offensive_rebounds', 
+#                             'defensive_rebounds','assists','steals', 'blocks', 
+#                             'turnovers', 'points_scored']),
+#     'Number of players',
+#     dcc.Input(id='top_n', value=5, type='integer'),
+#     'historicals options',
+#     dcc.Dropdown(id='history_id',
+#                     options=[{'label':'history-only','value':'ho'},
+#                             {'label':'history + current season ','value':'hcs'},
+#                             {'label':'current season only','value':'cso'}],
+#                     value='cso'),
+#     'League',
+#     dcc.Dropdown(id='league_id',
+#                     options=[{'label':'ESPN', 'value':'espn'},
+#                             {'label':'Yahoo','value':'yahoo'}],
+#                     value='yahoo'),
+#     'player_checklist',
+#     dcc.Checklist(id='player_list', options=[name for name in fa_df['name'].unique()], value=[name for name in fa_df['name'].unique()], 
+#         style={'height':10000,'width':100}, inline=True)
+# ])
+
+
+
+
+#im here
+sales = html.Div([
+
+    #####################
+    #Row 1 : Header
+    get_header(),
+
+    #####################
+    #Row 2 : Nav bar
+    get_navbar('sales'),
+
+    #####################
+    #Row 3 : Filters
+    html.Div([ # External row
+
+        html.Div([ # External 12-column
+
+            html.Div([ # Internal row
+
+                # #Internal columns
+                # html.Div([
+                # ],
+                # className = 'col-2'), # Blank 2 columns
+
+                ########################################################################################
+
+                #Filter pt 1
+                html.Div([
+
+                    html.Div([
+                        html.H5(
+                            children='How many days back?',
+                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
+                        ),
+                        html.Div([ #'Enter # of days back: ',
+                            dcc.Input(id='my_input',
+                                        value=7,
+                                        type='integer',
+                                        style = {'font-size': '12px','display': 'inline-block', 'border-radius' : '2px', 'border' : '1px solid #ccc', 'color': '#333', 'border-spacing' : '0', 'border-collapse' :'separate'}
+                                )
+                            # dcc.DatePickerRange(
+                            #     id='date-picker-sales',
+                            #     start_date = min_dt_str,
+                            #     end_date = max_dt_str,
+                            #     min_date_allowed = min_dt,
+                            #     max_date_allowed = max_dt,
+                            #     start_date_placeholder_text = 'Start date',
+                            #     display_format='DD-MMM-YYYY',
+                            #     first_day_of_week = 1,
+                            #     end_date_placeholder_text = 'End date',
+                            #     style = {'font-size': '12px','display': 'inline-block', 'border-radius' : '2px', 'border' : '1px solid #ccc', 'color': '#333', 'border-spacing' : '0', 'border-collapse' :'separate'}
+                            # )
+                        ], style = {'margin-top' : '5px'}
+                        )
+
+                    ],
+                    style = {'margin-top' : '10px',
+                            'margin-bottom' : '5px',
+                            'text-align' : 'left',
+                            'paddingLeft': 5})
+
+                ],
+                className = 'col-4'), # Filter part 1
+
+                ########################################################################################
+
+                #Filter pt 2
+                html.Div([
+
+                    html.Div([
+                        html.H5(
+                            children='Focus Field',
+                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
+                        ),
+                        #Date range picker
+                        html.Div([#'Focus Field: ',
+                            dcc.Dropdown(id='dropdown',
+                                options=[{'label':'Made Field Goals','value':'made_field_goals'},
+                                {'label':'Made 3p Field Goals','value':'made_three_point_field_goals'},
+                                {'label':'Made Free Throws','value':'made_free_throws'},
+                                {'label':'Total Rebounds','value':'total_rebounds'},
+                                {'label':'Offensive Rebounds','value':'offensive_rebounds'},
+                                {'label':'Defensive Rebounds','value':'defensive_rebounds'},
+                                {'label':'Assists','value':'assists'},
+                                {'label':'Steals','value':'steals'},
+                                {'label':'Blocks','value':'blocks'},
+                                {'label':'Turnovers','value':'turnovers'},
+                                {'label':'Personal Fouls','value':'personal_fouls'},
+                                {'label':'Points','value':'points_scored'},
+                                {'label':'Minutes Played','value':'minutes_played'}],
+                                value='points_scored')
+                            # dcc.Input(id='my_input',
+                            #             value=7,
+                            #             type='integer',
+                            #             style = {'font-size': '12px','display': 'inline-block', 'border-radius' : '2px', 'border' : '1px solid #ccc', 'color': '#333', 'border-spacing' : '0', 'border-collapse' :'separate'}
+                            #     )
+                        ], style = {'margin-top' : '5px'}
+                        )
+
+                    ],
+                    style = {'margin-top' : '10px',
+                            'margin-bottom' : '5px',
+                            'text-align' : 'left',
+                            'paddingLeft': 5})
+
+                ],
+                className = 'col-4'), # Filter part 2
+                ########################################################################################
+
+                #Filter pt 3
+                html.Div([
+
+                    html.Div([
+                        html.H5(
+                            children='Calculation Type:',
+                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
+                        ),
+                        #Date range picker
+                        html.Div([#'Calculation Type: ',
+                            dcc.Dropdown(id='calculation',
+                                options=[{'label':'Total', 'value':'sum'},
+                                {'label':'Average(non-weighted))', 'value':'mean'},
+                                {'label':'Weighted Average', 'value':'weights'},
+                                {'label':'Standard Deviation', 'value':'std'}],
+                                value='weights')
+                            # dcc.Input(id='my_input',
+                            #             value=7,
+                            #             type='integer',
+                            #             style = {'font-size': '12px','display': 'inline-block', 'border-radius' : '2px', 'border' : '1px solid #ccc', 'color': '#333', 'border-spacing' : '0', 'border-collapse' :'separate'}
+                            #     )
+                        ], style = {'margin-top' : '5px'}
+                        )
+
+                    ],
+                    style = {'margin-top' : '10px',
+                            'margin-bottom' : '5px',
+                            'text-align' : 'left',
+                            'paddingLeft': 5})
+
+                ],
+                className = 'col-4'), # Filter part 3
+                ########################################################################################
+
+
+                #Filter pt 4
+                html.Div([
+
+                    html.Div([
+                        html.H5(
+                            children='League:',
+                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
+                        ),
+                        #Date range picker
+                        html.Div([#'League: ',
+                            dcc.Dropdown(id='league_id',
+                                options=[{'label':'ESPN', 'value':'espn'},
+                                {'label':'Yahoo','value':'yahoo'}],
+                                value='yahoo')
+                            # dcc.Input(id='my_input',
+                            #             value=7,
+                            #             type='integer',
+                            #             style = {'font-size': '12px','display': 'inline-block', 'border-radius' : '2px', 'border' : '1px solid #ccc', 'color': '#333', 'border-spacing' : '0', 'border-collapse' :'separate'}
+                            #     )
+                        ], style = {'margin-top' : '5px'}
+                        )
+
+                    ],
+                    style = {'margin-top' : '10px',
+                            'margin-bottom' : '5px',
+                            'text-align' : 'left',
+                            'paddingLeft': 5})
+
+                ],
+                className = 'col-4'), # Filter part 4
+                ########################################################################################
+
+
+                #Filter pt 5
+                html.Div([
+
+                    html.Div([
+                        html.H5(
+                            children='Number of players:',
+                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
+                        ),
+                        #Date range picker
+                        html.Div([#'Number of Players: ',
+                            dcc.Input(id='top_n', value=5, type='integer')
+                            # dcc.Input(id='my_input',
+                            #             value=7,
+                            #             type='integer',
+                            #             style = {'font-size': '12px','display': 'inline-block', 'border-radius' : '2px', 'border' : '1px solid #ccc', 'color': '#333', 'border-spacing' : '0', 'border-collapse' :'separate'}
+                            #     )
+                        ], style = {'margin-top' : '5px'}
+                        )
+
+                    ],
+                    style = {'margin-top' : '10px',
+                            'margin-bottom' : '5px',
+                            'text-align' : 'left',
+                            'paddingLeft': 5})
+
+                ],
+                className = 'col-4'), # Filter part 5
+                ########################################################################################
+
+
+                #Filter pt 6
+                html.Div([
+
+                    html.Div([
+                        html.H5(
+                            children='Historical Options:',
+                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
+                        ),
+                        #Date range picker
+                        html.Div([#'Historical Options: ',
+                            dcc.Dropdown(id='history_id',
+                                options=[{'label':'history-only','value':'ho'},
+                                {'label':'history + current season ','value':'hcs'},
+                                {'label':'current season only','value':'cso'}],
+                                value='cso')
+                            # dcc.Input(id='my_input',
+                            #             value=7,
+                            #             type='integer',
+                            #             style = {'font-size': '12px','display': 'inline-block', 'border-radius' : '2px', 'border' : '1px solid #ccc', 'color': '#333', 'border-spacing' : '0', 'border-collapse' :'separate'}
+                            #     )
+                        ], style = {'margin-top' : '5px'}
+                        )
+
+                    ],
+                    style = {'margin-top' : '10px',
+                            'margin-bottom' : '5px',
+                            'text-align' : 'left',
+                            'paddingLeft': 5})
+
+                ],
+                className = 'col-4'), # Filter part 6
+                ########################################################################################
+
+
+                #Filter pt 7
+                html.Div([
+
+                    html.Div([
+                        html.H5(
+                            children='Fields to Display:',
+                            style = {'text-align' : 'left', 
+                            "overflow-y":"scroll", #"height": "50px",
+                                'color' : corporate_colors['medium-blue-grey']
+                                
+                                }
+                        ),
+                        #Date range picker
+                        html.Div([#'Fields to Display: ',
+                            dcc.Checklist(id='displayed_fields', 
+                                options=['made_field_goals', 'made_three_point_field_goals',
+                                'made_free_throws','total_rebounds', 'offensive_rebounds', 
+                                'defensive_rebounds', 'assists','steals', 'blocks', 
+                                'turnovers', 'personal_fouls', 'points_scored', 'minutes_played'],
+                                value=['made_field_goals', 'made_three_point_field_goals',
+                                'made_free_throws','total_rebounds', 'offensive_rebounds', 
+                                'defensive_rebounds','assists','steals', 'blocks', 
+                                'turnovers', 'points_scored'],
+                                style={"overflow-y":"scroll", "height": "100px"})
+                            # dcc.Input(id='my_input',
+                            #             value=7,
+                            #             type='integer',
+                            #             style = {'font-size': '12px','display': 'inline-block', 'border-radius' : '2px', 'border' : '1px solid #ccc', 'color': '#333', 'border-spacing' : '0', 'border-collapse' :'separate'}
+                            #     )
+                        ], style = {'margin-top' : '5px'}
+                        )
+
+                    ],
+                    style = {'margin-top' : '10px',
+                            'margin-bottom' : '5px',
+                            'text-align' : 'left',
+                            'paddingLeft': 5})
+
+                ],
+                className = 'col-4'), # Filter part 7
+                ########################################################################################
+
+
+                #Filter pt 8
+                html.Div([
+
+                    html.Div([
+                        html.H5(
+                            children='Player Checklist:',
+                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
+                        ),
+                        #Date range picker
+                        html.Div([#'Player Checklist: ',
+                            dcc.Checklist(id='player_list', 
+                                options=[name for name in fa_df['name'].unique()], 
+                                value=[name for name in fa_df['name'].unique()], 
+                                style={"overflow-y":"scroll", "height": "100px"},
+                                # style={'height':10000,'width':100}, 
+                                inline=True)
+                            # dcc.Input(id='my_input',
+                            #             value=7,
+                            #             type='integer',
+                            #             style = {'font-size': '12px','display': 'inline-block', 'border-radius' : '2px', 'border' : '1px solid #ccc', 'color': '#333', 'border-spacing' : '0', 'border-collapse' :'separate'}
+                            #     )
+                        ], style = {'margin-top' : '5px'}
+                        )
+
+                    ],
+                    style = {'margin-top' : '10px',
+                            'margin-bottom' : '5px',
+                            'text-align' : 'left',
+                            'paddingLeft': 5})
+
+                ],
+                className = 'col-4'), # Filter part 8
+                ########################################################################################
+                
+
+                html.Div([
+                ],
+                className = 'col-2') # Blank 2 columns
+
+
+            ],
+            className = 'row') # Internal row
+
+        ],
+        className = 'col-12',
+        style = filterdiv_borderstyling) # External 12-column
+
+    ],
+    className = 'row sticky-top'), # External row
+
+    #####################
+    #Row 4
+    get_emptyrow(),
+
+    #####################
+    #Row 5 : Charts
+    html.Div([ # External row
+
+        # html.Div([
+        # ],
+        # className = 'col-1'), # Blank 1 column
+
+        html.Div([ # External 10-column
+
+            # html.H2(children = "Sales Performances",
+            #         style = {'color' : corporate_colors['white']}),
+
+            # html.Div([ # Internal row - RECAPS
+
+            #     # html.Div([],className = 'col-4'), # Empty column
+
+            #     # html.Div([
+            #     #     dash_table.DataTable(
+            #     #         id='recap-table',
+            #     #         style_header = {
+            #     #             'backgroundColor': 'transparent',
+            #     #             'fontFamily' : corporate_font_family,
+            #     #             'font-size' : '1rem',
+            #     #             'color' : corporate_colors['light-green'],
+            #     #             'border': '0px transparent',
+            #     #             'textAlign' : 'center'},
+            #     #         style_cell = {
+            #     #             'backgroundColor': 'transparent',
+            #     #             'fontFamily' : corporate_font_family,
+            #     #             'font-size' : '0.85rem',
+            #     #             'color' : corporate_colors['white'],
+            #     #             'border': '0px transparent',
+            #     #             'textAlign' : 'center'},
+            #     #         cell_selectable = False,
+            #     #         column_selectable = False
+            #     #     )
+            #     # ],
+            #     # className = 'col-4'),
+
+            #     html.Div([],className = 'col-4') # Empty column
+
+            # ],
+            # className = 'row',
+            # style = recapdiv
+            # ), # Internal row - RECAPS
+
+            html.Div([ # Internal row
+
+                # Chart Column
+                html.Div([
+                    dcc.Graph(id='line_plot',
+                                figure=player_stats(),
+                                config=config),
+                ],
+                className = 'col-4'),
+
+                # # Chart Column
+                # html.Div([
+                #     dcc.Graph(
+                #         id='sales-count-month')
+                # ],
+                # className = 'col-4'),
+
+                # # Chart Column
+                # html.Div([
+                #     dcc.Graph(
+                #         id='sales-weekly-heatmap')
+                # ],
+                # className = 'col-4')
+
+            ],
+            className = 'row'), # Internal row
+
+            # html.Div([ # Internal row
+
+            #     # Chart Column
+            #     html.Div([
+            #         dcc.Graph(
+            #             id='sales-count-country')
+            #     ],
+            #     className = 'col-4'),
+
+            #     # Chart Column
+            #     html.Div([
+            #         dcc.Graph(
+            #             id='sales-bubble-county')
+            #     ],
+            #     className = 'col-4'),
+
+            #     # Chart Column
+            #     html.Div([
+            #         dcc.Graph(
+            #             id='sales-count-city')
+            #     ],
+            #     className = 'col-4')
+
+            # ],
+            # className = 'row') # Internal row
+
+
+        ],
+        className = 'col-10',
+        style = externalgraph_colstyling), # External 10-column
+
+        # html.Div([
+        # ],
+        # className = 'col-1'), # Blank 1 column
+
+    ],
+    className = 'row',
+    style = externalgraph_rowstyling
+    ), # External row
+
 ])
 
 
 
-# sales = html.Div([
-    
-#     #####################
-#     #Row 1 : Header
-#     get_header(),
-
-#     #####################
-#     #Row 2 : Nav bar
-#     get_navbar('sales'),
-
-
-#     #Row 4
-#     get_emptyrow(),
-
-#     #####################
-#     #Row 5 : Charts
-#     html.Div([ # External row
-
-#         html.Div([
-#         ],
-#         className = 'col-1'), # Blank 1 column
-
-#         html.Div([ # External 10-column
-
-#             html.H2(children = "Sales Performances",
-#                     style = {'color' : corporate_colors['white']}),
-
-#             html.Div([ # Internal row - RECAPS
-
-#                 html.Div([],className = 'col-4'), # Empty column
-
-#                 html.Div([
-#                     dash_table.DataTable(
-#                         id='recap-table',
-#                         style_header = {
-#                             'backgroundColor': 'transparent',
-#                             'fontFamily' : corporate_font_family,
-#                             'font-size' : '1rem',
-#                             'color' : corporate_colors['light-green'],
-#                             'border': '0px transparent',
-#                             'textAlign' : 'center'},
-#                         style_cell = {
-#                             'backgroundColor': 'transparent',
-#                             'fontFamily' : corporate_font_family,
-#                             'font-size' : '0.85rem',
-#                             'color' : corporate_colors['white'],
-#                             'border': '0px transparent',
-#                             'textAlign' : 'center'},
-#                         cell_selectable = False,
-#                         column_selectable = False
-#                     )
-#                 ],
-#                 className = 'col-4'),
-
-#                 html.Div([],className = 'col-4') # Empty column
-
-#             ],
-#             className = 'row',
-#             style = recapdiv
-#             ), # Internal row - RECAPS
-
-#             html.Div([ # Internal row
-
-#                 # Chart Column
-#                 html.Div([
-#                     dcc.Graph(
-#                         id='sales-count-day')
-#                 ],
-#                 className = 'col-4'),
-
-#                 # Chart Column
-#                 html.Div([
-#                     dcc.Graph(
-#                         id='sales-count-month')
-#                 ],
-#                 className = 'col-4'),
-
-#                 # Chart Column
-#                 html.Div([
-#                     dcc.Graph(
-#                         id='sales-weekly-heatmap')
-#                 ],
-#                 className = 'col-4')
-
-#             ],
-#             className = 'row'), # Internal row
-
-#             html.Div([ # Internal row
-
-#                 # Chart Column
-#                 html.Div([
-#                     dcc.Graph(
-#                         id='sales-count-country')
-#                 ],
-#                 className = 'col-4'),
-
-#                 # Chart Column
-#                 html.Div([
-#                     dcc.Graph(
-#                         id='sales-bubble-county')
-#                 ],
-#                 className = 'col-4'),
-
-#                 # Chart Column
-#                 html.Div([
-#                     dcc.Graph(
-#                         id='sales-count-city')
-#                 ],
-#                 className = 'col-4')
-
-#             ],
-#             className = 'row') # Internal row
-
-
-#         ],
-#         className = 'col-10',
-#         style = externalgraph_colstyling), # External 10-column
-
-#         html.Div([
-#         ],
-#         className = 'col-1'), # Blank 1 column
-
-#     ],
-#     className = 'row',
-#     style = externalgraph_rowstyling
-#     ), # External row
-
-# ])
-
-
 ####################################################################################################
-# 002 - Page 2
+# 002 - Current Team Performance
 ####################################################################################################
 
 page2 = html.Div([
@@ -768,7 +1114,7 @@ page2 = html.Div([
 
 
 ####################################################################################################
-# 003 - Page 3
+# 003 - Predictive Modeling
 ####################################################################################################
 
 page3 = html.Div([
