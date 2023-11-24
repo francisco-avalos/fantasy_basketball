@@ -23,7 +23,7 @@ from datetime import date
 from datetime import timedelta
 from my_functions import clean_string, remove_jr, convert_game_score_to_points
 
-
+from unidecode import unidecode
 
 ## Preliminaries, set ups & initiators 
 pd.set_option('display.max_columns', None)
@@ -131,31 +131,38 @@ try:
 					month=int(datetime.strftime(day.date(), '%m'))
 					date=int(datetime.strftime(day.date(), '%d'))
 
-					p=client.player_box_scores(day=date,month=month,year=year)
-					df=pd.DataFrame(p)
-					date=f'{year}-{month}-{date}'
-					if not df.empty:
-						df.insert(0, 'date', date)
-						for p in my_players:
-							p=remove_jr(p)
-							p=p.lstrip().rstrip()
-							insert_df=df[df['name']==p]
-							GS=insert_df['game_score']
-							FG=insert_df['made_field_goals']
-							FGA=insert_df['attempted_field_goals']
-							FTA=insert_df['attempted_free_throws']
-							FT=insert_df['made_free_throws']
-							ORB=insert_df['offensive_rebounds']
-							DRB=insert_df['defensive_rebounds']
-							STL=insert_df['steals']
-							AST=insert_df['assists']
-							BLK=insert_df['blocks']
-							PF=insert_df['personal_fouls']
-							TOV=insert_df['turnovers']						
-							points=convert_game_score_to_points(GS=GS, FG=FG, FGA=FGA, FTA=FTA, FT=FT, ORB=ORB, DRB=DRB, STL=STL, AST=AST, BLK=BLK, PF=PF, TOV=TOV)
-							copy=insert_df.copy()
-							copy.loc[copy['date']==date, 'points']=points
-							main_df=pd.concat([main_df, copy])
+					try:
+						p=client.player_box_scores(day=date,month=month,year=year)
+						df=pd.DataFrame(p)
+						df_name_list=df.name.tolist()
+						name_list=[unidecode(name) for name in df_name_list]
+						df['name']=name_list
+						date=f'{year}-{month}-{date}'
+						if not df.empty:
+							df.insert(0, 'date', date)
+							for p in my_players:
+								p=unidecode(p)
+								p=remove_jr(p)
+								p=p.lstrip().rstrip()
+								insert_df=df[df['name']==p]
+								GS=insert_df['game_score']
+								FG=insert_df['made_field_goals']
+								FGA=insert_df['attempted_field_goals']
+								FTA=insert_df['attempted_free_throws']
+								FT=insert_df['made_free_throws']
+								ORB=insert_df['offensive_rebounds']
+								DRB=insert_df['defensive_rebounds']
+								STL=insert_df['steals']
+								AST=insert_df['assists']
+								BLK=insert_df['blocks']
+								PF=insert_df['personal_fouls']
+								TOV=insert_df['turnovers']						
+								points=convert_game_score_to_points(GS=GS, FG=FG, FGA=FGA, FTA=FTA, FT=FT, ORB=ORB, DRB=DRB, STL=STL, AST=AST, BLK=BLK, PF=PF, TOV=TOV)
+								copy=insert_df.copy()
+								copy.loc[copy['date']==date, 'points']=points
+								main_df=pd.concat([main_df, copy])
+					except:
+						print('Player not found')
 					time.sleep(4)
 				main_df['slug']=main_df['slug'].astype(str)
 				main_df['name']=main_df['name'].astype(str)
@@ -215,31 +222,38 @@ try:
 					month=int(datetime.strftime(day.date(), '%m'))
 					date=int(datetime.strftime(day.date(), '%d'))
 
-					p=client.player_box_scores(day=date,month=month,year=year)
-					df=pd.DataFrame(p)
-					date=f'{year}-{month}-{date}'
-					if not df.empty:
-						df.insert(0, 'date', date)
-						for p in my_players:
-							p=remove_jr(p)
-							p=p.lstrip().rstrip()
-							insert_df=df[df['name']==p]
-							GS=insert_df['game_score']
-							FG=insert_df['made_field_goals']
-							FGA=insert_df['attempted_field_goals']
-							FTA=insert_df['attempted_free_throws']
-							FT=insert_df['made_free_throws']
-							ORB=insert_df['offensive_rebounds']
-							DRB=insert_df['defensive_rebounds']
-							STL=insert_df['steals']
-							AST=insert_df['assists']
-							BLK=insert_df['blocks']
-							PF=insert_df['personal_fouls']
-							TOV=insert_df['turnovers']						
-							points=convert_game_score_to_points(GS=GS, FG=FG, FGA=FGA, FTA=FTA, FT=FT, ORB=ORB, DRB=DRB, STL=STL, AST=AST, BLK=BLK, PF=PF, TOV=TOV)
-							copy=insert_df.copy()
-							copy.loc[copy['date']==date, 'points']=points
-							main_df=pd.concat([main_df, copy])
+					try:
+						p=client.player_box_scores(day=date,month=month,year=year)
+						df=pd.DataFrame(p)
+						df_name_list=df.name.tolist()
+						name_list=[unidecode(name) for name in df_name_list]
+						df['name']=name_list
+						date=f'{year}-{month}-{date}'
+						if not df.empty:
+							df.insert(0, 'date', date)
+							for p in my_players:
+								p=unidecode(p)
+								p=remove_jr(p)
+								p=p.lstrip().rstrip()
+								insert_df=df[df['name']==p]
+								GS=insert_df['game_score']
+								FG=insert_df['made_field_goals']
+								FGA=insert_df['attempted_field_goals']
+								FTA=insert_df['attempted_free_throws']
+								FT=insert_df['made_free_throws']
+								ORB=insert_df['offensive_rebounds']
+								DRB=insert_df['defensive_rebounds']
+								STL=insert_df['steals']
+								AST=insert_df['assists']
+								BLK=insert_df['blocks']
+								PF=insert_df['personal_fouls']
+								TOV=insert_df['turnovers']						
+								points=convert_game_score_to_points(GS=GS, FG=FG, FGA=FGA, FTA=FTA, FT=FT, ORB=ORB, DRB=DRB, STL=STL, AST=AST, BLK=BLK, PF=PF, TOV=TOV)
+								copy=insert_df.copy()
+								copy.loc[copy['date']==date, 'points']=points
+								main_df=pd.concat([main_df, copy])
+					except:
+						print('Player not found')
 					time.sleep(4)
 
 				main_df['slug']=main_df['slug'].astype(str)
@@ -296,31 +310,38 @@ try:
 					month=int(datetime.strftime(day.date(), '%m'))
 					date=int(datetime.strftime(day.date(), '%d'))
 
-					p=client.player_box_scores(day=date,month=month,year=year)
-					df=pd.DataFrame(p)
-					date=f'{year}-{month}-{date}'
-					if not df.empty:
-						df.insert(0, 'date', date)
-						for p in my_players_yh:
-							p=remove_jr(p)
-							p=p.lstrip().rstrip()
-							insert_df=df[df['name']==p]
-							GS=insert_df['game_score']
-							FG=insert_df['made_field_goals']
-							FGA=insert_df['attempted_field_goals']
-							FTA=insert_df['attempted_free_throws']
-							FT=insert_df['made_free_throws']
-							ORB=insert_df['offensive_rebounds']
-							DRB=insert_df['defensive_rebounds']
-							STL=insert_df['steals']
-							AST=insert_df['assists']
-							BLK=insert_df['blocks']
-							PF=insert_df['personal_fouls']
-							TOV=insert_df['turnovers']						
-							points=convert_game_score_to_points(GS=GS, FG=FG, FGA=FGA, FTA=FTA, FT=FT, ORB=ORB, DRB=DRB, STL=STL, AST=AST, BLK=BLK, PF=PF, TOV=TOV)
-							copy=insert_df.copy()
-							copy.loc[copy['date']==date, 'points']=points
-							main_df=pd.concat([main_df, copy])
+					try:
+						p=client.player_box_scores(day=date,month=month,year=year)
+						df=pd.DataFrame(p)
+						df_name_list=df.name.tolist()
+						name_list=[unidecode(name) for name in df_name_list]
+						df['name']=name_list
+						date=f'{year}-{month}-{date}'
+						if not df.empty:
+							df.insert(0, 'date', date)
+							for p in my_players_yh:
+								p=unidecode(p)
+								p=remove_jr(p)
+								p=p.lstrip().rstrip()
+								insert_df=df[df['name']==p]
+								GS=insert_df['game_score']
+								FG=insert_df['made_field_goals']
+								FGA=insert_df['attempted_field_goals']
+								FTA=insert_df['attempted_free_throws']
+								FT=insert_df['made_free_throws']
+								ORB=insert_df['offensive_rebounds']
+								DRB=insert_df['defensive_rebounds']
+								STL=insert_df['steals']
+								AST=insert_df['assists']
+								BLK=insert_df['blocks']
+								PF=insert_df['personal_fouls']
+								TOV=insert_df['turnovers']						
+								points=convert_game_score_to_points(GS=GS, FG=FG, FGA=FGA, FTA=FTA, FT=FT, ORB=ORB, DRB=DRB, STL=STL, AST=AST, BLK=BLK, PF=PF, TOV=TOV)
+								copy=insert_df.copy()
+								copy.loc[copy['date']==date, 'points']=points
+								main_df=pd.concat([main_df, copy])
+					except:
+						print('Player not found')
 					time.sleep(4)
 				main_df['slug']=main_df['slug'].astype(str)
 				main_df['name']=main_df['name'].astype(str)
@@ -379,31 +400,38 @@ try:
 					month=int(datetime.strftime(day.date(), '%m'))
 					date=int(datetime.strftime(day.date(), '%d'))
 
-					p=client.player_box_scores(day=date,month=month,year=year)
-					df=pd.DataFrame(p)
-					date=f'{year}-{month}-{date}'
-					if not df.empty:
-						df.insert(0, 'date', date)
-						for p in my_players_yh:
-							p=remove_jr(p)
-							p=p.lstrip().rstrip()
-							insert_df=df[df['name']==p]
-							GS=insert_df['game_score']
-							FG=insert_df['made_field_goals']
-							FGA=insert_df['attempted_field_goals']
-							FTA=insert_df['attempted_free_throws']
-							FT=insert_df['made_free_throws']
-							ORB=insert_df['offensive_rebounds']
-							DRB=insert_df['defensive_rebounds']
-							STL=insert_df['steals']
-							AST=insert_df['assists']
-							BLK=insert_df['blocks']
-							PF=insert_df['personal_fouls']
-							TOV=insert_df['turnovers']						
-							points=convert_game_score_to_points(GS=GS, FG=FG, FGA=FGA, FTA=FTA, FT=FT, ORB=ORB, DRB=DRB, STL=STL, AST=AST, BLK=BLK, PF=PF, TOV=TOV)
-							copy=insert_df.copy()
-							copy.loc[copy['date']==date, 'points']=points
-							main_df=pd.concat([main_df, copy])
+					try:
+						p=client.player_box_scores(day=date,month=month,year=year)
+						df=pd.DataFrame(p)
+						df_name_list=df.name.tolist()
+						name_list=[unidecode(name) for name in df_name_list]
+						df['name']=name_list
+						date=f'{year}-{month}-{date}'
+						if not df.empty:
+							df.insert(0, 'date', date)
+							for p in my_players_yh:
+								p=unidecode(p)
+								p=remove_jr(p)
+								p=p.lstrip().rstrip()
+								insert_df=df[df['name']==p]
+								GS=insert_df['game_score']
+								FG=insert_df['made_field_goals']
+								FGA=insert_df['attempted_field_goals']
+								FTA=insert_df['attempted_free_throws']
+								FT=insert_df['made_free_throws']
+								ORB=insert_df['offensive_rebounds']
+								DRB=insert_df['defensive_rebounds']
+								STL=insert_df['steals']
+								AST=insert_df['assists']
+								BLK=insert_df['blocks']
+								PF=insert_df['personal_fouls']
+								TOV=insert_df['turnovers']						
+								points=convert_game_score_to_points(GS=GS, FG=FG, FGA=FGA, FTA=FTA, FT=FT, ORB=ORB, DRB=DRB, STL=STL, AST=AST, BLK=BLK, PF=PF, TOV=TOV)
+								copy=insert_df.copy()
+								copy.loc[copy['date']==date, 'points']=points
+								main_df=pd.concat([main_df, copy])
+					except:
+						print('Player not found')
 					time.sleep(4)
 
 				main_df['slug']=main_df['slug'].astype(str)
