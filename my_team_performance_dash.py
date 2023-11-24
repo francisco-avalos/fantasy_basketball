@@ -22,13 +22,14 @@ from my_functions import clean_string, remove_name_suffixes
 from espn_api.basketball import League
 
 
-
+# prod env 
 # sports_db_admin_host=os.environ.get('basketball_host')
 # sports_db_admin_db=os.environ.get('basketball_db')
 # sports_db_admin_user=os.environ.get('basketball_user')
 # sports_db_admin_pw=os.environ.get('basketball_pw')
 # sports_db_admin_port=os.environ.get('basketball_port')
 
+# dev env
 sports_db_admin_host=os.environ.get('sports_db_admin_host')
 sports_db_admin_db='basketball'
 sports_db_admin_user=os.environ.get('sports_db_admin_user')
@@ -469,9 +470,9 @@ def bar_plot(metric='points',leagueid='ESPN'):
 
 
 metric='points'
-imps=[metric]
-output=myteam_df.groupby(['name']).apply(lambda x: pd.Series([sum(x[v]*x.minutes_played)/sum(x.minutes_played) for v in imps]))
-output.columns=imps
+imps_temp=[metric]
+output=myteam_df.groupby(['name']).apply(lambda x: pd.Series([sum(x[v]*x.minutes_played)/sum(x.minutes_played) for v in imps_temp]))
+output.columns=imps_temp
 
 mins_agg=myteam_df.groupby(['name'])['minutes_played'].sum()
 
