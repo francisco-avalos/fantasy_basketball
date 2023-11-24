@@ -8,6 +8,7 @@ from dash import dcc
 import plotly.express as px
 from dash_create import app
 
+from callbacks import line_plot, bar_plot, heatmap, heatmap_weights, boxplot_by_player, boxplot_by_player_weekday_class
 
 
 
