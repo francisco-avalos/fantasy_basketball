@@ -520,10 +520,11 @@ def heatmap(metric='points',leagueid='ESPN'):
                     text_auto='.2f', 
                     color_continuous_scale='RdBu_r',
                     aspect='auto'
+                    # labels=dict(x=f'{metric}', y='name')
     )
     fig.update_xaxes(side='top')
     fig.update_yaxes(title=None)
-    fig.update_layout(width=300,height=400)
+    fig.update_layout(width=300,height=550)
 
     # output=output.reset_index()
     # fig=px.density_heatmap(output,
@@ -567,7 +568,7 @@ def heatmap_weights(leagueid='ESPN'):
     )
     fig.update_xaxes(side='top')
     fig.update_yaxes(title=None)
-    fig.update_layout(width=300,height=400)
+    fig.update_layout(width=300,height=550)
 
     return fig
 
@@ -668,36 +669,6 @@ app.layout=dbc.Container(
         dbc.Row(
             [
                 dbc.Col(
-                    [
-                        html.H3('Minutes-Played Weighted Production'),
-                        dcc.Graph(id='heat-map', figure=heatmap(), config=config)
-                    ], 
-                    # width=6
-                    align='start'
-                ),
-                dbc.Col(
-                    [
-                        dcc.Graph(id='heat-map-weights', figure=heatmap_weights(), config=config)
-                    ],
-                    # width=6
-                    align='end'
-                )
-            ]
-        ),
-        dbc.Row(
-            [
-                dbc.Col(
-                    [dcc.Graph(id='line_plot', figure=line_plot(), config=config)],
-                    md=4
-                    # align='start',
-                    # offset=0
-                    # width={'md':4, 'offset':0, 'order':'start'}
-                )
-            ], align='center'
-        ),
-        dbc.Row(
-            [
-                dbc.Col(
                     [dcc.Dropdown(id='id-dropdown',
                                          options=[{'label':'Made Field Goals','value':'made_field_goals'},
                                                   {'label':'Made 3p Field Goals','value':'made_three_point_field_goals'},
@@ -729,6 +700,70 @@ app.layout=dbc.Container(
                 )
             ]
         ),
+        dbc.Row(
+            [
+                dbc.Col(
+                    [
+                        html.H3('Minutes-Played Weighted Production'),
+                        dcc.Graph(id='heat-map', figure=heatmap(), config=config)
+                    ], 
+                    # width=6
+                    align='start'
+                ),
+                dbc.Col(
+                    [
+                        dcc.Graph(id='heat-map-weights', figure=heatmap_weights(), config=config)
+                    ],
+                    # width=6
+                    align='end'
+                )
+            ]
+        ),
+        dbc.Row(
+            [
+                dbc.Col(
+                    [dcc.Graph(id='line_plot', figure=line_plot(), config=config)],
+                    md=4
+                    # align='start',
+                    # offset=0
+                    # width={'md':4, 'offset':0, 'order':'start'}
+                )
+            ], align='center'
+        ),
+        # dbc.Row(
+        #     [
+        #         dbc.Col(
+        #             [dcc.Dropdown(id='id-dropdown',
+        #                                  options=[{'label':'Made Field Goals','value':'made_field_goals'},
+        #                                           {'label':'Made 3p Field Goals','value':'made_three_point_field_goals'},
+        #                                           {'label':'Made Free Throws','value':'made_free_throws'},
+        #                                           {'label':'Total Rebounds','value':'total_rebounds'},
+        #                                           {'label':'Offensive Rebounds','value':'offensive_rebounds'},
+        #                                           {'label':'Defensive Rebounds','value':'defensive_rebounds'},
+        #                                           {'label':'Assists','value':'assists'},
+        #                                           {'label':'Steals','value':'steals'},
+        #                                           {'label':'Blocks','value':'blocks'},
+        #                                           {'label':'Turnovers','value':'turnovers'},
+        #                                           {'label':'Personal Fouls','value':'personal_fouls'},
+        #                                           {'label':'Points','value':'points'},
+        #                                           {'label':'Minutes Played','value':'minutes_played'},
+        #                                           {'label':'Game Score','value':'game_score'}],
+        #                             value='made_field_goals'
+        #                         )
+        #             ],
+        #             lg=3
+        #         ),
+        #         dbc.Col(
+        #             [dcc.Dropdown(id='id-league',
+        #                             options=[{'label':'ESPN','value':'ESPN'},
+        #                                       {'label':'Yahoo','value':'Yahoo'}],
+        #                                       value='ESPN'
+        #                         )
+        #             ],
+        #             lg=3
+        #         )
+        #     ]
+        # ),
         dbc.Row(
             [
                 dbc.Col(
