@@ -9,17 +9,20 @@ import datetime as dt
 from dash_create import app
 import plotly.express as px
 
+import random
+
+
 
 
 
 
 
 ####################################################################################################
-# 000 - IMPORT DATA FROM DB
+# 000 - IMPORT DATA FROM DB - FREE AGENT SCREEN TOOL
 ####################################################################################################
 
 
-# use for production environment
+# prod env 
 # sports_db_admin_host=os.environ.get('basketball_host')
 # sports_db_admin_db=os.environ.get('basketball_db')
 # sports_db_admin_user=os.environ.get('basketball_user')
@@ -27,7 +30,7 @@ import plotly.express as px
 # sports_db_admin_port=os.environ.get('basketball_port')
 
 
-#use for local execution 
+# dev env
 sports_db_admin_host=os.environ.get('sports_db_admin_host')
 sports_db_admin_db='basketball'
 sports_db_admin_user=os.environ.get('sports_db_admin_user')
@@ -150,7 +153,6 @@ WHERE BBREF.date NOT BETWEEN LAST_DAY(DATE_FORMAT(BBREF.date, '%Y-04-%d')) AND L
 if connection.is_connected():
     cursor=connection.cursor()
 
-
     cursor.execute(espn_query)
     fa_espn_df=cursor.fetchall()
     fa_espn_df=pd.DataFrame(fa_espn_df,columns=cursor.column_names)
@@ -192,7 +194,7 @@ fa_yahoo_df['minutes_played']=fa_yahoo_df['seconds_played']/60
 
 
 ####################################################################################################
-# 000 - FREE AGENCY PAGE
+# 000 - FREE AGENT SCREEN TOOL
 ####################################################################################################
 
 
@@ -434,6 +436,61 @@ def graph_update(input_value,focus_field_value, calc_value,display_field, top_n_
             fig.layout.width=750
 
             return fig
+
+
+####################################################################################################
+# 001 - IMPORT DATA FROM DB - CURRENT TEAM PERFORMANCE
+####################################################################################################
+
+
+if(connection.is_connected()):
+    cursor.close()
+    connection.close()
+    print('MySQL connection is closed')
+else:
+    print('MySQL already closed')
+
+
+####################################################################################################
+# 001 - CURRENT TEAM PERFORMANCE
+####################################################################################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
