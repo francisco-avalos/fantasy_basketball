@@ -287,7 +287,8 @@ short_df = output.iloc[:,0:len(output)]
 
 
 def player_stats():
-    fig=px.imshow(short_df, text_auto=True)
+    fig=px.imshow(short_df, 
+        text_auto=True)
     fig.update_xaxes(side='top')
     fig.layout.height=750
     fig.layout.width=750
