@@ -9,12 +9,13 @@ import datetime as dt
 from dash_create import app
 import plotly.express as px
 
+
 import random
 
 # ESPN 
 from espn_api.basketball import League
 
-
+from my_functions import clean_string, remove_name_suffixes
 
 
 
@@ -199,7 +200,7 @@ fa_yahoo_df['minutes_played']=fa_yahoo_df['seconds_played']/60
 ####################################################################################################
 
 
-@app.callback(Output(component_id='line_plot', component_property='figure'),
+@app.callback(Output(component_id='player_stats', component_property='figure'),
              Input(component_id='my_input', component_property='value'),
              Input(component_id='dropdown', component_property='value'),
              Input(component_id='calculation', component_property='value'),
@@ -439,9 +440,28 @@ def graph_update(input_value,focus_field_value, calc_value,display_field, top_n_
             return fig
 
 
+
+
 ####################################################################################################
 # 001 - IMPORT DATA FROM DB - CURRENT TEAM PERFORMANCE
 ####################################################################################################
+
+
+# prod env 
+# sports_db_admin_host=os.environ.get('basketball_host')
+# sports_db_admin_db=os.environ.get('basketball_db')
+# sports_db_admin_user=os.environ.get('basketball_user')
+# sports_db_admin_pw=os.environ.get('basketball_pw')
+# sports_db_admin_port=os.environ.get('basketball_port')
+
+
+# dev env
+sports_db_admin_host=os.environ.get('sports_db_admin_host')
+sports_db_admin_db='basketball'
+sports_db_admin_user=os.environ.get('sports_db_admin_user')
+sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
+sports_db_admin_port=os.environ.get('sports_db_admin_port')
+
 
 leagueid=os.environ.get('leagueid')
 espn_s2=os.environ.get('espn_s2')
@@ -507,11 +527,11 @@ if connection.is_connected():
 
 if connection.is_connected():
     cursor=connection.cursor()
-    cursor.execute("""SELECT * FROM basketball.injured_player_news ORDER BY exp_return_date ASC;""")
+    cursor.execute("""SELECT name,injury,exp_return_date FROM basketball.injured_player_news ORDER BY exp_return_date ASC;""")
     inj_df=cursor.fetchall()
     inj_df=pd.DataFrame(inj_df, columns=cursor.column_names)
 
-    cursor.execute("""SELECT * FROM basketball.injured_player_news_yh ORDER BY exp_return_date ASC;""")
+    cursor.execute("""SELECT name,injury,exp_return_date FROM basketball.injured_player_news_yh ORDER BY exp_return_date ASC;""")
     inj_df_yf=cursor.fetchall()
     inj_df_yf=pd.DataFrame(inj_df_yf, columns=cursor.column_names)
 
@@ -665,7 +685,7 @@ del df_for_agg, df_yh_for_agg
 if(connection.is_connected()):
     cursor.close()
     connection.close()
-    print('Script finished - MySQL connection is closed')
+    print('MySQL connection is closed')
 else:
     print('MySQL already closed')
 
@@ -1049,8 +1069,6 @@ def update_at_risk_table(selected_value):
         data=current_players_yh_at_risk_df.to_dict('records')
         columns=[{"name":i,"id":i} for i in current_players_yh_at_risk_df.columns]
     return data,columns
-
-
 
 
 
