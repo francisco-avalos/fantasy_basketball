@@ -4,12 +4,16 @@ import mysql.connector as mysql
 import pandas as pd
 import datetime as dt
 from dash import html
-from dash import dcc
+from dash import dcc, html, Input, Output, dash_table
 import plotly.express as px
 from dash_create import app
 
 from callbacks import line_plot, bar_plot, heatmap, heatmap_weights, boxplot_by_player, boxplot_by_player_weekday_class
 
+from my_functions import clean_string, remove_name_suffixes
+
+# ESPN 
+from espn_api.basketball import League
 
 
 ####################################################################################################
@@ -295,6 +299,271 @@ def player_stats():
     fig.layout.width=750
     return fig
 
+
+
+
+
+# my team performance data
+
+
+
+leagueid=os.environ.get('leagueid')
+espn_s2=os.environ.get('espn_s2')
+swid=os.environ.get('swid')
+
+
+league=League(league_id=leagueid, 
+                year=2024,
+                espn_s2=espn_s2,
+                swid=swid, 
+                debug=False)
+
+
+connection=mysql.connect(host=sports_db_admin_host,
+                        database=sports_db_admin_db,
+                        user=sports_db_admin_user,
+                        password=sports_db_admin_pw,
+                        port=sports_db_admin_port)
+
+if connection.is_connected():
+    cursor=connection.cursor()
+    cursor.execute("""
+                    SELECT 
+                        MTS.*, 
+                        DATE_FORMAT(MTS.date, '%W') AS day_of_week,
+                        CASE
+                            WHEN DATE_FORMAT(MTS.date, '%W') IN ('Saturday', 'Sunday') THEN 'week_end'
+                            ELSE 'week_day'
+                        END AS day_of_week_class,
+                        C.week_starting_monday, 
+                        C.week_ending_sunday 
+                    FROM basketball.my_team_stats MTS 
+                    JOIN basketball.calendar C ON MTS.date=C.day;
+                    """)
+    myteam_df=cursor.fetchall()
+    myteam_df=pd.DataFrame(myteam_df, columns=cursor.column_names)
+
+    cursor.execute("""
+                    SELECT 
+                        MTS.*, 
+                        DATE_FORMAT(MTS.date, '%W') AS day_of_week,
+                        CASE
+                            WHEN DATE_FORMAT(MTS.date, '%W') IN ('Saturday', 'Sunday') THEN 'week_end'
+                            ELSE 'week_day'
+                        END AS day_of_week_class,
+                        C.week_starting_monday, 
+                        C.week_ending_sunday 
+                    FROM basketball.my_team_stats_yahoo MTS 
+                    JOIN basketball.calendar C ON MTS.date=C.day;
+                    """)
+    myteam_df_yh=cursor.fetchall()
+    myteam_df_yh=pd.DataFrame(myteam_df_yh, columns=cursor.column_names)
+
+    cursor.execute("""SELECT * FROM basketball.live_yahoo_players""")
+    live_yahoo_players_df=cursor.fetchall()
+    live_yahoo_players_df=pd.DataFrame(live_yahoo_players_df, columns=cursor.column_names)
+
+
+if connection.is_connected():
+    cursor=connection.cursor()
+    cursor.execute("""SELECT name,injury,exp_return_date FROM basketball.injured_player_news ORDER BY exp_return_date ASC;""")
+    inj_df=cursor.fetchall()
+    inj_df=pd.DataFrame(inj_df, columns=cursor.column_names)
+
+    cursor.execute("""SELECT name,injury,exp_return_date FROM basketball.injured_player_news_yh ORDER BY exp_return_date ASC;""")
+    inj_df_yf=cursor.fetchall()
+    inj_df_yf=pd.DataFrame(inj_df_yf, columns=cursor.column_names)
+
+
+if(connection.is_connected()):
+    cursor.close()
+    connection.close()
+    print('MySQL connection is closed')
+else:
+    print('MySQL already closed')
+
+
+myteam_df['total_rebounds']=myteam_df['offensive_rebounds']+myteam_df['defensive_rebounds']
+myteam_df['minutes_played']=myteam_df['seconds_played']/60
+
+myteam_df_yh['total_rebounds']=myteam_df_yh['offensive_rebounds']+myteam_df_yh['defensive_rebounds']
+myteam_df_yh['minutes_played']=myteam_df_yh['seconds_played']/60
+
+
+
+my_safe_players=['Jayson Tatum', 'Kyrie Irving','Jaylen Brown'
+]
+
+
+
+myteam=league.teams[10]
+current_players=clean_string(myteam.roster).split(',')
+current_players=[remove_name_suffixes(x) for x in current_players]
+current_players=[x.strip(' ') for x in current_players]
+
+
+players_at_risk=list(set(current_players)-set(my_safe_players))
+players_at_risk=pd.DataFrame(players_at_risk)
+players_at_risk.columns=['Name']
+
+
+
+# tm=lg.to_team('428.l.18598.t.4')
+# my_tm=pd.DataFrame(tm.roster(4))
+# current_players_yh=my_tm.name.tolist()
+
+current_players_yh=live_yahoo_players_df.name.tolist()
+
+current_players_yh=clean_string(current_players_yh).split(',')
+current_players_yh=[remove_name_suffixes(x) for x in current_players_yh]
+current_players_yh=[x.replace("'","") for x in current_players_yh]
+current_players_yh=[x.replace("'","").strip() for x in current_players_yh]
+
+current_players_yh_at_risk_df=pd.DataFrame(current_players_yh)
+current_players_yh_at_risk_df.columns=['Name']
+
+
+
+# I picked up bruce brown on November 30 at 10pm, 
+# so don't add his scores to my team performance for that day
+# same with T.J. McConnell for dec 2
+# same with Tim Hardaway for dec 3
+# myteam_df=myteam_df.drop(235)
+# myteam_df=myteam_df.drop(249)
+# myteam_df=myteam_df.drop(255)
+
+# myteam_df=myteam_df.drop(381) # shake milton
+# myteam_df=myteam_df.drop(402) # duane washington
+# myteam_df=myteam_df.drop(409) # duane washington
+# myteam_df=myteam_df.drop(394) # quentin grimes
+# myteam_df=myteam_df.drop(401) # moritz wagner
+# myteam_df=myteam_df.drop(408) # moritz wagner
+# myteam_df=myteam_df.drop(405) # patty mills
+
+# myteam_df=myteam_df.drop(414) # immanuel quickley
+# myteam_df=myteam_df.drop(443) # Alec burks
+# print(myteam_df.tail(15))
+
+# myteam_df=myteam_df.drop(414)
+# myteam_df=myteam_df.drop(426)
+
+# print(myteam_df[myteam_df['name']=='Immanuel Quickley'])
+# print(myteam_df.tail(50))
+
+
+connection=mysql.connect(host=sports_db_admin_host,
+                        database=sports_db_admin_db,
+                        user=sports_db_admin_user,
+                        password=sports_db_admin_pw,
+                        port=sports_db_admin_port)
+
+# myteam=league.teams[11]
+# my_players=clean_string(myteam.roster).split(',')
+# my_players=[x.strip() for x in my_players]
+
+
+
+df_for_agg=pd.DataFrame()
+df_yh_for_agg=pd.DataFrame()
+if connection.is_connected():
+    for p in current_players:
+        cursor=connection.cursor()
+        p=remove_name_suffixes(p)
+        p=p.strip()
+        qry=f"""
+            SELECT
+                name,
+                team,
+                TSCHED.*
+            FROM basketball.my_team_stats MTS
+            JOIN basketball.high_level_nba_team_schedules TSCHED ON MTS.team = TSCHED.away_team OR MTS.team = TSCHED.home_team
+            JOIN basketball.calendar CAL ON DATE(SUBDATE(CAST(TSCHED.start_time AS DATETIME), INTERVAL 8 HOUR)) = CAL.day
+            WHERE MTS.name LIKE CONCAT("%", "{p}","%")
+                AND CURDATE() BETWEEN CAL.week_starting_monday AND CAL.week_ending_sunday
+            GROUP BY MTS.name, TSCHED.start_time;"""
+        cursor.execute(qry)
+        myteam_df1=cursor.fetchall()
+        myteam_df1=pd.DataFrame(myteam_df1, columns=cursor.column_names)
+        df_for_agg=pd.concat([df_for_agg, myteam_df1])
+    for p in current_players_yh:
+        cursor=connection.cursor()
+        p=remove_name_suffixes(p)
+        p=p.strip()
+        qry=f"""
+            SELECT
+                name,
+                team,
+                TSCHED.*
+            FROM basketball.my_team_stats_yahoo MTS
+            JOIN basketball.high_level_nba_team_schedules TSCHED ON MTS.team = TSCHED.away_team OR MTS.team = TSCHED.home_team
+            JOIN basketball.calendar CAL ON DATE(SUBDATE(CAST(TSCHED.start_time AS DATETIME), INTERVAL 8 HOUR)) = CAL.day
+            WHERE MTS.name LIKE CONCAT("%", "{p}","%")
+                AND CURDATE() BETWEEN CAL.week_starting_monday AND CAL.week_ending_sunday
+            GROUP BY MTS.name, TSCHED.start_time;"""
+        cursor.execute(qry)
+        my_team_df1_yh=cursor.fetchall()
+        my_team_df1_yh=pd.DataFrame(my_team_df1_yh,columns=cursor.column_names)
+        df_yh_for_agg=pd.concat([df_yh_for_agg,my_team_df1_yh])
+
+
+aggregate=df_for_agg.groupby(['name']).start_time.nunique()
+aggregate=aggregate.reset_index()
+aggregate.columns=['name', 'games_this_week']
+aggregate=aggregate.sort_values(['games_this_week', 'name'], ascending=False)
+
+aggregate_yh=df_yh_for_agg.groupby(['name']).start_time.nunique()
+aggregate_yh=aggregate_yh.reset_index()
+aggregate_yh.columns=['name', 'games_this_week']
+aggregate_yh=aggregate_yh.sort_values(['games_this_week', 'name'], ascending=False)
+
+del df_for_agg, df_yh_for_agg
+
+if(connection.is_connected()):
+    cursor.close()
+    connection.close()
+    print('MySQL connection is closed')
+else:
+    print('MySQL already closed')
+
+
+
+myteam_df['seconds_played']=myteam_df['seconds_played'].astype(float)
+myteam_df['made_field_goals']=myteam_df['made_field_goals'].astype(float)
+myteam_df['attempted_field_goals']=myteam_df['attempted_field_goals'].astype(float)
+myteam_df['made_three_point_field_goals']=myteam_df['made_three_point_field_goals'].astype(float)
+myteam_df['attempted_three_point_field_goals']=myteam_df['attempted_three_point_field_goals'].astype(float)
+myteam_df['made_free_throws']=myteam_df['made_free_throws'].astype(float)
+myteam_df['attempted_free_throws']=myteam_df['attempted_free_throws'].astype(float)
+myteam_df['offensive_rebounds']=myteam_df['offensive_rebounds'].astype(float)
+myteam_df['defensive_rebounds']=myteam_df['defensive_rebounds'].astype(float)
+myteam_df['assists']=myteam_df['assists'].astype(float)
+myteam_df['steals']=myteam_df['steals'].astype(float)
+myteam_df['blocks']=myteam_df['blocks'].astype(float)
+myteam_df['turnovers']=myteam_df['turnovers'].astype(float)
+myteam_df['personal_fouls']=myteam_df['personal_fouls'].astype(float)
+myteam_df['points']=myteam_df['points'].astype(float)
+myteam_df['total_rebounds']=myteam_df['total_rebounds'].astype(float)
+myteam_df['game_score']=myteam_df['game_score'].astype(float)
+
+
+
+myteam_df_yh['seconds_played']=myteam_df_yh['seconds_played'].astype(float)
+myteam_df_yh['made_field_goals']=myteam_df_yh['made_field_goals'].astype(float)
+myteam_df_yh['attempted_field_goals']=myteam_df_yh['attempted_field_goals'].astype(float)
+myteam_df_yh['made_three_point_field_goals']=myteam_df_yh['made_three_point_field_goals'].astype(float)
+myteam_df_yh['attempted_three_point_field_goals']=myteam_df_yh['attempted_three_point_field_goals'].astype(float)
+myteam_df_yh['made_free_throws']=myteam_df_yh['made_free_throws'].astype(float)
+myteam_df_yh['attempted_free_throws']=myteam_df_yh['attempted_free_throws'].astype(float)
+myteam_df_yh['offensive_rebounds']=myteam_df_yh['offensive_rebounds'].astype(float)
+myteam_df_yh['defensive_rebounds']=myteam_df_yh['defensive_rebounds'].astype(float)
+myteam_df_yh['assists']=myteam_df_yh['assists'].astype(float)
+myteam_df_yh['steals']=myteam_df_yh['steals'].astype(float)
+myteam_df_yh['blocks']=myteam_df_yh['blocks'].astype(float)
+myteam_df_yh['turnovers']=myteam_df_yh['turnovers'].astype(float)
+myteam_df_yh['personal_fouls']=myteam_df_yh['personal_fouls'].astype(float)
+myteam_df_yh['points']=myteam_df_yh['points'].astype(float)
+myteam_df_yh['total_rebounds']=myteam_df_yh['total_rebounds'].astype(float)
+myteam_df_yh['game_score']=myteam_df_yh['game_score'].astype(float)
 
 
 
@@ -596,7 +865,7 @@ sales = html.Div([
                         html.Div([ #'Enter # of days back: ',
                             dcc.Input(id='my_input',
                                         value=7,
-                                        type='integer',
+                                        type='number',
                                         style = {'font-size': '12px','display': 'inline-block', 'border-radius' : '2px', 'border' : '1px solid #ccc', 'color': '#333', 'border-spacing' : '0', 'border-collapse' :'separate'}
                                 )
                             # dcc.DatePickerRange(
@@ -746,7 +1015,7 @@ sales = html.Div([
                         ),
                         #Date range picker
                         html.Div([#'Number of Players: ',
-                            dcc.Input(id='top_n', value=5, type='integer')
+                            dcc.Input(id='top_n', value=5, type='number')
                             # dcc.Input(id='my_input',
                             #             value=7,
                             #             type='integer',
@@ -901,9 +1170,9 @@ sales = html.Div([
     #Row 5 : Charts
     html.Div([ # External row
 
-        # html.Div([
-        # ],
-        # className = 'col-1'), # Blank 1 column
+        html.Div([
+        ],
+        className = 'col-1'), # Blank 1 column
 
         html.Div([ # External 10-column
 
@@ -948,11 +1217,11 @@ sales = html.Div([
 
                 # Chart Column
                 html.Div([
-                    dcc.Graph(id='line_plot',
+                    dcc.Graph(id='player_stats',
                                 figure=player_stats(),
                                 config=config),
                 ],
-                className = 'col-4'),
+                className = 'col-2'),
 
                 # # Chart Column
                 # html.Div([
@@ -1002,9 +1271,9 @@ sales = html.Div([
         className = 'col-10',
         style = externalgraph_colstyling), # External 10-column
 
-        # html.Div([
-        # ],
-        # className = 'col-1'), # Blank 1 column
+        html.Div([
+        ],
+        className = 'col-1'), # Blank 1 column
 
     ],
     className = 'row',
@@ -1033,7 +1302,97 @@ page2 = html.Div([
     #Row 3 : Filters
     html.Div([ # External row
 
-        html.Br()
+        html.Div([ # External 12-column
+
+            html.Div([ # Internal row
+
+                # #Internal columns
+                # html.Div([
+                # ],
+                # className = 'col-2'), # Blank 2 columns
+
+                ########################################################################################
+
+                #Filter pt 1
+                html.Div([
+
+                    html.Div([
+                        html.H5(
+                            children='Focus Field:',
+                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
+                        ),
+                        html.Div([ #'Enter # of days back: ',
+                            dcc.Dropdown(id='id-dropdown',
+                                         options=[{'label':'Made Field Goals','value':'made_field_goals'},
+                                                  {'label':'Made 3p Field Goals','value':'made_three_point_field_goals'},
+                                                  {'label':'Made Free Throws','value':'made_free_throws'},
+                                                  {'label':'Total Rebounds','value':'total_rebounds'},
+                                                  {'label':'Offensive Rebounds','value':'offensive_rebounds'},
+                                                  {'label':'Defensive Rebounds','value':'defensive_rebounds'},
+                                                  {'label':'Assists','value':'assists'},
+                                                  {'label':'Steals','value':'steals'},
+                                                  {'label':'Blocks','value':'blocks'},
+                                                  {'label':'Turnovers','value':'turnovers'},
+                                                  {'label':'Personal Fouls','value':'personal_fouls'},
+                                                  {'label':'Points','value':'points'},
+                                                  {'label':'Minutes Played','value':'minutes_played'},
+                                                  {'label':'Game Score','value':'game_score'}],
+                                    value='made_field_goals'
+                                )
+                        ], style = {'margin-top' : '5px'}
+                        )
+
+                    ],
+                    style = {'margin-top' : '10px',
+                            'margin-bottom' : '5px',
+                            'text-align' : 'left',
+                            'paddingLeft': 5})
+
+                ],
+                className = 'col-4'), # Filter part 1
+
+                ########################################################################################
+
+                #Filter pt 2
+                html.Div([
+
+                    html.Div([
+                        html.H5(
+                            children='League',
+                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
+                        ),
+                        #Date range picker
+                        html.Div([#'Focus Field: ',
+                            dcc.Dropdown(id='id-league',
+                                    options=[{'label':'ESPN','value':'ESPN'},
+                                              {'label':'Yahoo','value':'Yahoo'}],
+                                              value='ESPN'
+                                )
+
+                        ], style = {'margin-top' : '5px'}
+                        )
+
+                    ],
+                    style = {'margin-top' : '10px',
+                            'margin-bottom' : '5px',
+                            'text-align' : 'left',
+                            'paddingLeft': 5})
+
+                ],
+                className = 'col-4'), # Filter part 2
+                ########################################################################################                
+
+                html.Div([
+                ],
+                className = 'col-2') # Blank 2 columns
+
+
+            ],
+            className = 'row') # Internal row
+
+        ],
+        className = 'col-12',
+        style = filterdiv_borderstyling) # External 12-column
 
     ],
     className = 'row sticky-top'), # External row
@@ -1046,9 +1405,187 @@ page2 = html.Div([
     #Row 5 : Charts
     html.Div([ # External row
 
-        html.Br()
+        html.Div([
+        ],
+        className = 'col-1'), # Blank 1 column
 
-    ])
+        html.Div([ # External 10-column
+            html.H2(children = "Minutes-Played Weighted Production",
+                style = {'color' : corporate_colors['white']}),
+
+
+            html.Div([ # Internal row 1
+
+                # min-weight focus field prod heatmap
+                html.Div([
+                    dcc.Graph(id='heat-map', figure=heatmap(), config=config),
+                ],
+                className = 'col-6'),
+                
+                # min-weights
+                html.Div([
+                    dcc.Graph(id='heat-map-weights', figure=heatmap_weights(), config=config)
+                ],
+                className = 'col-6'),
+
+            ],
+            className = 'row'), # Internal row 1
+
+
+            html.Div([ # Internal row 2
+
+                # Chart Column
+                html.Div([
+                    dcc.Graph(id='line_plot', figure=line_plot(), config=config)
+                ],
+                className = 'col-4'),
+
+                # # Chart Column
+                # html.Div([
+                #     dcc.Graph(
+                #         id='sales-bubble-county')
+                # ],
+                # className = 'col-4'),
+
+                # # Chart Column
+                # html.Div([
+                #     dcc.Graph(
+                #         id='sales-count-city')
+                # ],
+                # className = 'col-4')
+
+            ],
+            className = 'row'), # Internal row 2
+
+
+            html.Div([ # Internal row 3
+
+                # Chart Column
+                html.Div([
+                    dcc.Graph(id='bar-plot', figure=bar_plot(), config=config)
+                ],
+                className = 'col-4'),
+
+                # # Chart Column
+                # html.Div([
+                #     dcc.Graph(
+                #         id='sales-bubble-county')
+                # ],
+                # className = 'col-4'),
+
+                # # Chart Column
+                # html.Div([
+                #     dcc.Graph(
+                #         id='sales-count-city')
+                # ],
+                # className = 'col-4')
+
+            ],
+            className = 'row'), # Internal row 3
+
+            html.Div([ # Internal row 4
+
+                # Chart Column
+                html.Div([
+                    dcc.Graph(id='box-plot', figure=boxplot_by_player(), config=config)
+                ],
+                className = 'col-12'),
+
+                # # Chart Column
+                # html.Div([
+                #     dcc.Graph(
+                #         id='sales-bubble-county')
+                # ],
+                # className = 'col-4'),
+
+                # # Chart Column
+                # html.Div([
+                #     dcc.Graph(
+                #         id='sales-count-city')
+                # ],
+                # className = 'col-4')
+
+            ],
+            className = 'row'), # Internal row 4
+
+            html.Div([ # Internal row 5
+
+                # Chart Column
+                html.Div([
+                    dcc.Graph(id='box-plot-x-week-class', figure=boxplot_by_player_weekday_class(), config=config)
+                ],
+                className = 'col-12'),
+
+                # # Chart Column
+                # html.Div([
+                #     dcc.Graph(
+                #         id='sales-bubble-county')
+                # ],
+                # className = 'col-4'),
+
+                # # Chart Column
+                # html.Div([
+                #     dcc.Graph(
+                #         id='sales-count-city')
+                # ],
+                # className = 'col-4')
+
+            ],
+            className = 'row'), # Internal row 5
+
+            html.Div([ # Internal row 6
+
+                # Chart Column
+                html.Div([
+                    dash_table.DataTable(id='id-my-team',
+                                            data=players_at_risk.to_dict('records'),
+                                                columns=[{"name": i, "id": i} for i in players_at_risk.columns],
+                                                style_cell=dict(textAlign='left'),
+                                                style_header=dict(backgroundColor="paleturquoise")    
+                        )
+                ],
+                className = 'col-md-4 col-sm-6'),
+
+                # Chart Column
+                html.Div([
+                    dash_table.DataTable(id='id-injured',
+                                            data=inj_df.to_dict('records'),
+                                                columns=[{"name": i, "id": i} for i in inj_df.columns],
+                                                style_cell=dict(textAlign='left'),
+                                                style_header=dict(backgroundColor="paleturquoise")    
+                        )
+                ],
+                className = 'col-md-4 col-sm-6'),
+
+                # Chart Column
+                html.Div([
+                    dash_table.DataTable(id='my-table',
+                                                data=aggregate_yh.to_dict('records'),
+                                                # data=player_schedule(),
+                                                columns=[{"name": i, "id": i} for i in aggregate_yh.columns],
+                                                # columns=player_schedule_cols(),
+                                                style_cell=dict(textAlign='left'),
+                                                style_header=dict(backgroundColor="paleturquoise")
+                        )
+                ],
+                className = 'col-md-4 col-sm-6')
+
+            ],
+            className = 'row'), # Internal row 6
+
+
+        ],
+        className = 'col-10',
+        style = externalgraph_colstyling), # External 10-column
+
+        html.Div([
+        ],
+        className = 'col-1'), # Blank 1 column
+
+    ],
+    className = 'row',
+    style = externalgraph_rowstyling
+    ), # External row
 
 ])
 
