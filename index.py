@@ -6,6 +6,7 @@ from dash_create import app
 from dash_create import server
 from layouts import sales, page2, page3
 import callbacks
+# import callbacks_my_team_perf
 
 app.layout = html.Div([
     dcc.Location(id='url', refresh=False),
@@ -25,4 +26,4 @@ def display_page(pathname):
         return sales # This is the "home page"
 
 if __name__ == '__main__':
-    app.run_server(debug=False)
+    app.run_server(debug=True)
