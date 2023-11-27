@@ -104,7 +104,7 @@ sports_db_admin_user=os.environ.get('basketball_user')
 sports_db_admin_pw=os.environ.get('basketball_pw')
 sports_db_admin_port=os.environ.get('basketball_port')
 
-# dev env
+# # dev env
 # sports_db_admin_host=os.environ.get('sports_db_admin_host')
 # sports_db_admin_db='basketball'
 # sports_db_admin_user=os.environ.get('sports_db_admin_user')
@@ -863,9 +863,9 @@ sales = html.Div([
                             children='How many days back?',
                             style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
                         ),
-                        html.Div([ #'Enter # of days back: ',
+                        html.Div(['Functional for current season only',
                             dcc.Input(id='my_input',
-                                        value=7,
+                                        value=365,
                                         type='number',
                                         style = {'font-size': '12px','display': 'inline-block', 'border-radius' : '2px', 'border' : '1px solid #ccc', 'color': '#333', 'border-spacing' : '0', 'border-collapse' :'separate'}
                                 )
@@ -904,7 +904,7 @@ sales = html.Div([
                             style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
                         ),
                         #Date range picker
-                        html.Div([#'Focus Field: ',
+                        html.Div(['(Chosen field must be checked ON in \'Fields to Display\'): ',
                             dcc.Dropdown(id='dropdown',
                                 options=[{'label':'Made Field Goals','value':'made_field_goals'},
                                 {'label':'Made 3p Field Goals','value':'made_three_point_field_goals'},
