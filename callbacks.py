@@ -24,7 +24,7 @@ from my_functions import clean_string, remove_name_suffixes
 ####################################################################################################
 
 
-# # prod env 
+# prod env 
 sports_db_admin_host=os.environ.get('basketball_host')
 sports_db_admin_db=os.environ.get('basketball_db')
 sports_db_admin_user=os.environ.get('basketball_user')
