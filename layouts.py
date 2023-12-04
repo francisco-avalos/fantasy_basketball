@@ -8,7 +8,7 @@ from dash import dcc, html, Input, Output, dash_table
 import plotly.express as px
 from dash_create import app
 
-from callbacks import line_plot, bar_plot, heatmap, heatmap_weights, boxplot_by_player, boxplot_by_player_weekday_class
+from callbacks import line_plot, bar_plot, heatmap, heatmap_weights, boxplot_by_player, boxplot_by_player_weekday_class, injury_probabilities
 
 from my_functions import clean_string, remove_name_suffixes
 
@@ -97,19 +97,19 @@ filterdiv_borderstyling = {
 # 000 - IMPORT DATA
 ####################################################################################################
 
-# prod env
-sports_db_admin_host=os.environ.get('basketball_host')
-sports_db_admin_db=os.environ.get('basketball_db')
-sports_db_admin_user=os.environ.get('basketball_user')
-sports_db_admin_pw=os.environ.get('basketball_pw')
-sports_db_admin_port=os.environ.get('basketball_port')
+# # prod env
+# sports_db_admin_host=os.environ.get('basketball_host')
+# sports_db_admin_db=os.environ.get('basketball_db')
+# sports_db_admin_user=os.environ.get('basketball_user')
+# sports_db_admin_pw=os.environ.get('basketball_pw')
+# sports_db_admin_port=os.environ.get('basketball_port')
 
-# # dev env
-# sports_db_admin_host=os.environ.get('sports_db_admin_host')
-# sports_db_admin_db='basketball'
-# sports_db_admin_user=os.environ.get('sports_db_admin_user')
-# sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
-# sports_db_admin_port=os.environ.get('sports_db_admin_port')
+# dev env
+sports_db_admin_host=os.environ.get('sports_db_admin_host')
+sports_db_admin_db='basketball'
+sports_db_admin_user=os.environ.get('sports_db_admin_user')
+sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
+sports_db_admin_port=os.environ.get('sports_db_admin_port')
 
 
 
@@ -367,11 +367,11 @@ if connection.is_connected():
 
 if connection.is_connected():
     cursor=connection.cursor()
-    cursor.execute("""SELECT name,injury,exp_return_date FROM basketball.injured_player_news ORDER BY exp_return_date ASC;""")
+    cursor.execute("""SELECT name,injury,news_date,exp_return_date FROM basketball.injured_player_news ORDER BY exp_return_date ASC;""")
     inj_df=cursor.fetchall()
     inj_df=pd.DataFrame(inj_df, columns=cursor.column_names)
 
-    cursor.execute("""SELECT name,injury,exp_return_date FROM basketball.injured_player_news_yh ORDER BY exp_return_date ASC;""")
+    cursor.execute("""SELECT name,injury,news_date,exp_return_date FROM basketball.injured_player_news_yh ORDER BY exp_return_date ASC;""")
     inj_df_yf=cursor.fetchall()
     inj_df_yf=pd.DataFrame(inj_df_yf, columns=cursor.column_names)
 
@@ -507,6 +507,7 @@ if connection.is_connected():
         df_yh_for_agg=pd.concat([df_yh_for_agg,my_team_df1_yh])
 
 
+
 aggregate=df_for_agg.groupby(['name']).start_time.nunique()
 aggregate=aggregate.reset_index()
 aggregate.columns=['name', 'games_this_week']
@@ -568,7 +569,7 @@ myteam_df_yh['game_score']=myteam_df_yh['game_score'].astype(float)
 
 
 
-
+injury_probabilities_df=injury_probabilities()
 
 
 
@@ -1359,7 +1360,7 @@ page2 = html.Div([
 
                     html.Div([
                         html.H5(
-                            children='League',
+                            children='League:',
                             style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
                         ),
                         #Date range picker
@@ -1368,6 +1369,36 @@ page2 = html.Div([
                                     options=[{'label':'ESPN','value':'ESPN'},
                                               {'label':'Yahoo','value':'Yahoo'}],
                                               value='ESPN'
+                                )
+
+                        ], style = {'margin-top' : '5px'}
+                        )
+
+                    ],
+                    style = {'margin-top' : '10px',
+                            'margin-bottom' : '5px',
+                            'text-align' : 'left',
+                            'paddingLeft': 5})
+
+                ],
+                className = 'col-4'), # Filter part 2
+                ########################################################################################                
+
+
+                #Filter pt 3
+                html.Div([
+
+                    html.Div([
+                        html.H5(
+                            children='Injury Type:',
+                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
+                        ),
+                        #Date range picker
+                        html.Div([#'Focus Field: ',
+                            dcc.Input(id='id-inj-prob',
+                                        type='text',
+                                        value='flu',
+                                        placeholder='wildcard search',
                                 )
 
                         ], style = {'margin-top' : '5px'}
@@ -1542,10 +1573,13 @@ page2 = html.Div([
                                             data=players_at_risk.to_dict('records'),
                                                 columns=[{"name": i, "id": i} for i in players_at_risk.columns],
                                                 style_cell=dict(textAlign='left'),
-                                                style_header=dict(backgroundColor="paleturquoise")    
+                                                style_header=dict(backgroundColor="paleturquoise"),
+                                                style_table={'overflowX':'auto','width':'70%'},
+                                                # style_table={'overflowX':'auto','width':'70%'}
                         )
                 ],
-                className = 'col-md-4 col-sm-6'),
+                className = 'col-md-4 col-sm-12'),
+                # style={'marginLeft': '5px', 'marginRight': '5px'}
 
                 # Chart Column
                 html.Div([
@@ -1553,10 +1587,14 @@ page2 = html.Div([
                                             data=inj_df.to_dict('records'),
                                                 columns=[{"name": i, "id": i} for i in inj_df.columns],
                                                 style_cell=dict(textAlign='left'),
-                                                style_header=dict(backgroundColor="paleturquoise")    
+                                                style_header=dict(backgroundColor="paleturquoise"),
+                                                style_table={'overflowX':'auto', 'minWidth': '500px'},
+                                                # style_table={'overflowX':'auto','width':'110%'},
+                                                # style={'margin-left':'-10px'}
                         )
                 ],
-                className = 'col-md-4 col-sm-6'),
+                className = 'col-md-4 col-sm-12'),
+                # style={'marginLeft': '5px', 'marginRight': '5px'}
 
                 # Chart Column
                 html.Div([
@@ -1566,13 +1604,45 @@ page2 = html.Div([
                                                 columns=[{"name": i, "id": i} for i in aggregate_yh.columns],
                                                 # columns=player_schedule_cols(),
                                                 style_cell=dict(textAlign='left'),
-                                                style_header=dict(backgroundColor="paleturquoise")
+                                                style_header=dict(backgroundColor="paleturquoise"),
+                                                style_table={'overflowX':'auto'},
                         )
                 ],
-                className = 'col-md-4 col-sm-6')
+                className = 'col-md-4 col-sm-12'),
+                # style={'marginLeft': '5px', 'marginRight': '5px'}
 
             ],
             className = 'row'), # Internal row 6
+
+            html.Div([ # Internal row 7 imhere
+
+                # Chart Column
+                html.Div([
+                    dash_table.DataTable(id='id-inj-prob-table',
+                                        data=injury_probabilities_df.to_dict('records'),
+                                        columns=[{"name":i,"id":i} if i != 'probabilities' else {"name":i,"id":i,"type":"numeric","format": {"specifier":'.2%'}} for i in injury_probabilities_df.columns],
+                                        style_cell=dict(textAlign='left'),
+                                        style_header=dict(backgroundColor="paleturquoise")
+                                    )
+                ],
+                className = 'col-12'),
+
+                # # Chart Column
+                # html.Div([
+                #     dcc.Graph(
+                #         id='sales-bubble-county')
+                # ],
+                # className = 'col-4'),
+
+                # # Chart Column
+                # html.Div([
+                #     dcc.Graph(
+                #         id='sales-count-city')
+                # ],
+                # className = 'col-4')
+
+            ],
+            className = 'row'), # Internal row 7
 
 
         ],

@@ -25,19 +25,19 @@ from my_functions import clean_string, remove_name_suffixes
 
 
 # # prod env 
-sports_db_admin_host=os.environ.get('basketball_host')
-sports_db_admin_db=os.environ.get('basketball_db')
-sports_db_admin_user=os.environ.get('basketball_user')
-sports_db_admin_pw=os.environ.get('basketball_pw')
-sports_db_admin_port=os.environ.get('basketball_port')
+# sports_db_admin_host=os.environ.get('basketball_host')
+# sports_db_admin_db=os.environ.get('basketball_db')
+# sports_db_admin_user=os.environ.get('basketball_user')
+# sports_db_admin_pw=os.environ.get('basketball_pw')
+# sports_db_admin_port=os.environ.get('basketball_port')
 
 
-# # dev env
-# sports_db_admin_host=os.environ.get('sports_db_admin_host')
-# sports_db_admin_db='basketball'
-# sports_db_admin_user=os.environ.get('sports_db_admin_user')
-# sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
-# sports_db_admin_port=os.environ.get('sports_db_admin_port')
+# dev env
+sports_db_admin_host=os.environ.get('sports_db_admin_host')
+sports_db_admin_db='basketball'
+sports_db_admin_user=os.environ.get('sports_db_admin_user')
+sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
+sports_db_admin_port=os.environ.get('sports_db_admin_port')
 
 
 connection=mysql.connect(host=sports_db_admin_host,
@@ -150,7 +150,12 @@ WHERE BBREF.date NOT BETWEEN LAST_DAY(DATE_FORMAT(BBREF.date, '%Y-04-%d')) AND L
 ;
 '''
 
-
+inj_prob_qry="""
+            SELECT *
+            FROM basketball.injury_probabilities
+            -- WHERE injury LIKE '%flu%'
+            ;
+        """
 
 if connection.is_connected():
     cursor=connection.cursor()
@@ -164,6 +169,10 @@ if connection.is_connected():
     fa_yahoo_df=cursor.fetchall()
     fa_yahoo_df=pd.DataFrame(fa_yahoo_df,columns=cursor.column_names)
 
+    cursor=connection.cursor()
+    cursor.execute(inj_prob_qry)
+    injury_probabilities_df=cursor.fetchall()
+    injury_probabilities_df=pd.DataFrame(injury_probabilities_df,columns=cursor.column_names)
 
 
 if(connection.is_connected()):
@@ -512,11 +521,11 @@ if connection.is_connected():
 
 if connection.is_connected():
     cursor=connection.cursor()
-    cursor.execute("""SELECT name,injury,exp_return_date FROM basketball.injured_player_news ORDER BY exp_return_date ASC;""")
+    cursor.execute("""SELECT name,injury,news_date,exp_return_date FROM basketball.injured_player_news ORDER BY exp_return_date ASC;""")
     inj_df=cursor.fetchall()
     inj_df=pd.DataFrame(inj_df, columns=cursor.column_names)
 
-    cursor.execute("""SELECT name,injury,exp_return_date FROM basketball.injured_player_news_yh ORDER BY exp_return_date ASC;""")
+    cursor.execute("""SELECT name,injury,news_date,exp_return_date FROM basketball.injured_player_news_yh ORDER BY exp_return_date ASC;""")
     inj_df_yf=cursor.fetchall()
     inj_df_yf=pd.DataFrame(inj_df_yf, columns=cursor.column_names)
 
@@ -987,6 +996,11 @@ def boxplot_by_player_weekday_class(metric='points',leagueid='ESPN'):
 # 001 - CURRENT TEAM PERFORMANCE
 ####################################################################################################
 
+# imhere
+def injury_probabilities(searched_injury='flu'):
+    injury_probabilities_df_temp=injury_probabilities_df[injury_probabilities_df['injury'].str.contains(searched_injury,case=False)]
+    return injury_probabilities_df_temp
+
 
 @app.callback(
     Output(component_id='line_plot', component_property='figure'),
@@ -995,6 +1009,7 @@ def boxplot_by_player_weekday_class(metric='points',leagueid='ESPN'):
     Output(component_id='heat-map-weights', component_property='figure'),
     Output(component_id='box-plot', component_property='figure'),
     Output(component_id='box-plot-x-week-class', component_property='figure'),
+    # Output(component_id='id-injury-probabilities-table', component_property='string'),
     # Output(component_id='my-table', component_property='data'),
     # Output(component_id='my-table', component_property='figure'),
     Input(component_id='id-dropdown', component_property='value'),
@@ -1056,36 +1071,16 @@ def update_at_risk_table(selected_value):
     return data,columns
 
 
+@app.callback(
+    Output('id-inj-prob-table','data'),
+    # Output('id-inj-prob-table','columns'),
+    Input('id-inj-prob', 'value')
+)
 
+def update_probabilities_seach_table(searched_injury):
+    searched_injury=str(searched_injury)
+    specified_injury_search=injury_probabilities_df[injury_probabilities_df['injury'].str.contains(searched_injury,case=False)]
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    # columns=[{"name":i,"id":i} if i != 'probabilities' else {"name":i,"id":i,"type":"numeric","format": {"specifier":'.2%'}} for i in specified_injury_search.columns],
+    return specified_injury_search.to_dict('records')#, columns
 
