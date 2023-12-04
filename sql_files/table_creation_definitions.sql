@@ -296,6 +296,7 @@
 --   `name` varchar(100) NOT NULL,
 --   `injury` varchar(100) NOT NULL,
 --   `exp_return_date` DATE,
+--   `news_date` DATE,
 --   `date_report_ran` DATE,
 --   PRIMARY KEY (`name`, `exp_return_date`)
 -- );
@@ -311,6 +312,7 @@
 --   `name` varchar(100) NOT NULL,
 --   `injury` varchar(100) NOT NULL,
 --   `exp_return_date` DATE,
+--   `news_date` DATE,
 --   `date_report_ran` DATE,
 --   PRIMARY KEY (`name`, `exp_return_date`)
 -- );
