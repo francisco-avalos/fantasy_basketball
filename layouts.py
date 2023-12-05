@@ -31,7 +31,8 @@ corporate_colors = {
     'pink-red' : 'rgb(255, 101, 131)',
     'dark-pink-red' : 'rgb(247, 80, 99)',
     'white' : 'rgb(251, 251, 252)',
-    'light-grey' : 'rgb(208, 206, 206)'
+    'light-grey' : 'rgb(208, 206, 206)',
+    'yellow': 'rgb(255,211,67)'
 }
 
 externalgraph_rowstyling = {
@@ -588,7 +589,9 @@ def get_header():
         html.Div([
             html.H1(children='Fantasy Basketball Analytics',
                     style = {'textAlign' : 'center', 'color':corporate_colors['white']}
-            )],
+            ),
+            html.H6(children='*Combined data from Basketball-Reference.com, Prosportstransactions.com, ESPN & Yahoo',
+                    style={'textAlign':'center','color':corporate_colors['yellow']})],
             className='col-8',
             style = {'padding-top' : '1%'}
         ),
