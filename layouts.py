@@ -761,6 +761,11 @@ config={
     'modeBarButtonsToRemove': ['zoom2d', 'hoverCompareCartesian', 'hoverClosestCartesian', 'toggleSpikelines']
   }
 
+table_title_font_color={
+    'color': '#FFFFFF',
+    'white-space':'normal'
+}
+
 
 
 
@@ -1567,55 +1572,58 @@ page2 = html.Div([
 
             html.Div([ # Internal row 6
 
-                # Chart Column
+                # Players at risk table and title
                 html.Div([
-                    dash_table.DataTable(id='id-my-team',
-                                            data=players_at_risk.to_dict('records'),
-                                                columns=[{"name": i, "id": i} for i in players_at_risk.columns],
-                                                style_cell=dict(textAlign='left'),
-                                                style_header=dict(backgroundColor="paleturquoise"),
-                                                style_table={'overflowX':'auto','width':'70%'},
-                                                # style_table={'overflowX':'auto','width':'70%'}
-                        )
+                    html.H5("Players at risk of being \n picked up if dropped",
+                        style={'color': corporate_colors['white']}),
+                    dash_table.DataTable(
+                        id='id-my-team',
+                        data=players_at_risk.to_dict('records'),
+                        columns=[{"name": i, "id": i} for i in players_at_risk.columns],
+                        style_cell=dict(textAlign='left'),
+                        style_header=dict(backgroundColor="paleturquoise"),
+                        style_table={'overflowX':'auto','width':'100%'},
+                    )
                 ],
-                className = 'col-md-4 col-sm-12'),
-                # style={'marginLeft': '5px', 'marginRight': '5px'}
+                className='col-md-4 col-sm-12'),
 
-                # Chart Column
+                # Injured Players table and title
                 html.Div([
-                    dash_table.DataTable(id='id-injured',
-                                            data=inj_df.to_dict('records'),
-                                                columns=[{"name": i, "id": i} for i in inj_df.columns],
-                                                style_cell=dict(textAlign='left'),
-                                                style_header=dict(backgroundColor="paleturquoise"),
-                                                style_table={'overflowX':'auto', 'minWidth': '500px'},
-                                                # style_table={'overflowX':'auto','width':'110%'},
-                                                # style={'margin-left':'-10px'}
-                        )
+                    html.H5("Injured Players",
+                        style={'color': corporate_colors['white']}),
+                    dash_table.DataTable(
+                        id='id-injured',
+                        data=inj_df.to_dict('records'),
+                        columns=[{"name": i, "id": i} for i in inj_df.columns],
+                        style_cell=dict(textAlign='left'),
+                        style_header=dict(backgroundColor="paleturquoise"),
+                        style_table={'overflowX':'auto','width':'100%'},
+                    )
                 ],
-                className = 'col-md-4 col-sm-12'),
-                # style={'marginLeft': '5px', 'marginRight': '5px'}
+                className='col-md-4 col-sm-12'),
 
-                # Chart Column
+                # Expected games this week table and title
                 html.Div([
-                    dash_table.DataTable(id='my-table',
-                                                data=aggregate_yh.to_dict('records'),
-                                                # data=player_schedule(),
-                                                columns=[{"name": i, "id": i} for i in aggregate_yh.columns],
-                                                # columns=player_schedule_cols(),
-                                                style_cell=dict(textAlign='left'),
-                                                style_header=dict(backgroundColor="paleturquoise"),
-                                                style_table={'overflowX':'auto'},
-                        )
+                    html.H5("Expected games this week",
+                        style={'color': corporate_colors['white']}),
+                    dash_table.DataTable(
+                        id='my-table',
+                        data=aggregate_yh.to_dict('records'),
+                        columns=[{"name": i, "id": i} for i in aggregate_yh.columns],
+                        style_cell=dict(textAlign='left'),
+                        style_header=dict(backgroundColor="paleturquoise"),
+                        style_table={'overflowX':'auto','width':'100%'},
+                    )
                 ],
-                className = 'col-md-4 col-sm-12'),
-                # style={'marginLeft': '5px', 'marginRight': '5px'}
+                className='col-md-4 col-sm-12'),
 
             ],
-            className = 'row'), # Internal row 6
+            className='row'),  # Internal row 6
 
-            html.Div([ # Internal row 7 imhere
+            html.Div([ # Internal row 7
 
+                html.H6("Probability of injury duration",
+                    style={'color':corporate_colors['white']}),
                 # Chart Column
                 html.Div([
                     dash_table.DataTable(id='id-inj-prob-table',
@@ -1625,7 +1633,7 @@ page2 = html.Div([
                                         style_header=dict(backgroundColor="paleturquoise")
                                     )
                 ],
-                className = 'col-12'),
+                className = 'col-md-4 col-sm-12'),
 
                 # # Chart Column
                 # html.Div([
