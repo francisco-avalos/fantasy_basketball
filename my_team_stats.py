@@ -55,11 +55,11 @@ my_players=clean_string(myteam.roster).split(',')
 
 sc=OAuth2(None,None,from_file='oauth2.json')
 gm=yfa.Game(sc, 'nba')
-league_id=gm.league_ids(year=2024)
+# league_id=gm.league_ids(year=2024)
 lg=gm.to_league('428.l.18598')
 
 tm=lg.to_team('428.l.18598.t.4')
-my_tm=pd.DataFrame(tm.roster(4))
+my_tm=pd.DataFrame(tm.roster())
 my_players_yh=my_tm.name.tolist()
 
 
