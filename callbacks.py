@@ -4,6 +4,7 @@ import dash
 from dash.dependencies import Input, Output
 
 import mysql.connector as mysql
+from mysql.connector import pooling
 import pandas as pd
 import datetime as dt
 from dash_create import app
@@ -24,27 +25,54 @@ from my_functions import clean_string, remove_name_suffixes
 ####################################################################################################
 
 
-# prod env 
-sports_db_admin_host=os.environ.get('basketball_host')
-sports_db_admin_db=os.environ.get('basketball_db')
-sports_db_admin_user=os.environ.get('basketball_user')
-sports_db_admin_pw=os.environ.get('basketball_pw')
-sports_db_admin_port=os.environ.get('basketball_port')
+# # prod env 
+# sports_db_admin_host=os.environ.get('basketball_host')
+# sports_db_admin_db=os.environ.get('basketball_db')
+# sports_db_admin_user=os.environ.get('basketball_user')
+# sports_db_admin_pw=os.environ.get('basketball_pw')
+# sports_db_admin_port=os.environ.get('basketball_port')
 
 
-# # dev env
-# sports_db_admin_host=os.environ.get('sports_db_admin_host')
-# sports_db_admin_db='basketball'
-# sports_db_admin_user=os.environ.get('sports_db_admin_user')
-# sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
-# sports_db_admin_port=os.environ.get('sports_db_admin_port')
+# dev env
+sports_db_admin_host=os.environ.get('sports_db_admin_host')
+sports_db_admin_db='basketball'
+sports_db_admin_user=os.environ.get('sports_db_admin_user')
+sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
+sports_db_admin_port=os.environ.get('sports_db_admin_port')
 
 
-connection=mysql.connect(host=sports_db_admin_host,
-                        database=sports_db_admin_db,
-                        user=sports_db_admin_user,
-                        password=sports_db_admin_pw,
-                        port=sports_db_admin_port)
+
+dbconfig = {
+    "host":sports_db_admin_host,
+    "database":sports_db_admin_db,
+    "user":sports_db_admin_user,
+    "password":sports_db_admin_pw,
+    "port":sports_db_admin_port
+}
+
+connection_pool = pooling.MySQLConnectionPool(
+    pool_name="sports_db_pool",
+    pool_size=5,
+    **dbconfig
+)
+
+leagueid=os.environ.get('leagueid')
+espn_s2=os.environ.get('espn_s2')
+swid=os.environ.get('swid')
+
+
+# espn connect
+league=League(league_id=leagueid, 
+                year=2024,
+                espn_s2=espn_s2,
+                swid=swid, 
+                debug=False)
+
+# connection=mysql.connect(host=sports_db_admin_host,
+#                         database=sports_db_admin_db,
+#                         user=sports_db_admin_user,
+#                         password=sports_db_admin_pw,
+#                         port=sports_db_admin_port)
 
 
 
@@ -151,36 +179,200 @@ WHERE BBREF.date NOT BETWEEN LAST_DAY(DATE_FORMAT(BBREF.date, '%Y-04-%d')) AND L
 '''
 
 inj_prob_qry="""
-            SELECT *
-            FROM basketball.injury_probabilities
-            -- WHERE injury LIKE '%flu%'
-            ;
-        """
+SELECT *
+FROM basketball.injury_probabilities;
+"""
 
-if connection.is_connected():
-    cursor=connection.cursor()
+my_espn_team_qry='''
+SELECT 
+    MTS.*, 
+    DATE_FORMAT(MTS.date, '%W') AS day_of_week,
+    CASE
+        WHEN DATE_FORMAT(MTS.date, '%W') IN ('Saturday', 'Sunday') THEN 'week_end'
+        ELSE 'week_day'
+    END AS day_of_week_class,
+    C.week_starting_monday, 
+    C.week_ending_sunday 
+FROM basketball.my_team_stats MTS
+JOIN basketball.calendar C ON MTS.date=C.day;
+'''
 
-    cursor.execute(espn_query)
-    fa_espn_df=cursor.fetchall()
-    fa_espn_df=pd.DataFrame(fa_espn_df,columns=cursor.column_names)
+my_yahoo_team_qry='''
+SELECT 
+    MTS.*, 
+    DATE_FORMAT(MTS.date, '%W') AS day_of_week,
+    CASE
+        WHEN DATE_FORMAT(MTS.date, '%W') IN ('Saturday', 'Sunday') THEN 'week_end'
+        ELSE 'week_day'
+    END AS day_of_week_class,
+    C.week_starting_monday, 
+    C.week_ending_sunday 
+FROM basketball.my_team_stats_yahoo MTS 
+JOIN basketball.calendar C ON MTS.date=C.day
+WHERE name IN (SELECT DISTINCT name FROM basketball.live_yahoo_players);
+'''
+
+my_live_yahoo_qry='''
+SELECT * 
+FROM basketball.live_yahoo_players
+;
+'''
+
+my_injured_espn_team_qry='''
+SELECT 
+    name,
+    injury,
+    news_date,
+    exp_return_date 
+FROM basketball.injured_player_news 
+ORDER BY exp_return_date ASC;
+'''
+
+my_injured_yahoo_team_qry='''
+SELECT 
+    name,
+    injury,
+    news_date,
+    exp_return_date 
+FROM basketball.injured_player_news_yh 
+ORDER BY exp_return_date ASC;
+'''
+
+p = ''
+my_espn_players_sched_query=f'''
+SELECT
+    name,
+    team,
+    TSCHED.*
+FROM basketball.my_team_stats MTS
+JOIN basketball.high_level_nba_team_schedules TSCHED ON MTS.team = TSCHED.away_team OR MTS.team = TSCHED.home_team
+JOIN basketball.calendar CAL ON DATE(SUBDATE(CAST(TSCHED.start_time AS DATETIME), INTERVAL 8 HOUR)) = CAL.day
+WHERE MTS.name LIKE CONCAT("%", "{p}","%")
+    AND CURDATE() BETWEEN CAL.week_starting_monday AND CAL.week_ending_sunday
+GROUP BY MTS.name, TSCHED.start_time;
+'''
+
+my_yahoo_players_sched_query=f'''
+SELECT
+    name,
+    team,
+    TSCHED.*
+FROM basketball.my_team_stats_yahoo MTS
+JOIN basketball.high_level_nba_team_schedules TSCHED ON MTS.team = TSCHED.away_team OR MTS.team = TSCHED.home_team
+JOIN basketball.calendar CAL ON DATE(SUBDATE(CAST(TSCHED.start_time AS DATETIME), INTERVAL 8 HOUR)) = CAL.day
+WHERE MTS.name LIKE CONCAT("%", "{p}","%")
+    AND CURDATE() BETWEEN CAL.week_starting_monday AND CAL.week_ending_sunday
+GROUP BY MTS.name, TSCHED.start_time;
+'''
 
 
-    cursor.execute(yahoo_query)
-    fa_yahoo_df=cursor.fetchall()
-    fa_yahoo_df=pd.DataFrame(fa_yahoo_df,columns=cursor.column_names)
-
-    cursor=connection.cursor()
-    cursor.execute(inj_prob_qry)
-    injury_probabilities_df=cursor.fetchall()
-    injury_probabilities_df=pd.DataFrame(injury_probabilities_df,columns=cursor.column_names)
+my_safe_players=['Jayson Tatum', 'Kyrie Irving','Jaylen Brown']
 
 
-if(connection.is_connected()):
-    cursor.close()
-    connection.close()
-    print('MySQL connection is closed')
-else:
-    print('MySQL already closed')
+with connection_pool.get_connection() as connection:
+    if connection.is_connected():
+        #### IMPORT DATA FROM DB - FREE AGENT SCREENER TOOL
+        with connection.cursor() as cursor:
+            cursor.execute(espn_query)
+            fa_espn_df = cursor.fetchall()
+            fa_espn_df = pd.DataFrame(fa_espn_df, columns=cursor.column_names)
+        with connection.cursor() as cursor:
+            cursor.execute(yahoo_query)
+            fa_yahoo_df = cursor.fetchall()
+            fa_yahoo_df = pd.DataFrame(fa_yahoo_df, columns=cursor.column_names)
+
+        #### IMPORT DATA FROM DB - CURRENT TEAM PERFORMANCE
+        with connection.cursor() as cursor:
+            cursor.execute(inj_prob_qry)
+            injury_probabilities_df = cursor.fetchall()
+            injury_probabilities_df = pd.DataFrame(injury_probabilities_df, columns=cursor.column_names)
+        with connection.cursor() as cursor:
+            cursor.execute(my_espn_team_qry)
+            myteam_df = cursor.fetchall()
+            myteam_df = pd.DataFrame(myteam_df, columns=cursor.column_names)
+            myteam_df['total_rebounds']=myteam_df['offensive_rebounds']+myteam_df['defensive_rebounds']
+            myteam_df['minutes_played']=myteam_df['seconds_played']/60
+        with connection.cursor() as cursor:
+            cursor.execute(my_yahoo_team_qry)
+            myteam_df_yh = cursor.fetchall()
+            myteam_df_yh = pd.DataFrame(myteam_df_yh, columns=cursor.column_names)
+            myteam_df_yh['total_rebounds']=myteam_df_yh['offensive_rebounds']+myteam_df_yh['defensive_rebounds']
+            myteam_df_yh['minutes_played']=myteam_df_yh['seconds_played']/60
+        with connection.cursor() as cursor:
+            cursor.execute(my_live_yahoo_qry)
+            live_yahoo_players_df = cursor.fetchall()
+            live_yahoo_players_df = pd.DataFrame(live_yahoo_players_df, columns=cursor.column_names)
+        with connection.cursor() as cursor:
+            cursor.execute(my_injured_espn_team_qry)
+            inj_df = cursor.fetchall()
+            inj_df = pd.DataFrame(inj_df, columns=cursor.column_names)
+        with connection.cursor() as cursor:
+            cursor.execute(my_injured_yahoo_team_qry)
+            inj_df_yf = cursor.fetchall()
+            inj_df_yf = pd.DataFrame(inj_df_yf, columns=cursor.column_names)
+        myteam=league.teams[10]
+        current_players=clean_string(myteam.roster).split(',')
+        current_players=[remove_name_suffixes(x) for x in current_players]
+        current_players=[x.strip(' ') for x in current_players]
+        
+        players_at_risk=list(set(current_players)-set(my_safe_players))
+        players_at_risk=pd.DataFrame(players_at_risk)
+        players_at_risk.columns=['Name']
+        df_for_agg=pd.DataFrame()
+
+        for p in current_players:
+            p = remove_name_suffixes(p)
+            p = p.strip()
+            with connection.cursor() as cursor:
+                cursor.execute(my_espn_players_sched_query)
+                myteam_df1 = cursor.fetchall()
+                myteam_df1 = pd.DataFrame(myteam_df1, columns=cursor.column_names)
+                df_for_agg = pd.concat([df_for_agg, myteam_df1])
+
+        current_players_yh=live_yahoo_players_df.name.tolist()
+
+        current_players_yh=clean_string(current_players_yh).split(',')
+        current_players_yh=[remove_name_suffixes(x) for x in current_players_yh]
+        current_players_yh=[x.replace("'","") for x in current_players_yh]
+        current_players_yh=[x.replace("'","").strip() for x in current_players_yh]
+
+        current_players_yh_at_risk_df=pd.DataFrame(current_players_yh)
+        current_players_yh_at_risk_df.columns=['Name']
+        df_yh_for_agg=pd.DataFrame()
+
+        for p in current_players_yh:
+            p = remove_name_suffixes(p)
+            p = p.strip()
+            with connection.cursor() as cursor:
+                cursor.execute(my_yahoo_players_sched_query)
+                my_team_df1_yh = cursor.fetchall()
+                my_team_df1_yh = pd.DataFrame(my_team_df1_yh, columns=cursor.column_names)
+                df_yh_for_agg = pd.concat([df_yh_for_agg, my_team_df1_yh])
+
+# if connection.is_connected():
+#     cursor=connection.cursor()
+
+#     cursor.execute(espn_query)
+#     fa_espn_df=cursor.fetchall()
+#     fa_espn_df=pd.DataFrame(fa_espn_df,columns=cursor.column_names)
+
+
+#     cursor.execute(yahoo_query)
+#     fa_yahoo_df=cursor.fetchall()
+#     fa_yahoo_df=pd.DataFrame(fa_yahoo_df,columns=cursor.column_names)
+
+#     cursor=connection.cursor()
+#     cursor.execute(inj_prob_qry)
+#     injury_probabilities_df=cursor.fetchall()
+#     injury_probabilities_df=pd.DataFrame(injury_probabilities_df,columns=cursor.column_names)
+
+
+# if(connection.is_connected()):
+#     cursor.close()
+#     connection.close()
+#     print('MySQL connection is closed')
+# else:
+#     print('MySQL already closed')
 
 
 pd.set_option('display.max_columns', None)
@@ -457,97 +649,87 @@ def graph_update(input_value,focus_field_value, calc_value,display_field, top_n_
 
 
 
-leagueid=os.environ.get('leagueid')
-espn_s2=os.environ.get('espn_s2')
-swid=os.environ.get('swid')
-
-
-# espn connect
-league=League(league_id=leagueid, 
-                year=2024,
-                espn_s2=espn_s2,
-                swid=swid, 
-                debug=False)
 
 
 
 
 
-# my database connect
-connection=mysql.connect(host=sports_db_admin_host,
-                        database=sports_db_admin_db,
-                        user=sports_db_admin_user,
-                        password=sports_db_admin_pw,
-                        port=sports_db_admin_port)
 
-if connection.is_connected():
-    cursor=connection.cursor()
-    cursor.execute("""
-                    SELECT 
-                        MTS.*, 
-                        DATE_FORMAT(MTS.date, '%W') AS day_of_week,
-                        CASE
-                            WHEN DATE_FORMAT(MTS.date, '%W') IN ('Saturday', 'Sunday') THEN 'week_end'
-                            ELSE 'week_day'
-                        END AS day_of_week_class,
-                        C.week_starting_monday, 
-                        C.week_ending_sunday 
-                    FROM basketball.my_team_stats MTS 
-                    JOIN basketball.calendar C ON MTS.date=C.day;
-                    """)
-    myteam_df=cursor.fetchall()
-    myteam_df=pd.DataFrame(myteam_df, columns=cursor.column_names)
+# # my database connect
+# connection=mysql.connect(host=sports_db_admin_host,
+#                         database=sports_db_admin_db,
+#                         user=sports_db_admin_user,
+#                         password=sports_db_admin_pw,
+#                         port=sports_db_admin_port)
 
-    cursor.execute("""
-                    SELECT 
-                        MTS.*, 
-                        DATE_FORMAT(MTS.date, '%W') AS day_of_week,
-                        CASE
-                            WHEN DATE_FORMAT(MTS.date, '%W') IN ('Saturday', 'Sunday') THEN 'week_end'
-                            ELSE 'week_day'
-                        END AS day_of_week_class,
-                        C.week_starting_monday, 
-                        C.week_ending_sunday 
-                    FROM basketball.my_team_stats_yahoo MTS 
-                    JOIN basketball.calendar C ON MTS.date=C.day;
-                    """)
-    myteam_df_yh=cursor.fetchall()
-    myteam_df_yh=pd.DataFrame(myteam_df_yh, columns=cursor.column_names)
+# if connection.is_connected():
+#     cursor=connection.cursor()
+#     cursor.execute("""
+#                     SELECT 
+#                         MTS.*, 
+#                         DATE_FORMAT(MTS.date, '%W') AS day_of_week,
+#                         CASE
+#                             WHEN DATE_FORMAT(MTS.date, '%W') IN ('Saturday', 'Sunday') THEN 'week_end'
+#                             ELSE 'week_day'
+#                         END AS day_of_week_class,
+#                         C.week_starting_monday, 
+#                         C.week_ending_sunday 
+#                     FROM basketball.my_team_stats MTS 
+#                     JOIN basketball.calendar C ON MTS.date=C.day;
+#                     """)
+#     myteam_df=cursor.fetchall()
+#     myteam_df=pd.DataFrame(myteam_df, columns=cursor.column_names)
 
-    cursor.execute("""SELECT * FROM basketball.live_yahoo_players""")
-    live_yahoo_players_df=cursor.fetchall()
-    live_yahoo_players_df=pd.DataFrame(live_yahoo_players_df, columns=cursor.column_names)
+#     cursor.execute("""
+#                     SELECT 
+#                         MTS.*, 
+#                         DATE_FORMAT(MTS.date, '%W') AS day_of_week,
+#                         CASE
+#                             WHEN DATE_FORMAT(MTS.date, '%W') IN ('Saturday', 'Sunday') THEN 'week_end'
+#                             ELSE 'week_day'
+#                         END AS day_of_week_class,
+#                         C.week_starting_monday, 
+#                         C.week_ending_sunday 
+#                     FROM basketball.my_team_stats_yahoo MTS 
+#                     JOIN basketball.calendar C ON MTS.date=C.day
+#                     WHERE name IN (SELECT DISTINCT name FROM basketball.live_yahoo_players);
+#                     """)
+#     myteam_df_yh=cursor.fetchall()
+#     myteam_df_yh=pd.DataFrame(myteam_df_yh, columns=cursor.column_names)
 
-
-if connection.is_connected():
-    cursor=connection.cursor()
-    cursor.execute("""SELECT name,injury,news_date,exp_return_date FROM basketball.injured_player_news ORDER BY exp_return_date ASC;""")
-    inj_df=cursor.fetchall()
-    inj_df=pd.DataFrame(inj_df, columns=cursor.column_names)
-
-    cursor.execute("""SELECT name,injury,news_date,exp_return_date FROM basketball.injured_player_news_yh ORDER BY exp_return_date ASC;""")
-    inj_df_yf=cursor.fetchall()
-    inj_df_yf=pd.DataFrame(inj_df_yf, columns=cursor.column_names)
+#     cursor.execute("""SELECT * FROM basketball.live_yahoo_players""")
+#     live_yahoo_players_df=cursor.fetchall()
+#     live_yahoo_players_df=pd.DataFrame(live_yahoo_players_df, columns=cursor.column_names)
 
 
-if(connection.is_connected()):
-    cursor.close()
-    connection.close()
-    print('MySQL connection is closed')
-else:
-    print('MySQL already closed')
+# if connection.is_connected():
+#     cursor=connection.cursor()
+#     cursor.execute("""SELECT name,injury,news_date,exp_return_date FROM basketball.injured_player_news ORDER BY exp_return_date ASC;""")
+#     inj_df=cursor.fetchall()
+#     inj_df=pd.DataFrame(inj_df, columns=cursor.column_names)
+
+#     cursor.execute("""SELECT name,injury,news_date,exp_return_date FROM basketball.injured_player_news_yh ORDER BY exp_return_date ASC;""")
+#     inj_df_yf=cursor.fetchall()
+#     inj_df_yf=pd.DataFrame(inj_df_yf, columns=cursor.column_names)
+
+
+# if(connection.is_connected()):
+#     cursor.close()
+#     connection.close()
+#     print('MySQL connection is closed')
+# else:
+#     print('MySQL already closed')
 
 
 
-myteam_df['total_rebounds']=myteam_df['offensive_rebounds']+myteam_df['defensive_rebounds']
-myteam_df['minutes_played']=myteam_df['seconds_played']/60
+# myteam_df['total_rebounds']=myteam_df['offensive_rebounds']+myteam_df['defensive_rebounds']
+# myteam_df['minutes_played']=myteam_df['seconds_played']/60
 
-myteam_df_yh['total_rebounds']=myteam_df_yh['offensive_rebounds']+myteam_df_yh['defensive_rebounds']
-myteam_df_yh['minutes_played']=myteam_df_yh['seconds_played']/60
+# myteam_df_yh['total_rebounds']=myteam_df_yh['offensive_rebounds']+myteam_df_yh['defensive_rebounds']
+# myteam_df_yh['minutes_played']=myteam_df_yh['seconds_played']/60
 
 
-my_safe_players=['Jayson Tatum', 'Kyrie Irving','Jaylen Brown'
-]
+# my_safe_players=['Jayson Tatum', 'Kyrie Irving','Jaylen Brown']
 
 
 
@@ -607,11 +789,11 @@ current_players_yh_at_risk_df.columns=['Name']
 # print(myteam_df.tail(50))
 
 
-connection=mysql.connect(host=sports_db_admin_host,
-                        database=sports_db_admin_db,
-                        user=sports_db_admin_user,
-                        password=sports_db_admin_pw,
-                        port=sports_db_admin_port)
+# connection=mysql.connect(host=sports_db_admin_host,
+#                         database=sports_db_admin_db,
+#                         user=sports_db_admin_user,
+#                         password=sports_db_admin_pw,
+#                         port=sports_db_admin_port)
 
 # myteam=league.teams[11]
 # my_players=clean_string(myteam.roster).split(',')
@@ -619,47 +801,47 @@ connection=mysql.connect(host=sports_db_admin_host,
 
 
 
-df_for_agg=pd.DataFrame()
-df_yh_for_agg=pd.DataFrame()
-if connection.is_connected():
-    for p in current_players:
-        cursor=connection.cursor()
-        p=remove_name_suffixes(p)
-        p=p.strip()
-        qry=f"""
-            SELECT
-                name,
-                team,
-                TSCHED.*
-            FROM basketball.my_team_stats MTS
-            JOIN basketball.high_level_nba_team_schedules TSCHED ON MTS.team = TSCHED.away_team OR MTS.team = TSCHED.home_team
-            JOIN basketball.calendar CAL ON DATE(SUBDATE(CAST(TSCHED.start_time AS DATETIME), INTERVAL 8 HOUR)) = CAL.day
-            WHERE MTS.name LIKE CONCAT("%", "{p}","%")
-                AND CURDATE() BETWEEN CAL.week_starting_monday AND CAL.week_ending_sunday
-            GROUP BY MTS.name, TSCHED.start_time;"""
-        cursor.execute(qry)
-        myteam_df1=cursor.fetchall()
-        myteam_df1=pd.DataFrame(myteam_df1, columns=cursor.column_names)
-        df_for_agg=pd.concat([df_for_agg, myteam_df1])
-    for p in current_players_yh:
-        cursor=connection.cursor()
-        p=remove_name_suffixes(p)
-        p=p.strip()
-        qry=f"""
-            SELECT
-                name,
-                team,
-                TSCHED.*
-            FROM basketball.my_team_stats_yahoo MTS
-            JOIN basketball.high_level_nba_team_schedules TSCHED ON MTS.team = TSCHED.away_team OR MTS.team = TSCHED.home_team
-            JOIN basketball.calendar CAL ON DATE(SUBDATE(CAST(TSCHED.start_time AS DATETIME), INTERVAL 8 HOUR)) = CAL.day
-            WHERE MTS.name LIKE CONCAT("%", "{p}","%")
-                AND CURDATE() BETWEEN CAL.week_starting_monday AND CAL.week_ending_sunday
-            GROUP BY MTS.name, TSCHED.start_time;"""
-        cursor.execute(qry)
-        my_team_df1_yh=cursor.fetchall()
-        my_team_df1_yh=pd.DataFrame(my_team_df1_yh,columns=cursor.column_names)
-        df_yh_for_agg=pd.concat([df_yh_for_agg,my_team_df1_yh])
+# df_for_agg=pd.DataFrame()
+# df_yh_for_agg=pd.DataFrame()
+# if connection.is_connected():
+#     for p in current_players:
+#         cursor=connection.cursor()
+#         p=remove_name_suffixes(p)
+#         p=p.strip()
+#         qry=f"""
+#             SELECT
+#                 name,
+#                 team,
+#                 TSCHED.*
+#             FROM basketball.my_team_stats MTS
+#             JOIN basketball.high_level_nba_team_schedules TSCHED ON MTS.team = TSCHED.away_team OR MTS.team = TSCHED.home_team
+#             JOIN basketball.calendar CAL ON DATE(SUBDATE(CAST(TSCHED.start_time AS DATETIME), INTERVAL 8 HOUR)) = CAL.day
+#             WHERE MTS.name LIKE CONCAT("%", "{p}","%")
+#                 AND CURDATE() BETWEEN CAL.week_starting_monday AND CAL.week_ending_sunday
+#             GROUP BY MTS.name, TSCHED.start_time;"""
+#         cursor.execute(qry)
+#         myteam_df1=cursor.fetchall()
+#         myteam_df1=pd.DataFrame(myteam_df1, columns=cursor.column_names)
+#         df_for_agg=pd.concat([df_for_agg, myteam_df1])
+#     for p in current_players_yh:
+#         cursor=connection.cursor()
+#         p=remove_name_suffixes(p)
+#         p=p.strip()
+#         qry=f"""
+#             SELECT
+#                 name,
+#                 team,
+#                 TSCHED.*
+#             FROM basketball.my_team_stats_yahoo MTS
+#             JOIN basketball.high_level_nba_team_schedules TSCHED ON MTS.team = TSCHED.away_team OR MTS.team = TSCHED.home_team
+#             JOIN basketball.calendar CAL ON DATE(SUBDATE(CAST(TSCHED.start_time AS DATETIME), INTERVAL 8 HOUR)) = CAL.day
+#             WHERE MTS.name LIKE CONCAT("%", "{p}","%")
+#                 AND CURDATE() BETWEEN CAL.week_starting_monday AND CAL.week_ending_sunday
+#             GROUP BY MTS.name, TSCHED.start_time;"""
+#         cursor.execute(qry)
+#         my_team_df1_yh=cursor.fetchall()
+#         my_team_df1_yh=pd.DataFrame(my_team_df1_yh,columns=cursor.column_names)
+#         df_yh_for_agg=pd.concat([df_yh_for_agg,my_team_df1_yh])
 
 
 
@@ -676,12 +858,12 @@ aggregate_yh=aggregate_yh.sort_values(['games_this_week', 'name'], ascending=Fal
 
 del df_for_agg, df_yh_for_agg
 
-if(connection.is_connected()):
-    cursor.close()
-    connection.close()
-    print('MySQL connection is closed')
-else:
-    print('MySQL already closed')
+# if(connection.is_connected()):
+#     cursor.close()
+#     connection.close()
+#     print('MySQL connection is closed')
+# else:
+#     print('MySQL already closed')
 
 
 
@@ -996,7 +1178,6 @@ def boxplot_by_player_weekday_class(metric='points',leagueid='ESPN'):
 # 001 - CURRENT TEAM PERFORMANCE
 ####################################################################################################
 
-# imhere
 def injury_probabilities(searched_injury='flu'):
     injury_probabilities_df_temp=injury_probabilities_df[injury_probabilities_df['injury'].str.contains(searched_injury,case=False)]
     return injury_probabilities_df_temp
