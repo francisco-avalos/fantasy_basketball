@@ -33,43 +33,47 @@ from bs4 import BeautifulSoup
 import requests
 
 
-out_players=['https://www.rotowire.com/basketball/player/kristaps-porzingis-3669',
-'https://www.rotowire.com/basketball/player/chris-paul-2584',
-'https://www.rotowire.com/basketball/player/markelle-fultz-4100'
-]
+# out_players=['https://www.rotowire.com/basketball/player/kristaps-porzingis-3669',
+# 'https://www.rotowire.com/basketball/player/chris-paul-2584',
+# 'https://www.rotowire.com/basketball/player/markelle-fultz-4100'
+# ]
 
-report_run_date=datetime.now()-timedelta(days=0)
-report_run_date=report_run_date.strftime('%Y-%m-%d')
+# report_run_date=datetime.now()-timedelta(days=0)
+# report_run_date=report_run_date.strftime('%Y-%m-%d')
 
-df=pd.DataFrame(columns=['name', 'injury', 'exp_return_date'])
-idx=0
+# df=pd.DataFrame(columns=['name', 'injury', 'exp_return_date'])
+# idx=0
 
-for p in out_players:
-	soup=BeautifulSoup(requests.get(p).text,"html.parser")
-	dat=soup.find_all(class_='p-card__injury-data')
-	data=[x.find('b').text for x in dat]
-	inj_player_name=[n.find('h1').text for n in soup.find_all('div',attrs={'class':'p-card'})]
-	inj_player_name=str(inj_player_name).strip('[]')
-	data.insert(0, inj_player_name)
-	df.loc[idx]=data
-	idx+=1
+# for p in out_players:
+# 	soup=BeautifulSoup(requests.get(p).text,"html.parser")
+# 	dat=soup.find_all(class_='p-card__injury-data')
+# 	data=[x.find('b').text for x in dat]
+# 	inj_player_name=[n.find('h1').text for n in soup.find_all('div',attrs={'class':'p-card'})]
+# 	inj_player_name=str(inj_player_name).strip('[]')
+# 	data.insert(0, inj_player_name)
+# 	df.loc[idx]=data
+# 	idx+=1
 
-	dat_date=soup.find('div',class_='news-update__timestamp').text
-	dat_date=datetime.strptime(dat_date,'%B %d, %Y')
-	dat_date=dat_date.strftime('%Y-%m-%d')
-	# print(dat_date)
-	# data_date=[x.find('div').text for x in dat_date]
+# 	dat_date=soup.find('div',class_='news-update__timestamp').text
+# 	dat_date=datetime.strptime(dat_date,'%B %d, %Y')
+# 	dat_date=dat_date.strftime('%Y-%m-%d')
+# 	# print(dat_date)
+# 	# data_date=[x.find('div').text for x in dat_date]
 
-	# print(data_date)
-	# print(dat_date)
-	time.sleep(5)
+# 	# print(data_date)
+# 	# print(dat_date)
+# 	time.sleep(5)
 
 
-df.exp_return_date=pd.to_datetime(df.exp_return_date)
-df['date_report_ran']=report_run_date
-df['name']=df['name'].apply(lambda x: x.replace('\'', '').replace('"', ''))
+# df.exp_return_date=pd.to_datetime(df.exp_return_date)
+# df['date_report_ran']=report_run_date
+# df['name']=df['name'].apply(lambda x: x.replace('\'', '').replace('"', ''))
 
-print(df)
+# print(df)
+
+
+
+
 
 
 # ## Preliminaries, set ups & initiators 
@@ -89,35 +93,35 @@ print(df)
 
 
 
-# sc=OAuth2(None,None,from_file='oauth2.json')
-# gm=yfa.Game(sc, 'nba')
-# league_id=gm.league_ids(year=2024)
-# lg=gm.to_league('428.l.18598')
-# # tk=lg.free_agents('PG')
-# # tk_df=pd.DataFrame(tk)
-# # print(tk_df.head(20))
+sc=OAuth2(None,None,from_file='oauth2.json')
+gm=yfa.Game(sc, 'nba')
+league_id=gm.league_ids(year=2024)
+lg=gm.to_league('428.l.18598')
+# tk=lg.free_agents('PG')
+# tk_df=pd.DataFrame(tk)
+# print(tk_df.head(20))
 
-# # print(lg.stat_categories())
-# # print(lg.team_key())
-# # print(lg.current_week())
+# print(lg.stat_categories())
+# print(lg.team_key())
+# print(lg.current_week())
 
-# # wvrs=lg.waivers()
-# # wvrs=pd.DataFrame(wvrs)
-# # print(wvrs.head())
-# # print(wvrs.shape)
+# wvrs=lg.waivers()
+# wvrs=pd.DataFrame(wvrs)
+# print(wvrs.head())
+# print(wvrs.shape)
 
-# # # fas=lg.free_agents('P')
-# # fas=lg.free_agents('ANYTHING_THAT_I_WANT')
-# # fas=pd.DataFrame(fas)
-# # print(fas.head())
-# # print(fas.shape)
+# # fas=lg.free_agents('P')
+# fas=lg.free_agents('ANYTHING_THAT_I_WANT')
+# fas=pd.DataFrame(fas)
+# print(fas.head())
+# print(fas.shape)
 
-# # print(yfa.__file__)
+# print(yfa.__file__)
 
 
-# tm=lg.to_team('428.l.18598.t.4')
-# my_tm=pd.DataFrame(tm.roster(4))
-# print(my_tm)
+tm=lg.to_team('428.l.18598.t.4')
+my_tm=pd.DataFrame(tm.roster())
+print(my_tm)
 
 
 # # yfa_file_loca=yfa.__file__
