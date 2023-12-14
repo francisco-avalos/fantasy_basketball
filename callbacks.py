@@ -86,10 +86,10 @@ def execute_query_and_fetch_df(query, cursor):
     # except Exception as e:
     #     print(f"Error executing query {e}")
     #     raise
-    with connection.cursor() as cursor:
-        cursor.execute(query)
-        result = cursor.fetchall()
-        return pd.DataFrame(result, columns=cursor.column_names)
+    # with connection.cursor() as cursor:
+    cursor.execute(query)
+    result = cursor.fetchall()
+    return pd.DataFrame(result, columns=cursor.column_names)
 
 def fetch_team_data(query, connection, column_names):
     with connection.cursor() as cursor:
