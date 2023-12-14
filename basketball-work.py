@@ -81,11 +81,11 @@ import requests
 # pd.set_option('display.max_rows', None)
 
 
-# sports_db_admin_host=os.environ.get('sports_db_admin_host')
-# sports_db_admin_db='basketball'
-# sports_db_admin_user=os.environ.get('sports_db_admin_user')
-# sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
-# sports_db_admin_port=os.environ.get('sports_db_admin_port')
+sports_db_admin_host=os.environ.get('sports_db_admin_host')
+sports_db_admin_db='basketball'
+sports_db_admin_user=os.environ.get('sports_db_admin_user')
+sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
+sports_db_admin_port=os.environ.get('sports_db_admin_port')
 
 # leagueid=os.environ.get('leagueid')
 # espn_s2=os.environ.get('espn_s2')
@@ -155,54 +155,55 @@ print(my_tm)
 
 
 
-# yahoo_query="""
-# SELECT 
-#     CASE
-#         WHEN BBREF.date BETWEEN '2023-10-24' AND '2024-04-14' THEN 'current_season_only'
-#         WHEN BBREF.date < '2023-10-24' THEN 'historicals_only'
-#     END current_season_vs_historicals,
-#     'history_plus_current' AS all_history,
-#     YP.name,
-#     BBREF.date,
-#     BBREF.team,
-#     BBREF.location,
-#     BBREF.opponent,
-#     BBREF.outcome,
-#     BBREF.seconds_played,
-#     BBREF.made_field_goals,
-#     BBREF.attempted_field_goals,
-#     BBREF.made_three_point_field_goals,
-#     BBREF.attempted_three_point_field_goals,
-#     BBREF.made_free_throws,
-#     BBREF.attempted_free_throws,
-#     BBREF.offensive_rebounds,
-#     BBREF.defensive_rebounds,
-#     BBREF.assists,
-#     BBREF.steals,
-#     BBREF.blocks,
-#     BBREF.turnovers,
-#     BBREF.personal_fouls,
-#     BBREF.points AS points_scored,
-#     BBREF.game_score
-# FROM basketball.live_free_agents_yahoo YP
-# JOIN basketball.master_names_list_temp MNL ON SUBSTRING_INDEX(YP.name, ' ',1) = MNL.first_name
-#     AND (CASE WHEN LENGTH(YP.name)-LENGTH(REPLACE(YP.name, ' ', ''))+1 > 2 THEN SUBSTRING_INDEX(SUBSTRING_INDEX(YP.name, ' ',-2), ' ', 1) ELSE SUBSTRING_INDEX(YP.name, ' ',-1) END) = MNL.last_name
-#     AND (CASE WHEN LENGTH(YP.name)-LENGTH(REPLACE(YP.name, ' ', ''))+1 > 2 THEN SUBSTRING_INDEX(SUBSTRING_INDEX(YP.name, ' ',-2), ' ', -1) ELSE '' END) = MNL.suffix
-# JOIN basketball.historical_player_data BBREF ON MNL.bbrefid = BBREF.slug;
-# """
+yahoo_query="""
+SELECT 
+    CASE
+        WHEN BBREF.date BETWEEN '2023-10-24' AND '2024-04-14' THEN 'current_season_only'
+        WHEN BBREF.date < '2023-10-24' THEN 'historicals_only'
+    END current_season_vs_historicals,
+    'history_plus_current' AS all_history,
+    YP.name,
+    BBREF.date,
+    BBREF.team,
+    BBREF.location,
+    BBREF.opponent,
+    BBREF.outcome,
+    BBREF.seconds_played,
+    BBREF.made_field_goals,
+    BBREF.attempted_field_goals,
+    BBREF.made_three_point_field_goals,
+    BBREF.attempted_three_point_field_goals,
+    BBREF.made_free_throws,
+    BBREF.attempted_free_throws,
+    BBREF.offensive_rebounds,
+    BBREF.defensive_rebounds,
+    BBREF.assists,
+    BBREF.steals,
+    BBREF.blocks,
+    BBREF.turnovers,
+    BBREF.personal_fouls,
+    BBREF.points AS points_scored,
+    BBREF.game_score
+FROM basketball.live_free_agents_yahoo YP
+JOIN basketball.master_names_list_temp MNL ON SUBSTRING_INDEX(YP.name, ' ',1) = MNL.first_name
+    AND (CASE WHEN LENGTH(YP.name)-LENGTH(REPLACE(YP.name, ' ', ''))+1 > 2 THEN SUBSTRING_INDEX(SUBSTRING_INDEX(YP.name, ' ',-2), ' ', 1) ELSE SUBSTRING_INDEX(YP.name, ' ',-1) END) = MNL.last_name
+    AND (CASE WHEN LENGTH(YP.name)-LENGTH(REPLACE(YP.name, ' ', ''))+1 > 2 THEN SUBSTRING_INDEX(SUBSTRING_INDEX(YP.name, ' ',-2), ' ', -1) ELSE '' END) = MNL.suffix
+JOIN basketball.historical_player_data BBREF ON MNL.bbrefid = BBREF.slug;
+"""
 
-# connection=mysql.connect(host=sports_db_admin_host,
-#                         database=sports_db_admin_db,
-#                         user=sports_db_admin_user,
-#                         password=sports_db_admin_pw,
-#                         port=sports_db_admin_port)
+connection=mysql.connect(host=sports_db_admin_host,
+                        database=sports_db_admin_db,
+                        user=sports_db_admin_user,
+                        password=sports_db_admin_pw,
+                        port=sports_db_admin_port)
 
-# if connection.is_connected():
-#     cursor=connection.cursor()
+if connection.is_connected():
+    cursor=connection.cursor()
+    print(type(cursor))
 
-#     cursor.execute(yahoo_query)
-#     fa_yahoo_df=cursor.fetchall()
-#     fa_yahoo_df=pd.DataFrame(fa_yahoo_df,columns=cursor.column_names)
+    cursor.execute(yahoo_query)
+    fa_yahoo_df=cursor.fetchall()
+    fa_yahoo_df=pd.DataFrame(fa_yahoo_df,columns=cursor.column_names)
 
 
 # if(connection.is_connected()):

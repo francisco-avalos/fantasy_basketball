@@ -76,19 +76,20 @@ league=League(league_id=leagueid,
 
 
 def execute_query_and_fetch_df(query, cursor):
-    try:
-        with connection.cursor() as cursor:
-            print(f"Cursor type: {type(cursor)}")
-            cursor.execute(query)
-            result = cursor.fetchall()
-            df = pd.DataFrame(result, columns=cursor.column_names)
-            return df
-    except Exception as e:
-        print(f"Error executing query {e}")
-        raise
-    # cursor.execute(query)
-    # result = cursor.fetchall()
-    # return pd.DataFrame(result, columns=cursor.column_names)
+    # try:
+    #     with connection.cursor() as cursor:
+    #         print(f"Cursor type: {type(cursor)}")
+    #         cursor.execute(query)
+    #         result = cursor.fetchall()
+    #         df = pd.DataFrame(result, columns=cursor.column_names)
+    #         return df
+    # except Exception as e:
+    #     print(f"Error executing query {e}")
+    #     raise
+    with connection.cursor() as cursor:
+        cursor.execute(query)
+        result = cursor.fetchall()
+        return pd.DataFrame(result, columns=cursor.column_names)
 
 def fetch_team_data(query, connection, column_names):
     with connection.cursor() as cursor:
