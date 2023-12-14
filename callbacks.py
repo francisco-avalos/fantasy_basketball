@@ -75,6 +75,24 @@ league=League(league_id=leagueid,
 #                         port=sports_db_admin_port)
 
 
+def execute_query_and_fetch_df(query, cursor):
+    cursor.execute(query)
+    result = cursor.fetchall()
+    return pd.DataFrame(result, columns=cursor.column_names)
+
+def fetch_team_data(query, connection, column_names):
+    with connection.cursor() as cursor:
+        df = execute_query_and_fetch_df(query, cursor)
+    df['total_rebounds'] = df['offensive_rebounds'] + df['defensive_rebounds']
+    df['minutes_played'] = df['seconds_played']/60
+    return df[column_names]
+
+def fetch_players_sched_query(query, connection, player_name):
+    with connection.cursor() as cursor:
+        cursor.execute(query.format(p=player_name))
+        df = execute_query_and_fetch_df(query, cursor)
+    return df
+
 
 espn_query='''
 SELECT 
@@ -271,83 +289,107 @@ my_safe_players=['Jayson Tatum', 'Kyrie Irving','Jaylen Brown']
 
 with connection_pool.get_connection() as connection:
     if connection.is_connected():
-        #### IMPORT DATA FROM DB - FREE AGENT SCREENER TOOL
-        with connection.cursor() as cursor:
-            cursor.execute(espn_query)
-            fa_espn_df = cursor.fetchall()
-            fa_espn_df = pd.DataFrame(fa_espn_df, columns=cursor.column_names)
-        with connection.cursor() as cursor:
-            cursor.execute(yahoo_query)
-            fa_yahoo_df = cursor.fetchall()
-            fa_yahoo_df = pd.DataFrame(fa_yahoo_df, columns=cursor.column_names)
+        fa_espn_df = execute_query_and_fetch_df(espn_query, connection)
+        fa_yahoo_df = execute_query_and_fetch_df(yahoo_query, connection)
+        myteam_df = fetch_team_data(my_espn_team_qry, connection, ['name', 'team', 'date', 'seconds_played', 'offensive_rebounds', 'defensive_rebounds'])
+        myteam_df_yh = fetch_team_data(my_yahoo_team_qry, connection, ['name', 'team', 'date', 'seconds_played', 'offensive_rebounds', 'defensive_rebounds'])
+        live_yahoo_players_df = execute_query_and_fetch_df(my_live_yahoo_qry, connection)
+        inj_df = execute_query_and_fetch_df(my_injured_espn_team_qry, connection)
+        inj_df_yf = execute_query_and_fetch_df(my_injured_yahoo_team_qry, connection)
 
-        #### IMPORT DATA FROM DB - CURRENT TEAM PERFORMANCE
-        with connection.cursor() as cursor:
-            cursor.execute(inj_prob_qry)
-            injury_probabilities_df = cursor.fetchall()
-            injury_probabilities_df = pd.DataFrame(injury_probabilities_df, columns=cursor.column_names)
-        with connection.cursor() as cursor:
-            cursor.execute(my_espn_team_qry)
-            myteam_df = cursor.fetchall()
-            myteam_df = pd.DataFrame(myteam_df, columns=cursor.column_names)
-            myteam_df['total_rebounds']=myteam_df['offensive_rebounds']+myteam_df['defensive_rebounds']
-            myteam_df['minutes_played']=myteam_df['seconds_played']/60
-        with connection.cursor() as cursor:
-            cursor.execute(my_yahoo_team_qry)
-            myteam_df_yh = cursor.fetchall()
-            myteam_df_yh = pd.DataFrame(myteam_df_yh, columns=cursor.column_names)
-            myteam_df_yh['total_rebounds']=myteam_df_yh['offensive_rebounds']+myteam_df_yh['defensive_rebounds']
-            myteam_df_yh['minutes_played']=myteam_df_yh['seconds_played']/60
-        with connection.cursor() as cursor:
-            cursor.execute(my_live_yahoo_qry)
-            live_yahoo_players_df = cursor.fetchall()
-            live_yahoo_players_df = pd.DataFrame(live_yahoo_players_df, columns=cursor.column_names)
-        with connection.cursor() as cursor:
-            cursor.execute(my_injured_espn_team_qry)
-            inj_df = cursor.fetchall()
-            inj_df = pd.DataFrame(inj_df, columns=cursor.column_names)
-        with connection.cursor() as cursor:
-            cursor.execute(my_injured_yahoo_team_qry)
-            inj_df_yf = cursor.fetchall()
-            inj_df_yf = pd.DataFrame(inj_df_yf, columns=cursor.column_names)
-        myteam=league.teams[10]
-        current_players=clean_string(myteam.roster).split(',')
-        current_players=[remove_name_suffixes(x) for x in current_players]
-        current_players=[x.strip(' ') for x in current_players]
+        myteam = league.teams[10]
+        current_players = clean_string(myteam.roster).split(',')
+        current_players = [remove_name_suffixes(x).strip() for x in current_players]
         
-        players_at_risk=list(set(current_players)-set(my_safe_players))
-        players_at_risk=pd.DataFrame(players_at_risk)
-        players_at_risk.columns=['Name']
-        df_for_agg=pd.DataFrame()
+        players_at_risk = list(set(current_players) - set(my_safe_players))
+        players_at_risk_df = pd.DataFrame(players_at_risk, columns=['Name'])
+        df_for_agg = pd.concat([fetch_players_sched_query(my_espn_players_sched_query, connection, p) for p in current_players])
 
-        for p in current_players:
-            p = remove_name_suffixes(p)
-            p = p.strip()
-            with connection.cursor() as cursor:
-                cursor.execute(my_espn_players_sched_query)
-                myteam_df1 = cursor.fetchall()
-                myteam_df1 = pd.DataFrame(myteam_df1, columns=cursor.column_names)
-                df_for_agg = pd.concat([df_for_agg, myteam_df1])
+        current_players_yh = live_yahoo_players_df.name.str.replace("'", "").str.strip().tolist()
+        current_players_yh_at_risk_df = pd.DataFrame(current_players_yh, columns=['Name'])
+        df_yh_for_agg = pd.concat([fetch_players_sched_query(my_yahoo_players_sched_query, connection, p) for p in current_players_yh])
 
-        current_players_yh=live_yahoo_players_df.name.tolist()
 
-        current_players_yh=clean_string(current_players_yh).split(',')
-        current_players_yh=[remove_name_suffixes(x) for x in current_players_yh]
-        current_players_yh=[x.replace("'","") for x in current_players_yh]
-        current_players_yh=[x.replace("'","").strip() for x in current_players_yh]
+# with connection_pool.get_connection() as connection:
+#     if connection.is_connected():
+#         #### IMPORT DATA FROM DB - FREE AGENT SCREENER TOOL
+#         with connection.cursor() as cursor:
+#             cursor.execute(espn_query)
+#             fa_espn_df = cursor.fetchall()
+#             fa_espn_df = pd.DataFrame(fa_espn_df, columns=cursor.column_names)
+#         with connection.cursor() as cursor:
+#             cursor.execute(yahoo_query)
+#             fa_yahoo_df = cursor.fetchall()
+#             fa_yahoo_df = pd.DataFrame(fa_yahoo_df, columns=cursor.column_names)
 
-        current_players_yh_at_risk_df=pd.DataFrame(current_players_yh)
-        current_players_yh_at_risk_df.columns=['Name']
-        df_yh_for_agg=pd.DataFrame()
+#         #### IMPORT DATA FROM DB - CURRENT TEAM PERFORMANCE
+#         with connection.cursor() as cursor:
+#             cursor.execute(inj_prob_qry)
+#             injury_probabilities_df = cursor.fetchall()
+#             injury_probabilities_df = pd.DataFrame(injury_probabilities_df, columns=cursor.column_names)
+#         with connection.cursor() as cursor:
+#             cursor.execute(my_espn_team_qry)
+#             myteam_df = cursor.fetchall()
+#             myteam_df = pd.DataFrame(myteam_df, columns=cursor.column_names)
+#             myteam_df['total_rebounds']=myteam_df['offensive_rebounds']+myteam_df['defensive_rebounds']
+#             myteam_df['minutes_played']=myteam_df['seconds_played']/60
+#         with connection.cursor() as cursor:
+#             cursor.execute(my_yahoo_team_qry)
+#             myteam_df_yh = cursor.fetchall()
+#             myteam_df_yh = pd.DataFrame(myteam_df_yh, columns=cursor.column_names)
+#             myteam_df_yh['total_rebounds']=myteam_df_yh['offensive_rebounds']+myteam_df_yh['defensive_rebounds']
+#             myteam_df_yh['minutes_played']=myteam_df_yh['seconds_played']/60
+#         with connection.cursor() as cursor:
+#             cursor.execute(my_live_yahoo_qry)
+#             live_yahoo_players_df = cursor.fetchall()
+#             live_yahoo_players_df = pd.DataFrame(live_yahoo_players_df, columns=cursor.column_names)
+#         with connection.cursor() as cursor:
+#             cursor.execute(my_injured_espn_team_qry)
+#             inj_df = cursor.fetchall()
+#             inj_df = pd.DataFrame(inj_df, columns=cursor.column_names)
+#         with connection.cursor() as cursor:
+#             cursor.execute(my_injured_yahoo_team_qry)
+#             inj_df_yf = cursor.fetchall()
+#             inj_df_yf = pd.DataFrame(inj_df_yf, columns=cursor.column_names)
+#         myteam=league.teams[10]
+#         current_players=clean_string(myteam.roster).split(',')
+#         current_players=[remove_name_suffixes(x) for x in current_players]
+#         current_players=[x.strip(' ') for x in current_players]
+        
+#         players_at_risk=list(set(current_players)-set(my_safe_players))
+#         players_at_risk=pd.DataFrame(players_at_risk)
+#         players_at_risk.columns=['Name']
+#         df_for_agg=pd.DataFrame()
 
-        for p in current_players_yh:
-            p = remove_name_suffixes(p)
-            p = p.strip()
-            with connection.cursor() as cursor:
-                cursor.execute(my_yahoo_players_sched_query)
-                my_team_df1_yh = cursor.fetchall()
-                my_team_df1_yh = pd.DataFrame(my_team_df1_yh, columns=cursor.column_names)
-                df_yh_for_agg = pd.concat([df_yh_for_agg, my_team_df1_yh])
+#         for p in current_players:
+#             p = remove_name_suffixes(p)
+#             p = p.strip()
+#             with connection.cursor() as cursor:
+#                 cursor.execute(my_espn_players_sched_query)
+#                 myteam_df1 = cursor.fetchall()
+#                 myteam_df1 = pd.DataFrame(myteam_df1, columns=cursor.column_names)
+#                 df_for_agg = pd.concat([df_for_agg, myteam_df1])
+
+#         current_players_yh=live_yahoo_players_df.name.tolist()
+
+#         current_players_yh=clean_string(current_players_yh).split(',')
+#         current_players_yh=[remove_name_suffixes(x) for x in current_players_yh]
+#         current_players_yh=[x.replace("'","") for x in current_players_yh]
+#         current_players_yh=[x.replace("'","").strip() for x in current_players_yh]
+
+#         current_players_yh_at_risk_df=pd.DataFrame(current_players_yh)
+#         current_players_yh_at_risk_df.columns=['Name']
+#         df_yh_for_agg=pd.DataFrame()
+
+#         for p in current_players_yh:
+#             p = remove_name_suffixes(p)
+#             p = p.strip()
+#             with connection.cursor() as cursor:
+#                 cursor.execute(my_yahoo_players_sched_query)
+#                 my_team_df1_yh = cursor.fetchall()
+#                 my_team_df1_yh = pd.DataFrame(my_team_df1_yh, columns=cursor.column_names)
+#                 df_yh_for_agg = pd.concat([df_yh_for_agg, my_team_df1_yh])
+
 
 # if connection.is_connected():
 #     cursor=connection.cursor()

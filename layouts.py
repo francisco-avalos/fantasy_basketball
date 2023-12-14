@@ -10,7 +10,7 @@ import plotly.express as px
 from dash_create import app
 
 from callbacks import line_plot, bar_plot, heatmap, heatmap_weights, boxplot_by_player, boxplot_by_player_weekday_class, injury_probabilities
-
+from callbacks import execute_query_and_fetch_df, fetch_team_data, fetch_players_sched_query
 from my_functions import clean_string, remove_name_suffixes
 
 # ESPN 
@@ -148,23 +148,6 @@ league=League(league_id=leagueid,
 #                         port=sports_db_admin_port)
 
 
-def execute_query_and_fetch_df(query, cursor):
-    cursor.execute(query)
-    result = cursor.fetchall()
-    return pd.DataFrame(result, columns=cursor.column_names)
-
-def fetch_team_data(query, connection, column_names):
-    with connection.cursor() as cursor:
-        df = execute_query_and_fetch_df(query, cursor)
-    df['total_rebounds'] = df['offensive_rebounds'] + df['defensive_rebounds']
-    df['minutes_played'] = df['seconds_played']/60
-    return df[column_names]
-
-def fetch_players_sched_query(query, connection, player_name):
-    with connection.cursor() as cursor:
-        cursor.execute(query.format(p=player_name))
-        df = execute_query_and_fetch_df(query, cursor)
-    return df
 
 
 espn_query='''
