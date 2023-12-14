@@ -396,6 +396,7 @@ with connection_pool.get_connection() as connection:
                 myteam_df1 = cursor.fetchall()
                 myteam_df1 = pd.DataFrame(myteam_df1, columns=cursor.column_names)
                 df_for_agg = pd.concat([df_for_agg, myteam_df1])
+        cursor.close()
 
         current_players_yh=live_yahoo_players_df.name.tolist()
 
