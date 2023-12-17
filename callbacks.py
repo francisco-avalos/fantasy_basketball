@@ -268,6 +268,7 @@ JOIN basketball.high_level_nba_team_schedules TSCHED ON MTS.team = TSCHED.away_t
 JOIN basketball.calendar CAL ON DATE(SUBDATE(CAST(TSCHED.start_time AS DATETIME), INTERVAL 8 HOUR)) = CAL.day
 WHERE MTS.name LIKE CONCAT("%", "{p}","%")
     AND CURDATE() BETWEEN CAL.week_starting_monday AND CAL.week_ending_sunday
+    AND name IN (SELECT DISTINCT name FROM basketball.live_yahoo_players)
 GROUP BY MTS.name, TSCHED.start_time;
 '''
 
