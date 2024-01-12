@@ -461,6 +461,18 @@
 -- );
 
 
+########################################################################################################################
+########################################################################################################################
+
+-- DROP TABLE IF EXISTS basketball.espn_player_positions;
+-- CREATE TABLE IF NOT EXISTS basketball.espn_player_positions
+-- (
+--   `player_name` varchar(100) NOT NULL,
+--   `player_roles` varchar(200) NOT NULL,
+--   PRIMARY KEY (`player_name`)
+-- );
+
+
 
 
 
