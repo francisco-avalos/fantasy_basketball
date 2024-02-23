@@ -61,7 +61,7 @@ try:
                 SUBSTRING_INDEX(GROUP_CONCAT(date ORDER BY date DESC SEPARATOR '; '), ';', 1) AS backfill_since_current_season_latest_data_entry
             FROM basketball.historical_player_data
             GROUP BY season
-            ORDER BY backfill_since_current_season_begins DESC 
+            ORDER BY date DESC
             LIMIT 1;"""
         cursor.execute(qry)
         latest_season=cursor.fetchall()
