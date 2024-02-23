@@ -76,27 +76,27 @@ import requests
 
 
 
-# ## Preliminaries, set ups & initiators 
-# pd.set_option('display.max_columns', None)
-# pd.set_option('display.max_rows', None)
+## Preliminaries, set ups & initiators 
+pd.set_option('display.max_columns', None)
+pd.set_option('display.max_rows', None)
 
 
-sports_db_admin_host=os.environ.get('sports_db_admin_host')
-sports_db_admin_db='basketball'
-sports_db_admin_user=os.environ.get('sports_db_admin_user')
-sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
-sports_db_admin_port=os.environ.get('sports_db_admin_port')
+# sports_db_admin_host=os.environ.get('sports_db_admin_host')
+# sports_db_admin_db='basketball'
+# sports_db_admin_user=os.environ.get('sports_db_admin_user')
+# sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
+# sports_db_admin_port=os.environ.get('sports_db_admin_port')
 
-# leagueid=os.environ.get('leagueid')
-# espn_s2=os.environ.get('espn_s2')
-# swid=os.environ.get('swid')
+# # leagueid=os.environ.get('leagueid')
+# # espn_s2=os.environ.get('espn_s2')
+# # swid=os.environ.get('swid')
 
 
 
-sc=OAuth2(None,None,from_file='oauth2.json')
-gm=yfa.Game(sc, 'nba')
-league_id=gm.league_ids(year=2024)
-lg=gm.to_league('428.l.18598')
+# sc=OAuth2(None,None,from_file='oauth2.json')
+# gm=yfa.Game(sc, 'nba')
+# league_id=gm.league_ids(year=2024)
+# lg=gm.to_league('428.l.18598')
 # tk=lg.free_agents('PG')
 # tk_df=pd.DataFrame(tk)
 # print(tk_df.head(20))
@@ -119,9 +119,9 @@ lg=gm.to_league('428.l.18598')
 # print(yfa.__file__)
 
 
-tm=lg.to_team('428.l.18598.t.4')
-my_tm=pd.DataFrame(tm.roster())
-print(my_tm)
+# tm=lg.to_team('428.l.18598.t.4')
+# my_tm=pd.DataFrame(tm.roster())
+# print(my_tm)
 
 
 # # yfa_file_loca=yfa.__file__
@@ -132,9 +132,9 @@ print(my_tm)
 
 
 
-# leagueid=os.environ.get('leagueid')
-# espn_s2=os.environ.get('espn_s2')
-# swid=os.environ.get('swid')
+leagueid=os.environ.get('leagueid')
+espn_s2=os.environ.get('espn_s2')
+swid=os.environ.get('swid')
 
 # fa_size=5
 # season_end_year=2024
@@ -155,55 +155,55 @@ print(my_tm)
 
 
 
-yahoo_query="""
-SELECT 
-    CASE
-        WHEN BBREF.date BETWEEN '2023-10-24' AND '2024-04-14' THEN 'current_season_only'
-        WHEN BBREF.date < '2023-10-24' THEN 'historicals_only'
-    END current_season_vs_historicals,
-    'history_plus_current' AS all_history,
-    YP.name,
-    BBREF.date,
-    BBREF.team,
-    BBREF.location,
-    BBREF.opponent,
-    BBREF.outcome,
-    BBREF.seconds_played,
-    BBREF.made_field_goals,
-    BBREF.attempted_field_goals,
-    BBREF.made_three_point_field_goals,
-    BBREF.attempted_three_point_field_goals,
-    BBREF.made_free_throws,
-    BBREF.attempted_free_throws,
-    BBREF.offensive_rebounds,
-    BBREF.defensive_rebounds,
-    BBREF.assists,
-    BBREF.steals,
-    BBREF.blocks,
-    BBREF.turnovers,
-    BBREF.personal_fouls,
-    BBREF.points AS points_scored,
-    BBREF.game_score
-FROM basketball.live_free_agents_yahoo YP
-JOIN basketball.master_names_list_temp MNL ON SUBSTRING_INDEX(YP.name, ' ',1) = MNL.first_name
-    AND (CASE WHEN LENGTH(YP.name)-LENGTH(REPLACE(YP.name, ' ', ''))+1 > 2 THEN SUBSTRING_INDEX(SUBSTRING_INDEX(YP.name, ' ',-2), ' ', 1) ELSE SUBSTRING_INDEX(YP.name, ' ',-1) END) = MNL.last_name
-    AND (CASE WHEN LENGTH(YP.name)-LENGTH(REPLACE(YP.name, ' ', ''))+1 > 2 THEN SUBSTRING_INDEX(SUBSTRING_INDEX(YP.name, ' ',-2), ' ', -1) ELSE '' END) = MNL.suffix
-JOIN basketball.historical_player_data BBREF ON MNL.bbrefid = BBREF.slug;
-"""
+# yahoo_query="""
+# SELECT 
+#     CASE
+#         WHEN BBREF.date BETWEEN '2023-10-24' AND '2024-04-14' THEN 'current_season_only'
+#         WHEN BBREF.date < '2023-10-24' THEN 'historicals_only'
+#     END current_season_vs_historicals,
+#     'history_plus_current' AS all_history,
+#     YP.name,
+#     BBREF.date,
+#     BBREF.team,
+#     BBREF.location,
+#     BBREF.opponent,
+#     BBREF.outcome,
+#     BBREF.seconds_played,
+#     BBREF.made_field_goals,
+#     BBREF.attempted_field_goals,
+#     BBREF.made_three_point_field_goals,
+#     BBREF.attempted_three_point_field_goals,
+#     BBREF.made_free_throws,
+#     BBREF.attempted_free_throws,
+#     BBREF.offensive_rebounds,
+#     BBREF.defensive_rebounds,
+#     BBREF.assists,
+#     BBREF.steals,
+#     BBREF.blocks,
+#     BBREF.turnovers,
+#     BBREF.personal_fouls,
+#     BBREF.points AS points_scored,
+#     BBREF.game_score
+# FROM basketball.live_free_agents_yahoo YP
+# JOIN basketball.master_names_list_temp MNL ON SUBSTRING_INDEX(YP.name, ' ',1) = MNL.first_name
+#     AND (CASE WHEN LENGTH(YP.name)-LENGTH(REPLACE(YP.name, ' ', ''))+1 > 2 THEN SUBSTRING_INDEX(SUBSTRING_INDEX(YP.name, ' ',-2), ' ', 1) ELSE SUBSTRING_INDEX(YP.name, ' ',-1) END) = MNL.last_name
+#     AND (CASE WHEN LENGTH(YP.name)-LENGTH(REPLACE(YP.name, ' ', ''))+1 > 2 THEN SUBSTRING_INDEX(SUBSTRING_INDEX(YP.name, ' ',-2), ' ', -1) ELSE '' END) = MNL.suffix
+# JOIN basketball.historical_player_data BBREF ON MNL.bbrefid = BBREF.slug;
+# """
 
-connection=mysql.connect(host=sports_db_admin_host,
-                        database=sports_db_admin_db,
-                        user=sports_db_admin_user,
-                        password=sports_db_admin_pw,
-                        port=sports_db_admin_port)
+# connection=mysql.connect(host=sports_db_admin_host,
+#                         database=sports_db_admin_db,
+#                         user=sports_db_admin_user,
+#                         password=sports_db_admin_pw,
+#                         port=sports_db_admin_port)
 
-if connection.is_connected():
-    cursor=connection.cursor()
-    print(type(cursor))
+# if connection.is_connected():
+#     cursor=connection.cursor()
+#     print(type(cursor))
 
-    cursor.execute(yahoo_query)
-    fa_yahoo_df=cursor.fetchall()
-    fa_yahoo_df=pd.DataFrame(fa_yahoo_df,columns=cursor.column_names)
+#     cursor.execute(yahoo_query)
+#     fa_yahoo_df=cursor.fetchall()
+#     fa_yahoo_df=pd.DataFrame(fa_yahoo_df,columns=cursor.column_names)
 
 
 # if(connection.is_connected()):
@@ -225,11 +225,11 @@ if connection.is_connected():
 
 
 
-# league=League(league_id=leagueid, 
-# 				year=2024,
-# 				espn_s2=espn_s2,
-# 				swid=swid, 
-# 				debug=False)
+league=League(league_id=leagueid, 
+				year=2024,
+				espn_s2=espn_s2,
+				swid=swid, 
+				debug=False)
 
 
 
@@ -249,7 +249,7 @@ if connection.is_connected():
 # print(league.scoreboard())
 
 
-# for score_results in league.scoreboard(1):
+# for score_results in league.scoreboard(2):
 # 	score_results=str(score_results)
 # 	score_results=remove_team_string(score_results)
 # 	score_results=remove_matchup_string(score_results)
@@ -264,7 +264,8 @@ if connection.is_connected():
 #     season_end_year=2023
 # )
 # df=pd.DataFrame(df)
-# print(df)
+# # print(df)
+
 
 # print(df.head())
 # print(df.shape)
@@ -286,20 +287,24 @@ if connection.is_connected():
 
 # print(league.free_agents(size=5))
 
+player_position_df=pd.DataFrame(columns=['Player_Name','Player_Roles'])
+for fa in league.free_agents(size=15):
+    fa=str(fa)
+    fa=remove_player_string(fa)
+    pi=league.player_info(fa)
+    # print(f'{fa} - {pi.eligibleSlots} - {pi.position}')
+    new_row={'Player_Name':fa,'Player_Roles':pi.eligibleSlots}
+    player_position_df=player_position_df.append(new_row,ignore_index=True)
+    time.sleep(4)
+print(player_position_df)
 
-# for fa in league.free_agents(size=20):
-# 	fa=str(fa)
-# 	fa=remove_player_string(fa)
-# 	print(fa)
 
-
-
-
+# basketball.espn_player_positions
 
 # myteam=league.teams[11]
 # my_players=clean_string(myteam.roster).split(',')
-# # print(type(my_players))
-# # print(my_players)
+# print(type(my_players))
+# print(my_players)
 # for p in my_players:
 # 	print(p.lstrip())
 
@@ -311,7 +316,11 @@ if connection.is_connected():
 # 	acqTy=p.acquisitionType
 # 	p=str(p)
 # 	p=remove_player_string(p)
-# 	print(p, '-', acqTy)
+# 	print(p, '-', pos)
+
+
+# pi=league.player_info('Kelly Olynyk')
+# print(pi.eligibleSlots)
 
 
 # box=league.box_scores()
