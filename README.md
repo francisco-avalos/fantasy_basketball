@@ -2,7 +2,7 @@
 Leveraging Data for better basketball decisions
 
 Objective: The aim of this captsone project is to build time-series based models and predict player performance. These predictions would improve decisions on player lineups with the intention of outscoring the opponent in the weekly matchups for fantasy basketball. 
-
+\n
 
 High-level Summary: ESPN and Yahoo APIs are leveraged for league data ([ESPN](https://github.com/cwendt94/espn-api), [Yahoo](https://pypi.org/project/yahoo-fantasy-api/)). Daily player data is obtained from the basketball-reference website using the [basketball_reference_web_scraper](https://github.com/jaebradley/basketball_reference_web_scraper) API. Player injury data is scraped from the [Pro Sports Transactions](https://prosportstransactions.com/) website. All data is stored and maintained in a MariaDB database.
 
