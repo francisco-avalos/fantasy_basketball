@@ -12,3 +12,4 @@ venv
 .DS_Store
 .env
 oauth2.json
+tmp_data/
