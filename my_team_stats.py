@@ -25,6 +25,8 @@ from my_functions import clean_string, remove_jr, convert_game_score_to_points
 
 from unidecode import unidecode
 
+from my_functions import clean_string, remove_name_suffixes
+
 ## Preliminaries, set ups & initiators 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', None)
@@ -50,7 +52,12 @@ league=League(league_id=leagueid,
 
 myteam=league.teams[10]
 my_players=clean_string(myteam.roster).split(',')
-# print(my_players)
+
+espn_current_players=[remove_name_suffixes(x) for x in my_players]
+espn_current_players=[x.strip(' ') for x in espn_current_players]
+
+espn_current_players=pd.DataFrame(espn_current_players)
+espn_current_players.columns=['name']
 
 
 sc=OAuth2(None,None,from_file='oauth2.json')
@@ -78,6 +85,7 @@ connection=mysql.connect(host=sports_db_admin_host,
 if connection.is_connected():
 	cursor=connection.cursor()
 	cursor.execute('TRUNCATE basketball.live_yahoo_players;')
+	cursor.execute('TRUNCATE basketball.live_espn_players;')
 
 	file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/live_yh_team.csv'
 	my_players_yh_cp.to_csv(file_path,index=False)
@@ -87,6 +95,15 @@ if connection.is_connected():
 	del my_players_yh_cp
 	os.remove(file_path)
 	print('live_yahoo_players updated with recent data')
+
+	file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/live_ESPN_team.csv'
+	espn_current_players.to_csv(file_path,index=False)
+	qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.live_espn_players FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' IGNORE 1 ROWS;"
+	cursor.execute(qry)
+	connection.commit()
+	del espn_current_players
+	os.remove(file_path)
+	print('live_espn_players updated with recent data')
 
 if(connection.is_connected()):
 	cursor.close()

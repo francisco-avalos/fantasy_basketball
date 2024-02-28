@@ -237,6 +237,12 @@ league=League(league_id=leagueid,
 # my_players=clean_string(myteam.roster).split(',')
 # print(my_players)
 
+myteam=league.teams[10]
+current_players=clean_string(myteam.roster).split(',')
+current_players=[remove_name_suffixes(x) for x in current_players]
+current_players=[x.strip(' ') for x in current_players]
+print(current_players)
+
 
 
 
