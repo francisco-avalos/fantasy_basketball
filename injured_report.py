@@ -20,20 +20,20 @@ sports_db_admin_port=os.environ.get('sports_db_admin_port')
 
 
 out_players=[
-'https://www.rotowire.com/basketball/player/cameron-johnson-4916',
+# 'https://www.rotowire.com/basketball/player/cameron-johnson-4916',
 # 'https://www.rotowire.com/basketball/player/lonnie-walker-4435'
 # 'https://www.rotowire.com/basketball/player/kyrie-irving-3186',
-'https://www.rotowire.com/basketball/player/shaedon-sharpe-5693',
-'https://www.rotowire.com/basketball/player/cam-whitmore-5934'
+'https://www.rotowire.com/basketball/player/shaedon-sharpe-5693'
+# 'https://www.rotowire.com/basketball/player/cam-whitmore-5934'
 # 'https://www.rotowire.com/basketball/player/jaylen-brown-3894'
 # 'https://www.rotowire.com/basketball/player/klay-thompson-3197'
 ]
 out_players_yf=[
 'https://www.rotowire.com/basketball/player/julius-randle-3574',
 # 'https://www.rotowire.com/basketball/player/tre-jones-5111',
-# 'https://www.rotowire.com/basketball/player/cj-mccollum-3437',
-'https://www.rotowire.com/basketball/player/kristaps-porzingis-3669',
-'https://www.rotowire.com/basketball/player/chris-paul-2584'
+'https://www.rotowire.com/basketball/player/cj-mccollum-3437'
+# 'https://www.rotowire.com/basketball/player/kristaps-porzingis-3669',
+# 'https://www.rotowire.com/basketball/player/chris-paul-2584'
 # 'https://www.rotowire.com/basketball/player/killian-hayes-5121',
 # 'https://www.rotowire.com/basketball/player/markelle-fultz-4100',
 # 'https://www.rotowire.com/basketball/player/caleb-martin-4931'
