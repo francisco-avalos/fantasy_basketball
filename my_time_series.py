@@ -21,7 +21,7 @@ from statsmodels.graphics.gofplots import qqplot
 from statsmodels.stats.diagnostic import acorr_ljungbox
 
 # from statsmodels.tsa.seasonal import STL
-# import statsmodels.api as sm
+import statsmodels.api as sm
 
 from statsmodels.tsa.statespace.varmax import VARMAX
 from statsmodels.tsa.stattools import grangercausalitytests
@@ -38,6 +38,12 @@ from tensorflow.keras.layers import Dense, Conv1D, LSTM, Lambda, Reshape, RNN, L
 
 import tensorflow as tf
 
+from statsmodels.tsa.holtwinters import ExponentialSmoothing
+
+from my_functions import create_player_folder, create_model_folder
+import os
+import pickle
+
 
 
 def mape(y_true, y_pred):
@@ -45,8 +51,26 @@ def mape(y_true, y_pred):
 
 
 
+def stationary_check(field_values) -> bool:
+  adf_result=adfuller(field_values)
+  if adf_result[1] < 0.05:
+    return True
+  else:
+    return False
+
+def difference(field_values,n_diff=1) -> bool:
+  field_diff = np.diff(field_values,n=n_diff)
+  adf_result = adfuller(field_diff)
+
+  if adf_result[1] < 0.05:
+    return True
+  else:
+    return False
+
 ##########################################################################################
 ##########################################################################################
+
+
 
 
 
@@ -214,8 +238,44 @@ def optimize_VARMAX(
 
 
 
+def optimize_exponential(
+  endog: Union[pd.Series, list], 
+  orderList:list
+) -> pd.DataFrame:
+  results = []
+  for order in tqdm.tqdm(orderList):
+    try:
+      model = ExponentialSmoothing(endog,trend=None)
+      fit_model = model.fit(smoothing_level=order,optimized=True)
+    except:
+      continue
+    aic = fit_model.aic
+    results.append([order,aic])
+  result_df = pd.DataFrame(results)
+  result_df.columns = ['(alpha)', 'AIC']
+  result_df = result_df.sort_values(by='AIC', ascending=True).reset_index(drop=True)
+
+  return result_df
 
 
+def optimize_double_exponential(
+  endog: Union[pd.Series, list], 
+  orderList:list
+) -> pd.DataFrame:
+  results = []
+  for order in tqdm.tqdm(orderList):
+    try:
+      model = ExponentialSmoothing(endog,trend=None)
+      fit_model = model.fit(smoothing_level=order[0],smoothing_trend=order[1],optimized=True)
+    except:
+      continue
+    aic = fit_model.aic
+    results.append([order[0],order[1],aic])
+  result_df = pd.DataFrame(results)
+  result_df.columns = ['alpha','beta', 'AIC']
+  result_df = result_df.sort_values(by='AIC', ascending=True).reset_index(drop=True)
+
+  return result_df
 
 
 ##########################################################################################
@@ -576,6 +636,106 @@ def rolling_forecast_VARMAX(
 
 
 
+def rolling_forecast_exponential(
+  df:pd.DataFrame, 
+  trainLen:int, 
+  horizon:int, 
+  window:int, 
+  orderList:list
+) -> list:
+  pred_DExp=[]
+  total_len = trainLen + horizon
+  model=ExponentialSmoothing(df.iloc[:total_len],trend=None)
+  res=model.fit(smoothing_level=orderList[0],optimized=True)
+  for i in range(trainLen,total_len-horizon+1,window):
+    predictions=res.forecast(steps=i+window-1)
+    pred_DExp.extend(predictions.values)
+
+  return pred_DExp
+
+
+
+def rolling_forecast_double_exponential(
+  df:pd.DataFrame, 
+  trainLen:int, 
+  horizon:int, 
+  window:int, 
+  orderList:list
+) -> list:
+  pred_DExp=[]
+  total_len = trainLen + horizon
+  model=ExponentialSmoothing(df.iloc[:total_len],trend=None)
+  res=model.fit(smoothing_level=orderList[0],smoothing_trend=orderList[1],optimized=True)
+  for i in range(trainLen,total_len-horizon+1,window):
+    predictions=res.forecast(steps=i+window-1)
+    pred_DExp.extend(predictions.values)
+
+  return pred_DExp
+
+
+##########################################################################################
+##########################################################################################
+
+
+def exponential_smoothing(series, alpha):
+
+    result = [series[0]] # first value is same as series
+    for n in range(1, len(series)):
+        result.append(alpha * series[n] + (1 - alpha) * result[n-1])
+    return result
+  
+def plot_exponential_smoothing(series, alphas, x_lim=None):
+ 
+    fig, ax = plt.subplots(figsize=(12,6))
+    linewidth=2.5
+    ax.plot(series.values, "c", label = "Actual", linewidth=linewidth)
+    for alpha in alphas:
+        ax.plot(exponential_smoothing(series, alpha), label="Alpha {}".format(alpha), linewidth=linewidth)
+        
+    # Check if x_lim is a list
+    if isinstance(x_lim, list):
+        ax.set_xlim(x_lim[0],x_lim[1])
+    elif isinstance(x_lim,int):
+        ax.set_xlim(0,x_lim)
+    ax.legend(loc="best")
+    ax.set_title("Exponential Smoothing")
+    ax.grid(True);
+
+
+def double_exponential_smoothing(series, alpha, beta):
+
+    result = [series[0]]
+    for n in range(1, len(series)+1):
+        if n == 1:
+            level, trend = series[0], series[1] - series[0]
+        if n >= len(series): # forecasting
+            value = result[-1]
+        else:
+            value = series[n]
+        last_level, level = level, alpha * value + (1 - alpha) * (level + trend)
+        trend = beta * (level - last_level) + (1 - beta) * trend
+        result.append(level + trend)
+    return result
+
+def plot_double_exponential_smoothing(series, alphas, betas, x_lim=None):
+     
+    fig, ax = plt.subplots(figsize=(17,8))
+    linewidth=2.5
+    ax.plot(series.values, label = "Actual")
+    for alpha in alphas:
+        for beta in betas:
+            ax.plot(double_exponential_smoothing(series, alpha, beta), label="Alpha {}, beta {}".format(alpha, beta),linewidth=linewidth)
+    # Check if x_lim is a list
+    if isinstance(x_lim, list):
+        ax.set_xlim(x_lim[0],x_lim[1])
+    elif isinstance(x_lim,int):
+        ax.set_xlim(0,x_lim)
+    ax.legend(loc="best")
+    ax.set_title("Double Exponential Smoothing")
+    ax.grid(True)
+    
+
+
 
 
 ##########################################################################################
@@ -789,13 +949,313 @@ class AutoRegressive(Model):
 
 
 
+def acf_pacf_df_export(bid:str,file_path:str,field_values:list):
+  # bid_directory=os.path.join(file_path,bid)
+  bid_directory=create_player_folder(bid,file_path=file_path)
+
+  conf_int=1.96/np.sqrt(len(field_values))
+
+  # Generate acf table and save
+  acf_results=sm.tsa.acf(field_values)
+  sig_lags=np.where((acf_results>=conf_int)|(acf_results<=-conf_int))[0]
+  df_acf_sig_lags=pd.DataFrame({'Lag':sig_lags,'Autocorrelation':acf_results[sig_lags]})
+  csv_filename=os.path.join(bid_directory,f'{bid}_acf_sig_lags.csv')
+  df_acf_sig_lags.to_csv(csv_filename,index=False)
+
+  # Generate pacf table and save
+  pacf_results=sm.tsa.pacf(field_values)
+  sig_lags=np.where((pacf_results>=conf_int)|(pacf_results<=-conf_int))[0]
+  df_pacf_sig_lags=pd.DataFrame({'Lag':sig_lags,'Partial Autocorrelation':pacf_results[sig_lags]})
+  csv_filename=os.path.join(bid_directory,f'{bid}_pacf_sig_lags.csv')
+  df_pacf_sig_lags.to_csv(csv_filename,index=False)
+
+  return df_acf_sig_lags, df_pacf_sig_lags
+
+def acf_pacf_plot_export(bid:str,file_path:str,field_values:list):
+  bid_directory=create_player_folder(bid,file_path=file_path)
+  plt.figure(figsize=(12,6))
+  ax1=plt.subplot(121)
+  plot_acf(field_values,lags=40,ax=ax1)
+  plt.title(f'ACF Plot for Player {bid}')
+  plt.xlabel('Lag')
+  plt.ylabel('Autoccorelation')
+
+  ax2=plt.subplot(122)
+  plot_pacf(field_values,lags=40,ax=ax2)
+  plt.title(f'PACF Plot for Player {bid}')
+  plt.xlabel('Lag')
+  plt.ylabel('Partial Autocorrelation')
+
+  plot_file_name=os.path.join(bid_directory,f'acf_pacf_plot_{bid}.png')
+  plt.savefig(plot_file_name)
+  plt.close()
+
+
+def find_consecutive_end_indices(lags):
+    end_indices = []
+    for i in range(len(lags) - 1):
+        # If the next 'Lag' is not the consecutive number, mark the current as the end
+        if lags.iloc[i + 1] != lags.iloc[i] + 1:
+            end_indices.append(i)
+    # Always add the last item as an end index if there are entries
+    if len(lags) > 0:
+        end_indices.append(len(lags) - 1)
+    return end_indices
+
+# def obtain_parameter_extracts(bid:str,file_path:str):
+#   bid_directory=create_player_folder(bid=bid,file_path=file_path)
+#   optimized_arima_file=f'{bid}_optimized_arma.csv'
+#   auto_arima_file=f'{bid}_autoarima.csv'
+#   optimized_arima_file_path=os.path.join(bid_directory,optimized_arima_file)
+#   auto_arima_file_path=os.path.join(bid_directory,auto_arima_file)
+
+#   optimized_arima_df=pd.read_csv(optimized_arima_file_path,sep=',')
+#   auto_arima_df=pd.read_csv(auto_arima_file_path,sep=',')
+
+#   return optimized_arima_df,auto_arima_df
+
+def obtain_optimized_arma_parameter_extracts(bid:str,file_path:str):
+  bid_directory=create_player_folder(bid=bid,file_path=file_path)
+  optimized_arima_file=f'{bid}_optimized_arma.csv'
+  optimized_arima_file_path=os.path.join(bid_directory,optimized_arima_file)
+  optimized_arima_df=pd.read_csv(optimized_arima_file_path,sep=',')
+
+  return optimized_arima_df
+
+
+def obtain_optimized_exp_parameter_extracts(bid:str,file_path:str,exponential_type:str):
+  bid_directory=create_player_folder(bid=bid,file_path=file_path)
+  if exponential_type=='single':
+    optimized_exp_file=f'{bid}_optimized_sgl_exp.csv'
+    optimized_exp_file_path=os.path.join(bid_directory,optimized_exp_file)
+    optimized_exp_df=pd.read_csv(optimized_exp_file_path,sep=',')
+  elif exponential_type=='double':
+    optimized_exp_file=f'{bid}_optimized_dbl_exp.csv'
+    optimized_exp_file_path=os.path.join(bid_directory,optimized_exp_file)
+    optimized_exp_df=pd.read_csv(optimized_exp_file_path,sep=',')
+  return optimized_exp_df
 
 
 
+#imhere
+# def obtain_optimized_exp_parameter_extracts(bid:str,file_path:str):
+#   bid_directory=create_player_folder(bid=bid,file_path=file_path)
+#   optimized_arima_file=f'{bid}_optimized_arma.csv'
+#   optimized_arima_file_path=os.path.join(bid_directory,optimized_arima_file)
+#   optimized_arima_df=pd.read_csv(optimized_arima_file_path,sep=',')
+
+#   return optimized_arima_df
+
+
+def seperate_pq_column(df:pd.DataFrame):
+  pq_extract=df["(p,q)"].str.extract(r'\((?P<p>\d+),\s*(?P<q>\d+)\)')
+  pq_extract["p"]=pd.to_numeric(pq_extract["p"])
+  pq_extract["q"]=pd.to_numeric(pq_extract["q"])
+  df=df.drop("(p,q)",axis=1)
+  result_df=pd.concat([df,pq_extract],axis=1)
+  return result_df
+
+# def separate_ab_column(df:pd.DataFrame):
+#   ab_extract=df["(alpha,beta)"].str.extract(r'\((?P<alpha>\d+),\s*(?P<beta>\d+)\)')
+#   ab_extract["alpha"]=pd.to_numeric(ab_extract["alpha"])
+#   ab_extract["beta"]=pd.to_numeric(ab_extract["beta"])
+#   df=df.drop("(alpha,beta)",axis=1)
+#   results_df=pd.concat([df,ab_extract],axis=1)
+#   return results_df
+
+def optimized_param_decision(optimized_df1:pd.DataFrame):
+  sep_pq_optimized_df1=seperate_pq_column(optimized_df1)
+  first_aic = sep_pq_optimized_df1.loc[0,"AIC"]
+  second_aic = sep_pq_optimized_df1.loc[1,"AIC"]
+  third_aic = sep_pq_optimized_df1.loc[2,"AIC"]
+
+  first_second_delta = second_aic - first_aic
+  first_third_delta = third_aic - first_aic
+
+  aic_threshold=100
+  idx=0
+  if (first_second_delta >= aic_threshold) and (first_third_delta >= aic_threshold):
+    idx=3
+  elif (first_second_delta >= aic_threshold) and (first_third_delta <= aic_threshold):
+    idx=2
+  p=sep_pq_optimized_df1.loc[idx,"p"]
+  q=sep_pq_optimized_df1.loc[idx,"q"]
+
+  return p,q
+
+
+def optimized_sgl_exp_decision(optimized_exp_df:pd.DataFrame):
+  # sep_ab_optimized_df=separate_ab_column(optimized_exp_df)
+  first_aic = optimized_exp_df.loc[0,"AIC"]
+  second_aic = optimized_exp_df.loc[1,"AIC"]
+  third_aic = optimized_exp_df.loc[2,"AIC"]
+
+  first_second_delta = second_aic - first_aic
+  first_third_delta = third_aic - first_aic
+
+  aic_threshold = 100
+  idx=0
+  if (first_second_delta >= aic_threshold) and (first_third_delta >= aic_threshold):
+    idx=3
+  elif (first_second_delta >= aic_threshold) and (first_third_delta <= aic_threshold):
+    idx=2
+  alpha = optimized_exp_df.loc[idx,"(alpha)"]
+  return alpha
+
+def optimized_dbl_exp_decision(optimized_exp_df:pd.DataFrame):
+  # sep_ab_optimized_df=separate_ab_column(optimized_exp_df)
+  first_aic = optimized_exp_df.loc[0,"AIC"]
+  second_aic = optimized_exp_df.loc[1,"AIC"]
+  third_aic = optimized_exp_df.loc[2,"AIC"]
+
+  first_second_delta = second_aic - first_aic
+  first_third_delta = third_aic - first_aic
+
+  aic_threshold = 100
+  idx=0
+  if (first_second_delta >= aic_threshold) and (first_third_delta >= aic_threshold):
+    idx=3
+  elif (first_second_delta >= aic_threshold) and (first_third_delta <= aic_threshold):
+    idx=2
+  alpha = optimized_exp_df.loc[idx,"alpha"]
+  beta = optimized_exp_df.loc[idx,"beta"]
+  return alpha,beta
+
+
+# def final_arima_params()
+
+
+def save_exponential_smoothing_residual_summary(residuals:list,bid:str,file_path:str,exponential_type:str,orderList:list):
+  bid_directory=create_player_folder(bid,file_path=file_path)
+  # residuals=model.resid
+  # residuals=residuals[-np.isnan(residuals)]
+
+  fig,axs=plt.subplots(3,2,figsize=(14,14))
+  axs[0,0].plot(range(0,len(residuals)),residuals)
+  axs[0,0].set_title('Residuals')
+  axs[0,0].set_xlabel('Time')
+  axs[0,0].set_ylabel('Residuals')
+  axs[0,0].axhline(y=0,color='r',linestyle='--')
+
+  axs[0,1].hist(residuals,bins=20,density=True)
+  axs[0,1].set_title('Histogram of Residuals')
+  axs[0,1].set_xlabel('Residuals')
+  axs[0,1].set_ylabel('Density')
+
+  sm.qqplot(residuals,line='s',ax=axs[1,0])
+  axs[1,0].set_title('Normal Q-Q Plot')
+
+  plot_acf(residuals,lags=20,ax=axs[1,1])
+  axs[1,1].set_title('Autocorrelation Function (ACF) Plot')
+  axs[1,1].set_xlabel('Lag')
+  axs[1,1].set_ylabel('Autocorrelation')
+
+  plot_pacf(residuals,lags=20,ax=axs[2,0])
+  axs[2,0].set_title('Partial Autocorrelation Function (PACF) Plot')
+  axs[2,0].set_xlabel('Lag')
+  axs[2,0].set_ylabel('Autocorrelation')
+
+  if exponential_type=='single':
+    plt.suptitle(f'Model Residual Diagnostics (alpha={orderList[0]})')
+    plot_file_name=os.path.join(bid_directory,f'sgl_exponential_residuals_plot_{bid}.png')
+  elif exponential_type=='double':
+    plt.suptitle(f'Model Residuals Diagnostics (alpha={orderList[0]},beta={orderList[1]})')
+    plot_file_name=os.path.join(bid_directory,f'dbl_exponential_residuals_plot_{bid}.png')
+
+  plt.tight_layout()
+  plt.savefig(plot_file_name)
+  plt.close()
+
+def save_arma_residual_diagnostics(model,bid:str,file_path:str,orderList:list):
+  bid_directory=create_player_folder(bid,file_path=file_path)
+  fig=model.plot_diagnostics(figsize=(10,8))
+  plt.suptitle(f'Model Residual Diagnostics (p={orderList[0]},q={orderList[1]})')
+  plt.tight_layout()
+
+  resid_diag_name=f'{bid}_residual_diagnostics.png'
+  resid_diag_name_file_path=os.path.join(bid_directory,resid_diag_name)
+
+  plt.savefig(resid_diag_name_file_path)
+  plt.close(fig)
+
+  resid_ljungbox_name=f'{bid}_Ljiung_Box_diagnostics.csv'
+  resid_ljungbox_name_file_path=os.path.join(bid_directory,resid_ljungbox_name)
+
+  resid=model.resid
+  acorr_ljungbox_df=acorr_ljungbox(resid,np.arange(1,11,1))
+  acorr_ljungbox_df.to_csv(resid_ljungbox_name_file_path,index=False)
+
+
+def window_sizing(horizon:int,p:int,q:int):
+  window=min(p,q)
+  if horizon%window != 0:
+    window=1
+    return window
+  else:
+    return window
 
 
 
+def is_MovingAverage(p:int,q:int)->bool:
+  if (p==0) and (q!=0):
+    return True
+  else:
+    return False
 
+def is_AutoRegressive(p:int,q:int)->bool:
+  if (p!=0) and (q==0):
+    return True
+  else:
+    return False
+
+def is_MA_or_AR_only(p:int,q:int)->bool:
+  ma_bool=is_MovingAverage(p,q)
+  ar_bool=is_AutoRegressive(p,q)
+  if ma_bool | ar_bool:
+    return True
+  else:
+    return False
+
+def decide_MA_AR(p:int,q:int)->int:
+  decision=None
+  if (p==0) and (q!=0):
+    decision='MA'
+    return decision, q
+  elif (p!=0) and (q==0):
+    decision='AR'
+    return decision, p
+
+
+def save_model(fit_model,file_path:str,bid:str,date:str,model_type:str):
+  model_file_path=create_model_folder(bid=bid,file_path=file_path)
+  if model_type=='ARMA':
+    model_file_name=os.path.join(model_file_path,f'{bid}_{date}_ARMA.pkl')
+    with open(model_file_name,'wb') as file:
+      pickle.dump(fit_model,file)
+  elif model_type=='ARIMA':
+    model_file_name=os.path.join(model_file_path,f'{bid}_{date}_ARIMA.pkl')
+    with open(model_file_name,'wb') as file:
+      pickle.dump(fit_model,file)
+  elif model_type=='MA':
+    model_file_name=os.path.join(model_file_path,f'{bid}_{date}_MA.pkl')
+    with open(model_file_name,'wb') as file:
+      pickle.dump(fit_model,file)
+  elif model_type=='AR':
+    model_file_name=os.path.join(model_file_path,f'{bid}_{date}_AR.pkl')
+    with open(model_file_name,'wb') as file:
+      pickle.dump(fit_model,file)
+  elif model_type=='SGL EXP':
+    model_file_name=os.path.join(model_file_path,f'{bid}_{date}_SGL_EXP.pkl')
+    with open(model_file_name,'wb') as file:
+      pickle.dump(fit_model,file)
+  elif model_type=='DBL EXP':
+    model_file_name=os.path.join(model_file_path,f'{bid}_{date}_DBL_EXP.pkl')
+    with open(model_file_name,'wb') as file:
+      pickle.dump(fit_model,file)
+
+def load_model(file:str):
+  with open(file,'rb') as file:
+    loaded_model=pickle.load(file)
 
 
 
