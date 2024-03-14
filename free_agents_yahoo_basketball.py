@@ -35,6 +35,7 @@ sc=OAuth2(None,None,from_file='oauth2.json')
 gm=yfa.Game(sc, 'nba')
 league_id=gm.league_ids(year=2024)
 lg=gm.to_league('428.l.18598')
+# lg=gm.to_league('402.l.18598') # tried to use as fix with bug
 
 
 tk=lg.free_agents('P')
