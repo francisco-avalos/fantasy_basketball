@@ -3,6 +3,12 @@ import requests
 from bs4 import BeautifulSoup
 import datetime as dt
 import time
+import os
+import numpy as np
+# import statsmodels.api as sm
+# from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
+# import matplotlib.pyplot as plt
+# from statsmodels.stats.diagnostic import acorr_ljungbox
 
 
 '''My functions'''
@@ -199,3 +205,22 @@ def day_injuries_basketball(day) -> pd.DataFrame():
 #     df.acquired=syntax_clean_list_a
 
 #     return df
+
+
+
+
+def create_player_folder(bid:str,file_path:str):
+	bid_directory=os.path.join(file_path,bid)
+	if not os.path.exists(bid_directory):
+		os.makedirs(bid_directory)
+	return bid_directory
+
+
+def create_model_folder(bid:str,file_path:str):
+	models_directory=os.path.join(file_path,bid,'models')
+	if not os.path.exists(models_directory):
+		os.makedirs(models_directory)
+	return models_directory
+
+
+
