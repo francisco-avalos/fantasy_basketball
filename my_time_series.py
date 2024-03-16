@@ -975,13 +975,13 @@ def acf_pacf_plot_export(bid:str,file_path:str,field_values:list):
   bid_directory=create_player_folder(bid,file_path=file_path)
   plt.figure(figsize=(12,6))
   ax1=plt.subplot(121)
-  plot_acf(field_values,lags=40,ax=ax1)
+  plot_acf(field_values,lags=min(len(field_values)-1,10),ax=ax1)
   plt.title(f'ACF Plot for Player {bid}')
   plt.xlabel('Lag')
   plt.ylabel('Autoccorelation')
 
   ax2=plt.subplot(122)
-  plot_pacf(field_values,lags=40,ax=ax2)
+  plot_pacf(field_values,lags=min(len(field_values)-1,10),ax=ax2)
   plt.title(f'PACF Plot for Player {bid}')
   plt.xlabel('Lag')
   plt.ylabel('Partial Autocorrelation')
@@ -1256,6 +1256,7 @@ def save_model(fit_model,file_path:str,bid:str,date:str,model_type:str):
 def load_model(file:str):
   with open(file,'rb') as file:
     loaded_model=pickle.load(file)
+  return loaded_model
 
 
 
