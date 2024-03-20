@@ -5,6 +5,7 @@ import datetime as dt
 import time
 import os
 import numpy as np
+import re
 # import statsmodels.api as sm
 # from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 # import matplotlib.pyplot as plt
@@ -222,5 +223,60 @@ def create_model_folder(bid:str,file_path:str):
 		os.makedirs(models_directory)
 	return models_directory
 
+
+keyword_to_model_type = {
+    '_AR': 'AR',
+    '_MA': 'MA',
+    '_ARMA': 'ARMA',
+    '_ARIMA': 'ARIMA',
+    '_SGL_EXP': 'SGL_EXP',
+    '_DBL_EXP': 'DBL_EXP'
+}
+
+
+def is_statistical_model(file_name:str):
+	keywords=['_AR', '_MA','_ARMA','_ARIMA','_SGL_EXP','_DBL_EXP']
+	model_bool=False
+	model_type=None
+	for keyword in keywords:
+		if re.search(keyword,file_name):
+			model_bool=True
+			model_type=keyword_to_model_type.get(keyword)
+	return model_bool,model_type
+
+
+
+def prepare_predictions_table(
+	df:pd.DataFrame,
+	league:str,
+	bid:str,
+	model_type:str,
+	p:int,
+	d:int,
+	q:int,
+	alpha:float,
+	beta:float,
+	ci_lower_bound:float,
+	ci_upper_bound:float,**kwargs)->pd.DataFrame:
+	df.insert(0,'league',league)
+	df.insert(1,'slug',bid)
+	df.insert(2,'model_type',model_type)
+	df.insert(4,'p',p)
+	df.insert(5,'d',d)
+	df.insert(6,'q',q)
+	df.insert(7,'alpha',alpha)
+	df.insert(8,'beta',beta)
+	df.insert(10,'confidence_interval_lower_bound',ci_lower_bound)
+	df.insert(11,'confidence_interval_upper_bound',ci_upper_bound)
+	return df
+
+
+def date_extract(file_name:str):
+	date_pattern=r'\d{4}_\d{2}_\d{2}'
+	match=re.search(date_pattern,file_name)
+	if match:
+		return match.group(0)
+	else:
+		return None
 
 
