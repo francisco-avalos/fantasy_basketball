@@ -1260,5 +1260,14 @@ def load_model(file:str):
 
 
 
+def track_train_test_sizes(file_path:str,bid:str,train:pd.DataFrame,test:pd.DataFrame):
+  file_name=os.path.join(file_path,f'{bid}',f'{bid}_train_test_sizes.csv')
+  num_rows_train=len(train)
+  num_rows_test=len(test)
+  df_summary=pd.DataFrame({
+      'DataFrame':['train','test'],
+      'Number of rows':[num_rows_train,num_rows_test]
+  })
+  df_summary.to_csv(file_name,index=False)
 
 
