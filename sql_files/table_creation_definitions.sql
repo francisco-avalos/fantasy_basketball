@@ -484,6 +484,26 @@
 -- );
 
 
+########################################################################################################################
+########################################################################################################################
+
+-- DROP TABLE IF EXISTS basketball.predictions;
+-- CREATE TABLE basketball.predictions
+-- (
+--   `league` VARCHAR(50),
+--   `slug` VARCHAR(50) NOT NULL,
+--   `model_type` VARCHAR(20),
+--   `day` INT,
+--   `p` INT,
+--   `d` INT,
+--   `q` INT,
+--   `alpha` DECIMAL(4,2),
+--   `beta` DECIMAL(4,2),
+--   `predictions` DECIMAL(5,3),
+--   `confidence_interval_lower_bound` DECIMAL(5,3),
+--   `confidence_interval_upper_bound` DECIMAL(5,3),
+--   PRIMARY KEY (`league`, `slug`,`model_type`,`day`)
+-- );
 
 
 
