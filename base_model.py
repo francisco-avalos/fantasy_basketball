@@ -87,13 +87,16 @@ sports_db_admin_user=os.environ.get('sports_db_admin_user')
 sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
 sports_db_admin_port=os.environ.get('sports_db_admin_port')
 
+config={
+	'host':sports_db_admin_host,
+	'database':sports_db_admin_db,
+	'user':sports_db_admin_user,
+	'password':sports_db_admin_pw,
+	'port':sports_db_admin_port,
+	'allow_local_infile':True
+}
 
-
-connection=mysql.connect(host=sports_db_admin_host,
-                        database=sports_db_admin_db,
-                        user=sports_db_admin_user,
-                        password=sports_db_admin_pw,
-                        port=sports_db_admin_port)
+connection=mysql.connect(**config)
 
 if connection.is_connected():
     cursor=connection.cursor()
@@ -185,14 +188,6 @@ for league,info in data_structure.items():
 
 			# EXPORT TRAIN / TEST SIZES INTO CSV FILE
 			mts.track_train_test_sizes(file_path=store_path,bid=bbrefid,train=train,test=test)
-			# file_name=os.path.join(store_path,f'{bbrefid}',f'{bbrefid}_train_test_sizes.csv')
-			# num_rows_train = len(train)
-			# num_rows_test = len(test)
-			# df_summary = pd.DataFrame({
-			# 	'DataFrame':['Train','Test'],
-			# 	'Number of rows':[num_rows_train,num_rows_test]
-			# 	})
-			# df_summary.to_csv(file_name,index=False)
 
 			# OBTAIN ARMA PARAMETERS (FROM EXPORTED CSV) AND SET CONFIGS FOR FORECASTING
 			optimized_arima_df=mts.obtain_optimized_arma_parameter_extracts(bid=bbrefid,file_path=store_path)
@@ -280,15 +275,6 @@ for league,info in data_structure.items():
 
 			# EXPORT TRAIN / TEST SIZES INTO CSV FILE
 			mts.track_train_test_sizes(file_path=store_path,bid=bbrefid,train=train,test=test)
-			# file_name=os.path.join(store_path,f'{bbrefid}',f'{bbrefid}_train_test_sizes.csv')
-			# num_rows_train = len(train)
-			# num_rows_test = len(test)
-			# df_summary = pd.DataFrame({
-			# 	'DataFrame':['Train','Test'],
-			# 	'Number of rows':[num_rows_train,num_rows_test]
-			# })
-			# df_summary.to_csv(file_name,index=False)
-
 
 			# OBTAIN ARMA PARAMETERS (FROM EXPORTED CSV) AND SET CONFIGS FOR FORECASTING
 			optimized_arima_df=mts.obtain_optimized_arma_parameter_extracts(bid=bbrefid,file_path=store_path)
@@ -455,14 +441,6 @@ for league,info in data_structure.items():
 
 			# EXPORT TRAIN / TEST SIZES INTO CSV FILE
 			mts.track_train_test_sizes(file_path=store_path,bid=bbrefid,train=train,test=test)
-			# file_name=os.path.join(store_path,f'{bbrefid}',f'{bbrefid}_train_test_sizes.csv')
-			# num_rows_train = len(train)
-			# num_rows_test = len(test)
-			# df_summary = pd.DataFrame({
-			# 		'DataFrame':['Train','Test'],
-			# 		'Number of rows':[num_rows_train,num_rows_test]
-			# 	})
-			# df_summary.to_csv(file_name,index=False)
 
 			# OBTAIN ARMA PARAMETERS (FROM EXPORTED CSV) AND SET CONFIGS FOR FORECASTING
 			optimized_arima_df=mts.obtain_optimized_arma_parameter_extracts(bid=bbrefid,file_path=store_path)
