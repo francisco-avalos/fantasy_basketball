@@ -31,6 +31,15 @@ sports_db_admin_user=os.environ.get('sports_db_admin_user')
 sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
 sports_db_admin_port=os.environ.get('sports_db_admin_port')
 
+config={
+	'host':sports_db_admin_host,
+	'database':sports_db_admin_db,
+	'user':sports_db_admin_user,
+	'password':sports_db_admin_pw,
+	'port':sports_db_admin_port,
+	'allow_local_infile':True
+}
+
 
 leagueid=os.environ.get('leagueid')
 espn_s2=os.environ.get('espn_s2')
@@ -112,12 +121,7 @@ league=League(league_id=leagueid,
 
 
 try:
-	connection=mysql.connect(host=sports_db_admin_host,
-							database=sports_db_admin_db,
-							user=sports_db_admin_user,
-							password=sports_db_admin_pw,
-							port=sports_db_admin_port,
-							allow_local_infile=True)
+	connection=mysql.connect(**config)
 	if connection.is_connected():
 		cursor=connection.cursor()
 		sql='SELECT MAX(date) AS most_recent_data_date FROM basketball.high_level_nba_team_stats;'
@@ -143,12 +147,7 @@ try:
 				df['team']=df['team'].astype(str)
 				df['outcome']=df['outcome'].astype(str)
 
-				connection=mysql.connect(host=sports_db_admin_host,
-										database=sports_db_admin_db,
-										user=sports_db_admin_user,
-										password=sports_db_admin_pw,
-										port=sports_db_admin_port,
-										allow_local_infile=True)
+				connection=mysql.connect(**config)
 
 				if connection.is_connected():
 					cursor=connection.cursor()
@@ -213,12 +212,7 @@ try:
 				df['team']=df['team'].astype(str)
 				df['outcome']=df['outcome'].astype(str)
 				# print(df.head())
-				connection=mysql.connect(host=sports_db_admin_host,
-										database=sports_db_admin_db,
-										user=sports_db_admin_user,
-										password=sports_db_admin_pw,
-										port=sports_db_admin_port,
-										allow_local_infile=True)
+				connection=mysql.connect(**config)
 				if connection.is_connected():
 					cursor=connection.cursor()
 					file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/high_level_nba_team_stats.csv'

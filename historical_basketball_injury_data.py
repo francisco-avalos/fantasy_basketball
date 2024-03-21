@@ -19,6 +19,15 @@ sports_db_admin_user=os.environ.get('sports_db_admin_user')
 sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
 sports_db_admin_port=os.environ.get('sports_db_admin_port')
 
+config={
+	'host':sports_db_admin_host,
+	'database':sports_db_admin_db,
+	'user':sports_db_admin_user,
+	'password':sports_db_admin_pw,
+	'port':sports_db_admin_port,
+	'allow_local_infile':True
+}
+
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', None)
 
@@ -41,11 +50,7 @@ current_day=cd.strftime('%Y-%m-%d')
 
 
 
-connection=mysql.connect(host=sports_db_admin_host,
-                    database=sports_db_admin_db,
-                    user=sports_db_admin_user,
-                    password=sports_db_admin_pw,
-                    port=sports_db_admin_port)
+connection=mysql.connect(**config)
 
 if connection.is_connected():
 	cursor=connection.cursor()
@@ -85,12 +90,7 @@ if recent_inj_date is None:
 		day=str(day).split()[0]
 		try:
 			data=day_injuries_basketball(day)
-			connection=mysql.connect(host=sports_db_admin_host,
-                                 database=sports_db_admin_db,
-                                 user=sports_db_admin_user,
-                                 password=sports_db_admin_pw,
-                                 port=sports_db_admin_port,
-                                 allow_local_infile=True)
+			connection=mysql.connect(**config)
 			cursor=connection.cursor()
 			file_path=f'/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/inj_players_{day}.csv'
 			data.to_csv(file_path,index=False)
@@ -130,12 +130,7 @@ else:
 		day=str(day).split()[0]
 		try:
 			data=day_injuries_basketball(day)
-			connection=mysql.connect(host=sports_db_admin_host,
-                                 database=sports_db_admin_db,
-                                 user=sports_db_admin_user,
-                                 password=sports_db_admin_pw,
-                                 port=sports_db_admin_port,
-                                 allow_local_infile=True)
+			connection=mysql.connect(**config)
 			cursor=connection.cursor()
 			file_path=f'/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/inj_players_{day}.csv'
 			data.to_csv(file_path,index=False)

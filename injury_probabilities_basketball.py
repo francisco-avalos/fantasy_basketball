@@ -22,12 +22,17 @@ sports_db_admin_user=os.environ.get('sports_db_admin_user')
 sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
 sports_db_admin_port=os.environ.get('sports_db_admin_port')
 
+config={
+    'host':sports_db_admin_host,
+    'database':sports_db_admin_db,
+    'user':sports_db_admin_user,
+    'password':sports_db_admin_pw,
+    'port':sports_db_admin_port,
+    'allow_local_infile':True
+}
+
 # this is temporary
-connection=mysql.connect(host=sports_db_admin_host,
-                    database=sports_db_admin_db,
-                    user=sports_db_admin_user,
-                    password=sports_db_admin_pw,
-                    port=sports_db_admin_port)
+connection=mysql.connect(**config)
 
 if connection.is_connected():
     cursor=connection.cursor()
@@ -333,12 +338,7 @@ del temp_dict,temp_df,days,s,day_values,survival_prob
 # print(main_df.head())
 
 
-connection=mysql.connect(host=sports_db_admin_host,
-              database=sports_db_admin_db,
-              user=sports_db_admin_user,
-              password=sports_db_admin_pw,
-              port=sports_db_admin_port,
-              allow_local_infile=True)
+connection=mysql.connect(**config)
 
 cursor=connection.cursor()
 

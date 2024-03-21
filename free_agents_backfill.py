@@ -31,6 +31,15 @@ sports_db_admin_user=os.environ.get('sports_db_admin_user')
 sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
 sports_db_admin_port=os.environ.get('sports_db_admin_port')
 
+config={
+	'host':sports_db_admin_host,
+	'database':sports_db_admin_db,
+	'user':sports_db_admin_user,
+	'password':sports_db_admin_pw,
+	'port':sports_db_admin_port,
+	'allow_local_infile':True
+}
+
 leagueid=os.environ.get('leagueid')
 espn_s2=os.environ.get('espn_s2')
 swid=os.environ.get('swid')
@@ -53,12 +62,7 @@ non_shows_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/'
 
 
 try:
-	connection=mysql.connect(host=sports_db_admin_host,
-							database=sports_db_admin_db,
-							user=sports_db_admin_user,
-							password=sports_db_admin_pw,
-							port=sports_db_admin_port,
-							allow_local_infile=True)
+	connection=mysql.connect(**config)
 	# print('empty live_free_agents table')
 	# if connection.is_connected():
 	# 	cursor=connection.cursor()
@@ -134,12 +138,7 @@ try:
 	print('Obtained FA stats')
 	print('Preparing to insert into db')
 
-	connection=mysql.connect(host=sports_db_admin_host,
-							database=sports_db_admin_db,
-							user=sports_db_admin_user,
-							password=sports_db_admin_pw,
-							port=sports_db_admin_port,
-							allow_local_infile=True)
+	connection=mysql.connect(**config)
 
 	if connection.is_connected():
 		cursor=connection.cursor()

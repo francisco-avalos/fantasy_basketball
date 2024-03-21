@@ -31,6 +31,15 @@ sports_db_admin_user=os.environ.get('sports_db_admin_user')
 sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
 sports_db_admin_port=os.environ.get('sports_db_admin_port')
 
+config={
+	'host':sports_db_admin_host,
+	'database':sports_db_admin_db,
+	'user':sports_db_admin_user,
+	'password':sports_db_admin_pw,
+	'port':sports_db_admin_port,
+	'allow_local_infile':True
+}
+
 leagueid=os.environ.get('leagueid')
 espn_s2=os.environ.get('espn_s2')
 swid=os.environ.get('swid')
@@ -44,12 +53,7 @@ league=League(league_id=leagueid,
 season_end_year=2024
 
 try:
-	connection=mysql.connect(host=sports_db_admin_host,
-							database=sports_db_admin_db,
-							user=sports_db_admin_user,
-							password=sports_db_admin_pw,
-							port=sports_db_admin_port,
-							allow_local_infile=True)
+	connection=mysql.connect(**config)
 	if connection.is_connected():
 		cursor=connection.cursor()
 		sql='TRUNCATE basketball.high_level_nba_team_schedules;'
