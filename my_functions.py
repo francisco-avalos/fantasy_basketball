@@ -223,6 +223,12 @@ def create_model_folder(bid:str,file_path:str):
 		os.makedirs(models_directory)
 	return models_directory
 
+def create_model_scaler_folder(bid:str,file_path:str):
+	models_directory=os.path.join(file_path,bid,'scalers')
+	if not os.path.exists(models_directory):
+		os.makedirs(models_directory)
+	return models_directory
+
 
 keyword_to_model_type = {
     '_AR': 'AR',
@@ -230,12 +236,15 @@ keyword_to_model_type = {
     '_ARMA': 'ARMA',
     '_ARIMA': 'ARIMA',
     '_SGL_EXP': 'SGL_EXP',
-    '_DBL_EXP': 'DBL_EXP'
+    '_DBL_EXP': 'DBL_EXP',
+    '_LINEAR': 'LINEAR',
+    '_LSTM': 'LSTM',
+    '_NEURAL_NETWORK': 'NEURAL_NETWORK'
 }
 
 
 def is_statistical_model(file_name:str):
-	keywords=['_AR', '_MA','_ARMA','_ARIMA','_SGL_EXP','_DBL_EXP']
+	keywords=['_AR', '_MA','_ARMA','_ARIMA','_SGL_EXP','_DBL_EXP','_LINEAR','_LSTM','_NEURAL_NETWORK']
 	model_bool=False
 	model_type=None
 	for keyword in keywords:
