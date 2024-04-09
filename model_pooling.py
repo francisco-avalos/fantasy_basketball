@@ -195,6 +195,10 @@ for league,info in data_structure.items():
 		bbrefid_pkl_files=glob.glob(os.path.join(bbrefid_model_file_path,'*.pkl'))
 		bbrefid_pkl_files_sorted=sorted(bbrefid_pkl_files,key=lambda x: mf.date_extract(x) or '', reverse=True)
 
+		bbrefid_scale_file_path=os.path.join(file_path,f'{bbrefid}','scalers')
+		scaler_file=glob.glob(os.path.join(bbrefid_scale_file_path,'*.pkl'))
+		loaded_scaler=mts.load_scaler(scaler_file[0])
+
 		if bbrefid_pkl_files_sorted:
 			most_recent_date=mf.date_extract(bbrefid_pkl_files_sorted[0])
 			most_recent_files=[file for file in bbrefid_pkl_files_sorted if mf.date_extract(file)==most_recent_date]
@@ -233,7 +237,7 @@ for league,info in data_structure.items():
 						connection.commit()
 						del next_games_predictions
 						os.remove(export_import_data_file_path)
-						print(f'Finished inserting predictions for {bbrefid}')
+						print(f'Finished inserting predictions for {bbrefid} - {is_stats_model_type}')
 
 				elif is_stats_model and is_stats_model_type in ['SGL_EXP','DBL_EXP']:
 					print('Exponential TYPE MODEL')
@@ -260,7 +264,7 @@ for league,info in data_structure.items():
 							cursor.execute(load_into_qry)
 							connection.commit()
 							del next_games_predictions
-							print(f'Finished inserting predictions for {bbrefid}')
+							print(f'Finished inserting predictions for {bbrefid} - {is_stats_model_type}')
 					elif is_stats_model_type=='DBL_EXP':
 						p,q=0,0
 						alpha=loaded_model.params['smoothing_level']
@@ -287,8 +291,96 @@ for league,info in data_structure.items():
 							del next_games_predictions
 							os.remove(export_import_data_file_path)
 							print(f'Finished inserting predictions for {bbrefid}')
-				else:
-					print('ML model')
+				elif is_stats_model_type == 'LINEAR':
+					next_games_predictions_prep=np.array([[1,2,3,4,5]])
+					next_games_predictions_prep=np.transpose(next_games_predictions_prep)
+					next_games_predictions=loaded_model.predict(next_games_predictions_prep)
+
+					next_games_predictions_2d = np.squeeze(next_games_predictions)
+					next_games_predictions=pd.DataFrame(next_games_predictions_2d)
+					next_games_predictions=loaded_scaler.inverse_transform(next_games_predictions)
+					next_games_predictions=pd.DataFrame(next_games_predictions)
+
+					next_games_predictions.reset_index(inplace=True)
+					next_games_predictions.columns=['day','predicted_mean']
+					next_games_predictions['day']=next_games_predictions.index+1
+
+					p,d,q,alpha,beta,conf_lower_bound,conf_upper_bound=0,0,0,0.0,0.0,0.0,0.0
+					kwargs['df'],kwargs['league'],kwargs['bid'],kwargs['model_type'],kwargs['p'],kwargs['d'],kwargs['q'], \
+						kwargs['alpha'],kwargs['beta'],kwargs['ci_lower_bound'],kwargs['ci_upper_bound'] = \
+						next_games_predictions, league, bbrefid, is_stats_model_type, p, d, q, alpha, beta, conf_lower_bound, conf_upper_bound
+					next_games_predictions=mf.prepare_predictions_table(**kwargs)
+
+					connection=mysql.connect(**config)
+					if connection.is_connected():
+						cursor=connection.cursor()
+						next_games_predictions.to_csv(export_import_data_file_path,index=False)
+						cursor.execute(load_into_qry)
+						connection.commit()
+						del next_games_predictions,next_games_predictions_prep,next_games_predictions_2d
+						os.remove(export_import_data_file_path)
+						print(f'Finished inserting predictions for {bbrefid} - {is_stats_model_type}')
+
+				elif is_stats_model_type == 'NEURAL_NETWORK':
+					next_games_predictions_prep=np.array([[1,2,3,4,5]])
+					next_games_predictions_prep=np.transpose(next_games_predictions_prep)
+					next_games_predictions=loaded_model.predict(next_games_predictions_prep)
+
+					next_games_predictions_2d = np.squeeze(next_games_predictions)
+					next_games_predictions=pd.DataFrame(next_games_predictions_2d)
+					next_games_predictions=loaded_scaler.inverse_transform(next_games_predictions)
+					next_games_predictions=pd.DataFrame(next_games_predictions)
+
+					next_games_predictions.reset_index(inplace=True)
+					next_games_predictions.columns=['day','predicted_mean']
+					next_games_predictions['day']=next_games_predictions.index+1
+
+					p,d,q,alpha,beta,conf_lower_bound,conf_upper_bound=0,0,0,0.0,0.0,0.0,0.0
+					kwargs['df'],kwargs['league'],kwargs['bid'],kwargs['model_type'],kwargs['p'],kwargs['d'],kwargs['q'], \
+						kwargs['alpha'],kwargs['beta'],kwargs['ci_lower_bound'],kwargs['ci_upper_bound'] = \
+						next_games_predictions, league, bbrefid, is_stats_model_type, p, d, q, alpha, beta, conf_lower_bound, conf_upper_bound
+					next_games_predictions=mf.prepare_predictions_table(**kwargs)
+
+					connection=mysql.connect(**config)
+					if connection.is_connected():
+						cursor=connection.cursor()
+						next_games_predictions.to_csv(export_import_data_file_path,index=False)
+						cursor.execute(load_into_qry)
+						connection.commit()
+						del next_games_predictions,next_games_predictions_prep,next_games_predictions_2d
+						os.remove(export_import_data_file_path)
+						print(f'Finished inserting predictions for {bbrefid} - {is_stats_model_type}')
+
+				elif is_stats_model_type == 'LSTM':
+					next_games_predictions_prep=np.array([[1,2,3,4,5]])
+					next_games_predictions_prep=np.transpose(next_games_predictions_prep)
+					next_games_predictions=loaded_model.predict(next_games_predictions_prep)
+
+					next_games_predictions_2d = np.squeeze(next_games_predictions)
+					next_games_predictions=pd.DataFrame(next_games_predictions_2d)
+					next_games_predictions=loaded_scaler.inverse_transform(next_games_predictions)
+					next_games_predictions=pd.DataFrame(next_games_predictions)
+
+					next_games_predictions.reset_index(inplace=True)
+					next_games_predictions.columns=['day','predicted_mean']
+					next_games_predictions['day']=next_games_predictions.index+1
+
+					p,d,q,alpha,beta,conf_lower_bound,conf_upper_bound=0,0,0,0.0,0.0,0.0,0.0
+					kwargs['df'],kwargs['league'],kwargs['bid'],kwargs['model_type'],kwargs['p'],kwargs['d'],kwargs['q'], \
+						kwargs['alpha'],kwargs['beta'],kwargs['ci_lower_bound'],kwargs['ci_upper_bound'] = \
+						next_games_predictions, league, bbrefid, is_stats_model_type, p, d, q, alpha, beta, conf_lower_bound, conf_upper_bound
+					next_games_predictions=mf.prepare_predictions_table(**kwargs)
+
+					connection=mysql.connect(**config)
+					if connection.is_connected():
+						cursor=connection.cursor()
+						next_games_predictions.to_csv(export_import_data_file_path,index=False)
+						cursor.execute(load_into_qry)
+						connection.commit()
+						del next_games_predictions,next_games_predictions_prep,next_games_predictions_2d
+						os.remove(export_import_data_file_path)
+						print(f'Finished inserting predictions for {bbrefid} - {is_stats_model_type}')
+
 
 
 if(connection.is_connected()):
