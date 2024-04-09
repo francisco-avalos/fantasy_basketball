@@ -40,7 +40,7 @@ import tensorflow as tf
 
 from statsmodels.tsa.holtwinters import ExponentialSmoothing
 
-from my_functions import create_player_folder, create_model_folder
+from my_functions import create_player_folder, create_model_folder, create_model_scaler_folder
 import os
 import pickle
 
@@ -288,7 +288,8 @@ def rolling_forecast_mean(
 	df:Union[pd.DataFrame,list],
 	trainLen:int,
 	horizon:int,
-	window:int
+	window:int,
+  **kwargs
 ) -> list:
 	pred_mean = []
 	total_len = trainLen + horizon
@@ -303,7 +304,8 @@ def rolling_forecast_last(
 	df:pd.DataFrame,
 	trainLen:int,
   horizon:int,
-	window:int
+	window:int,
+  **kwargs
 ) -> list:
 	pred_last_value = []
 	total_len = trainLen + horizon
@@ -319,7 +321,8 @@ def rolling_forecast_MovingAverage(
   trainLen:int,
   window:int,
   horizon:int,
-  q:int
+  q:int,
+  **kwargs
 ) -> list:
   pred_MA = []
   total_len = trainLen + horizon
@@ -338,7 +341,8 @@ def rolling_forecast_AutoRegressive(
 	trainLen:int,
 	window:int,
   horizon:int,
-	p:int
+	p:int,
+  **kwargs
 ) -> list:
 	pred_AR=[]
 	total_len = trainLen + horizon
@@ -357,7 +361,8 @@ def rolling_forecast_ARMA(
   trainLen:int, 
   horizon:int, 
   window:int, 
-  orderList:list
+  orderList:list,
+  **kwargs
 ) -> list:
   pred_ARMA=[]
   total_len = trainLen + horizon
@@ -377,7 +382,8 @@ def rolling_forecast_ARIMA(
     horizon:int, 
     window:int, 
     orderList:list,
-    d:int
+    d:int,
+    **kwargs
 ) -> list:
   pred_ARIMA=[]
   total_len = trainLen + horizon
@@ -476,7 +482,8 @@ def rolling_forecast_SARIMAX(
     seasonalOrderList:list,
     d:int,
     D:int,
-    s:int
+    s:int,
+    **kwargs
 ) -> list:
   """
     endog: endogenous (dependent) variables
@@ -520,7 +527,8 @@ def rolling_forecast_VAR(
     window:int,
     orderList:list,
     endog_var1:str,
-    endog_var2:str
+    endog_var2:str,
+    **kwargs
 ) -> list:
   """
   	endog: endogenous (dependent) variables
@@ -555,7 +563,8 @@ def rolling_forecast_VAR_list(
     horizon:int,
     window:int,
     orderList:list,
-    endog_var_list:list
+    endog_var_list:list,
+    **kwargs
 ) -> dict:
   """
     endog: endogenous (dependent) variables
@@ -602,7 +611,8 @@ def rolling_forecast_VARMAX(
     exog:Union[pd.Series,list],
     orderList:list,
     endog_var1:str,
-    endog_var2:str
+    endog_var2:str,
+    **kwargs
 ) -> list:
   """
   	endog: endogenous (dependent) variables
@@ -641,7 +651,8 @@ def rolling_forecast_exponential(
   trainLen:int, 
   horizon:int, 
   window:int, 
-  orderList:list
+  orderList:list,
+  **kwargs
 ) -> list:
   pred_DExp=[]
   total_len = trainLen + horizon
@@ -660,7 +671,8 @@ def rolling_forecast_double_exponential(
   trainLen:int, 
   horizon:int, 
   window:int, 
-  orderList:list
+  orderList:list,
+  **kwargs
 ) -> list:
   pred_DExp=[]
   total_len = trainLen + horizon
@@ -1252,12 +1264,48 @@ def save_model(fit_model,file_path:str,bid:str,date:str,model_type:str):
     model_file_name=os.path.join(model_file_path,f'{bid}_{date}_DBL_EXP.pkl')
     with open(model_file_name,'wb') as file:
       pickle.dump(fit_model,file)
+  elif model_type=='LINEAR':
+    model_file_name=os.path.join(model_file_path,f'{bid}_{date}_LINEAR.pkl')
+    with open(model_file_name,'wb') as file:
+      pickle.dump(fit_model,file)
+  elif model_type=='NEURAL_NETWORK':
+    model_file_name=os.path.join(model_file_path,f'{bid}_{date}_NEURAL_NETWORK.pkl')
+    with open(model_file_name,'wb') as file:
+      pickle.dump(fit_model,file)
+  elif model_type=='LSTM':
+    model_file_name=os.path.join(model_file_path,f'{bid}_{date}_LSTM.pkl')
+    with open(model_file_name,'wb') as file:
+      pickle.dump(fit_model,file)
+
+def save_scaler(fit_model_scaler,file_path:str,bid:str):
+  model_scale_file_path=create_model_scaler_folder(bid=bid,file_path=file_path)
+  model_scaler_file_name=os.path.join(model_scale_file_path,f'{bid}_scaler.pkl')
+  with open(model_scaler_file_name,'wb') as file:
+    pickle.dump(fit_model_scaler,file)
+
+  # if model_type=='LINEAR':
+  #   model_scaler_file_name=os.path.join(model_scale_file_path,f'{bid}_{date}_LINEAR.pkl')
+  #   with open(model_scaler_file_name,'wb') as file:
+  #     pickle.dump(fit_model_scaler,file)
+  # elif model_type=='LSTM':
+  #   model_scaler_file_name=os.path.join(model_scale_file_path,f'{bid}_{date}_LSTM.pkl')
+  #   with open(model_scaler_file_name,'wb') as file:
+  #     pickle.dump(fit_model_scaler,file)
+  # elif model_type=='NEURAL_NETWORK':
+  #   model_scaler_file_name=os.path.join(model_scale_file_path,f'{bid}_{date}_NEURAL_NETWORK.pkl')
+  #   with open(model_scaler_file_name,'wb') as file:
+  #     pickle.dump(fit_model_scaler,file)
+
 
 def load_model(file:str):
   with open(file,'rb') as file:
     loaded_model=pickle.load(file)
   return loaded_model
 
+def load_scaler(file:str):
+  with open(file,'rb') as file:
+    loaded_scaler=pickle.load(file)
+  return loaded_scaler
 
 
 def track_train_test_sizes(file_path:str,bid:str,train:pd.DataFrame,test:pd.DataFrame):
