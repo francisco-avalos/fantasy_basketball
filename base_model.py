@@ -159,6 +159,31 @@ for name, bbrefid in espn_myunique_list:
 	data_structure['espn']['players'][bbrefid] = player_data
 
 
+ma_keys=['df','trainLen','horizon','window','q']
+ar_keys=['df','trainLen','horizon','window','p']
+arma_keys=['df','trainLen','horizon','window','orderList']
+arima_keys=['df','trainLen','horizon','window','orderList','d']
+exp_keys=['df','trainLen','horizon','window','orderList']
+dbl_exp_keys=['df','trainLen','horizon','window','orderList']
+
+MA_config={key:None for key in ma_keys}
+AR_config={key:None for key in ar_keys}
+ARMA_config={key:None for key in arma_keys}
+ARIMA_config={key:None for key in arima_keys}
+EXP_config={key:None for key in exp_keys}
+DBL_EXP_config={key:None for key in dbl_exp_keys}
+
+# MA_config={'df':train,'trainLen':TRAIN_LEN,'window':WINDOW,'horizon':HORIZON,'q':param}
+# AR_config={'df':train,'trainLen':TRAIN_LEN,'window':WINDOW,'horizon':HORIZON,'p':param}
+# ARMA_config={'df':train,'trainLen':TRAIN_LEN,'horizon':HORIZON,'window':WINDOW,'orderList':orderList}
+# ARIMA_config={'df':train,'trainLen':TRAIN_LEN,'horizon':HORIZON,'window':WINDOW,'orderList':orderList,'d':d}
+# EXP_config={'df':train,'trainLen':TRAIN_LEN,'horizon':HORIZON,'window':WINDOW,'orderList':orderList}
+# DBL_EXP_config={'df':train,'trainLen':TRAIN_LEN,'horizon':HORIZON,'window':WINDOW,'orderList':orderList}
+
+
+
+
+
 # # # TESTING WHEN NECESSARY 
 # exclude_bbrefids=['brownja02','greenja05','irvinky01','johnsca02','kennalu01','martica02','richani01','sharpsh01','tatumja01','thompkl01','wagnemo01','westbru01']
 # # espn_myunique_list=espn_myunique_list[~espn_myunique_list['bbrefid'].isin(exclude_bbrefids)]
@@ -205,15 +230,11 @@ for league,info in data_structure.items():
 					orderList=[0,param]
 					ma_model=SARIMAX(train,order=order)
 					ma_model_fit=ma_model.fit(disp=False)
-					pred_points=mts.rolling_forecast_AutoRegressive(
-						df=train,
-						trainLen=TRAIN_LEN,
-						window=WINDOW,
-						horizon=HORIZON,
-						p=param
-					)
+					# MA_config={'df':train,'trainLen':TRAIN_LEN,'window':WINDOW,'horizon':HORIZON,'q':param}
+					MA_config['df'],MA_config['trainLen'],MA_config['window'],MA_config['horizon'],MA_config['q']=train,TRAIN_LEN,WINDOW,HORIZON,param
+					pred_points=mts.rolling_forecast_MovingAverage(**MA_config)
 					file_name=os.path.join(store_path,f'{bbrefid}',f'{bbrefid}_test_results.csv')
-					test[f'pred_points_MA_p={param}']=pred_points[:len(test)]
+					test[f'pred_points_MA_q={param}']=pred_points[:len(test)]
 					test.to_csv(file_name,index=False)
 					mts.save_arma_residual_diagnostics(model=ma_model_fit,bid=bbrefid,file_path=store_path,orderList=orderList)
 					mts.save_model(fit_model=ma_model_fit,file_path=store_path,bid=bbrefid,date=todays_date_string,model_type='MA')
@@ -226,15 +247,11 @@ for league,info in data_structure.items():
 					orderList=[param,0]
 					ar_model=SARIMAX(train,order=order)
 					ar_model_fit=ar_model.fit(disp=False)
-					pred_points=mts.rolling_forecast_MovingAverage(
-						df=train,
-						trainLen=TRAIN_LEN,
-						window=WINDOW,
-						horizon=HORIZON,
-						q=param
-					)
+					# AR_config={'df':train,'trainLen':TRAIN_LEN,'window':WINDOW,'horizon':HORIZON,'p':param}
+					AR_config['df'],AR_config['trainLen'],AR_config['window'],AR_config['horizon'],AR_config['p']=train,TRAIN_LEN,WINDOW,HORIZON,param
+					pred_points=mts.rolling_forecast_AutoRegressive(**AR_config)
 					file_name=os.path.join(store_path,f'{bbrefid}',f'{bbrefid}_test_results.csv')
-					test[f'pred_points_AR_q={param}']=pred_points[:len(test)]
+					test[f'pred_points_AR_p={param}']=pred_points[:len(test)]
 					test.to_csv(file_name,index=False)
 					mts.save_arma_residual_diagnostics(model=ar_model_fit,bid=bbrefid,file_path=store_path,orderList=orderList)
 					mts.save_model(fit_model=ar_model_fit,file_path=store_path,bid=bbrefid,date=todays_date_string,model_type='AR')
@@ -245,13 +262,9 @@ for league,info in data_structure.items():
 				orderList=[p,q]
 				d=0
 				bid_model_fit=SARIMAX(train,order=(p,d,q),simple_differencing=False).fit(disp=False)
-				bid_forecasts=mts.rolling_forecast_ARMA(
-					df=train,
-					trainLen=TRAIN_LEN,
-					horizon=HORIZON,
-					window=WINDOW,
-					orderList=orderList
-				)
+				# ARMA_config={'df':train,'trainLen':TRAIN_LEN,'horizon':HORIZON,'window':WINDOW,'orderList':orderList}
+				ARMA_config['df'],ARMA_config['trainLen'],ARMA_config['horizon'],ARMA_config['window'],ARMA_config['orderList']=train,TRAIN_LEN,HORIZON,WINDOW,orderList
+				bid_forecasts=mts.rolling_forecast_ARMA(**ARMA_config)
 				file_name=os.path.join(store_path,f'{bbrefid}',f'{bbrefid}_test_results.csv')
 				test['arma_point_preds']=bid_forecasts
 				test.to_csv(file_name,index=False)
@@ -259,7 +272,7 @@ for league,info in data_structure.items():
 				mts.save_model(fit_model=bid_model_fit,file_path=store_path,bid=bbrefid,date=todays_date_string,model_type='ARMA')
 
 		elif mts.difference(player_dat.points,n_diff=1):
-			print(f'{bbrefid} is stationary after 1 difference') 
+			print(f'{bbrefid} is stationary after 1 difference')
 
 			# EXPORT ACF / PACF PLOTS
 			differenced=np.diff(player_dat.points,n=1)
@@ -292,13 +305,9 @@ for league,info in data_structure.items():
 					order=(0,d,param)
 					orderList=[0,param]
 					ma_model_fit=SARIMAX(train,order=order).fit(disp=False)
-					pred_points=mts.rolling_forecast_AutoRegressive(
-							df=train,
-							trainLen=TRAIN_LEN,
-							window=WINDOW,
-							horizon=HORIZON,
-							p=param
-						)
+					# MA_config={'df':train,'trainLen':TRAIN_LEN,'window':WINDOW,'horizon':HORIZON,'q':param}
+					MA_config['df'],MA_config['trainLen'],MA_config['window'],MA_config['horizon'],MA_config['q']=train,TRAIN_LEN,WINDOW,HORIZON,param
+					pred_points=mts.rolling_forecast_MovingAverage(**MA_config)
 					file_name=os.path.join(store_path,f'{bbrefid}',f'{bbrefid}_test_results.csv')
 					test[f'pred_points_MA_p={param}']=pred_points[:len(test)]
 					test.to_csv(file_name,index=False)
@@ -314,13 +323,9 @@ for league,info in data_structure.items():
 					order=(param,d,0)
 					orderList=[param,0]
 					ar_model_fit=SARIMAX(train,order=order).fit(disp=False)
-					pred_points=mts.rolling_forecast_MovingAverage(
-						df=train,
-						trainLen=TRAIN_LEN,
-						window=WINDOW,
-						horizon=HORIZON,
-						q=param
-						)
+					# AR_config={'df':train,'trainLen':TRAIN_LEN,'window':WINDOW,'horizon':HORIZON,'p':param}
+					AR_config['df'],AR_config['trainLen'],AR_config['window'],AR_config['horizon'],AR_config['p']=train,TRAIN_LEN,WINDOW,HORIZON,param
+					pred_points=mts.rolling_forecast_AutoRegressive(**AR_config)
 					file_name=os.path.join(store_path,f'{bbrefid}',f'{bbrefid}_test_results.csv')
 					test[f'pred_points_AR_q={param}']=pred_points[:len(test)]
 					test.to_csv(file_name,index=False)
@@ -335,14 +340,9 @@ for league,info in data_structure.items():
 				d=1
 				orderList=[p,q]
 				bid_model_fit=SARIMAX(train,order=(p,d,q),simple_differencing=False).fit(disp=False)
-				bid_forecasts=mts.rolling_forecast_ARIMA(
-					df=train,
-					trainLen=TRAIN_LEN,
-					horizon=HORIZON,
-					window=WINDOW,
-					orderList=orderList,
-					d=d
-					)
+				# ARIMA_config={'df':train,'trainLen':TRAIN_LEN,'horizon':HORIZON,'window':WINDOW,'orderList':orderList,'d':d}
+				ARIMA_config['df'],ARIMA_config['trainLen'],ARIMA_config['horizon'],ARIMA_config['window'],ARIMA_config['orderList'],ARIMA_config['d']=train,TRAIN_LEN,HORIZON,WINDOW,orderList,d
+				bid_forecasts=mts.rolling_forecast_ARIMA(**ARIMA_config)
 				test[f'arima_point_preds_p={p}_q={q}']=bid_forecasts
 				mts.save_arma_residual_diagnostics(model=bid_model_fit,bid=bbrefid,file_path=store_path,orderList=orderList)
 
@@ -366,13 +366,9 @@ for league,info in data_structure.items():
 			bid_sgl_exp_model=ExponentialSmoothing(train,trend=None)
 			fit_bid_sgl_exp_model=bid_sgl_exp_model.fit(smoothing_level=alpha,optimized=True)
 
-			bid_sgl_exp_forecasts=mts.rolling_forecast_exponential(
-					df=train,
-					trainLen=TRAIN_LEN,
-					horizon=HORIZON,
-					window=WINDOW,
-					orderList=orderList
-				)
+			# EXP_config={'df':train,'trainLen':TRAIN_LEN,'horizon':HORIZON,'window':WINDOW,'orderList':orderList}
+			EXP_config['df'],EXP_config['trainLen'],EXP_config['horizon'],EXP_config['window'],EXP_config['orderList']=train,TRAIN_LEN,HORIZON,WINDOW,orderList
+			bid_sgl_exp_forecasts=mts.rolling_forecast_exponential(**EXP_config)
 			test[f'exp_alpha={alpha}']=bid_sgl_exp_forecasts[:len(test)]
 
 			mts.save_exponential_smoothing_residual_summary(
@@ -400,13 +396,9 @@ for league,info in data_structure.items():
 			orderList=[alpha,beta]
 			bid_dbl_exp_model=ExponentialSmoothing(train,trend=None)
 			fit_bid_dbl_exp_model=bid_dbl_exp_model.fit(smoothing_level=alpha,smoothing_trend=beta,optimized=True)
-			bid_dbl_exp_forecasts=mts.rolling_forecast_double_exponential(
-					df=train,
-					trainLen=TRAIN_LEN,
-					horizon=HORIZON,
-					window=WINDOW,
-					orderList=orderList
-				)
+			# DBL_EXP_config={'df':train,'trainLen':TRAIN_LEN,'horizon':HORIZON,'window':WINDOW,'orderList':orderList}
+			DBL_EXP_config['df'],DBL_EXP_config['trainLen'],DBL_EXP_config['horizon'],DBL_EXP_config['window'],DBL_EXP_config['orderList']=train,TRAIN_LEN,HORIZON,WINDOW,orderList
+			bid_dbl_exp_forecasts=mts.rolling_forecast_double_exponential(**DBL_EXP_config)
 			test[f'exp_alpha={alpha}_beta={beta}']=bid_dbl_exp_forecasts[:len(test)]
 
 			mts.save_exponential_smoothing_residual_summary(
@@ -458,13 +450,9 @@ for league,info in data_structure.items():
 					order=(0,d,param)
 					orderList=[0,param]
 					ma_model_fit=SARIMAX(train,order=order).fit(disp=False)
-					pred_points=mts.rolling_forecast_AutoRegressive(
-							df=train,
-							trainLen=TRAIN_LEN,
-							window=WINDOW,
-							horizon=HORIZON,
-							p=param
-						)
+					# MA_config={'df':train,'trainLen':TRAIN_LEN,'window':WINDOW,'horizon':HORIZON,'q':param}
+					MA_config['df'],MA_config['trainLen'],MA_config['window'],MA_config['horizon'],MA_config['q']=train,TRAIN_LEN,WINDOW,HORIZON,param
+					pred_points=mts.rolling_forecast_MovingAverage(**MA_config)
 					file_name=os.path.join(store_path,f'{bbrefid}',f'{bbrefid}_test_results.csv')
 					test[f'pred_points_MA_p={param}']=pred_points[:len(test)]
 					test.to_csv(file_name,index=False)
@@ -480,13 +468,9 @@ for league,info in data_structure.items():
 					order=(param,d,0)
 					orderList=[param,0]
 					ar_model_fit=SARIMAX(train,order=order).fit(disp=False)
-					pred_points=mts.rolling_forecast_MovingAverage(
-						df=train,
-						trainLen=TRAIN_LEN,
-						window=WINDOW,
-						horizon=HORIZON,
-						q=param
-						)
+					# AR_config={'df':train,'trainLen':TRAIN_LEN,'window':WINDOW,'horizon':HORIZON,'p':param}
+					AR_config['df'],AR_config['trainLen'],AR_config['window'],AR_config['horizon'],AR_config['p']=train,TRAIN_LEN,WINDOW,HORIZON,param
+					pred_points=mts.rolling_forecast_AutoRegressive(**AR_config)
 					file_name=os.path.join(store_path,f'{bbrefid}',f'{bbrefid}_test_results.csv')
 					test[f'pred_points_AR_q={param}']=pred_points[:len(test)]
 					test.to_csv(file_name,index=False)
@@ -500,13 +484,9 @@ for league,info in data_structure.items():
 				d=2
 				orderList=[p,q]
 				bid_model_fit=SARIMAX(train,order=(p,d,q),simple_differencing=False).fit(disp=False)
-				bid_forecasts=mts.rolling_forecast_ARIMA(
-					df=train,
-					trainLen=TRAIN_LEN,
-					window=WINDOW,
-					orderList=orderList,
-					d=d
-					)
+				# ARIMA_config={'df':train,'trainLen':TRAIN_LEN,'horizon':HORIZON,'window':WINDOW,'orderList':orderList,'d':d}
+				ARIMA_config['df'],ARIMA_config['trainLen'],ARIMA_config['horizon'],ARIMA_config['window'],ARIMA_config['orderList'],ARIMA_config['d']=train,TRAIN_LEN,HORIZON,WINDOW,orderList,d
+				bid_forecasts=mts.rolling_forecast_ARIMA(**ARIMA_config)
 				test[f'arima_points_pred_p={p}_q={q}']=bid_forecasts
 				mts.save_arma_residual_diagnostics(model=bid_model_fit,bid=bbrefid,file_path=store_path,orderList=orderList)
 
@@ -529,13 +509,10 @@ for league,info in data_structure.items():
 			WINDOW=mts.window_sizing(horizon=HORIZON,p=1,q=1)
 			orderList=[alpha]
 			fit_bid_sgl_exp_model=ExponentialSmoothing(train,trend=None).fit(smoothing_level=alpha,optimized=True)
-			bid_sgl_exp_forecasts=mts.rolling_forecast_exponential(
-					df=train,
-					trainLen=TRAIN_LEN,
-					horizon=HORIZON,
-					window=WINDOW,
-					orderList=orderList
-				)
+			# EXP_config={'df':train,'trainLen':TRAIN_LEN,'horizon':HORIZON,'window':WINDOW,'orderList':orderList}
+			# 
+			EXP_config['df'],EXP_config['trainLen'],EXP_config['horizon'],EXP_config['window'],EXP_config['orderList']=train,TRAIN_LEN,HORIZON,WINDOW,orderList
+			bid_sgl_exp_forecasts=mts.rolling_forecast_exponential(**EXP_config)
 			test[f'exp_alpha={alpha}']=bid_sgl_exp_forecasts[:len(test)]
 
 			mts.save_exponential_smoothing_residual_summary(model=fit_bid_sgl_exp_model,bid=bbrefid,file_path=store_path,exponential_type='single',orderList=orderList)
@@ -557,13 +534,9 @@ for league,info in data_structure.items():
 			WINDOW=mts.window_sizing(horizon=HORIZON,p=1,q=1)
 			orderList=[alpha,beta]
 			fit_bid_dbl_exp_model=ExponentialSmoothing(train,trend=None).fit(smoothing_level=alpha,smoothing_trend=beta,optimized=True)
-			bid_dbl_exp_forecasts=mts.rolling_forecast_double_exponential(
-					df=train,
-					trainLen=TRAIN_LEN,
-					horizon=HORIZON,
-					window=WINDOW,
-					orderList=orderList
-				)
+			# DBL_EXP_config={'df':train,'trainLen':TRAIN_LEN,'horizon':HORIZON,'window':WINDOW,'orderList':orderList}
+			DBL_EXP_config['df'],DBL_EXP_config['trainLen'],DBL_EXP_config['horizon'],DBL_EXP_config['window'],DBL_EXP_config['orderList']=train,TRAIN_LEN,HORIZON,WINDOW,orderList
+			bid_dbl_exp_forecasts=mts.rolling_forecast_double_exponential(**DBL_EXP_config)
 			test[f'exp_alpha={alpha}_beta={beta}']=bid_dbl_exp_forecasts[:len(test)]
 
 			mts.save_exponential_smoothing_residual_summary(model=fit_bid_dbl_exp_model,bid=bbrefid,file_path=store_path,exponential_type='double',orderList=orderList)
