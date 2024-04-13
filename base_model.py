@@ -23,6 +23,7 @@ from statsmodels.tsa.statespace.sarimax import SARIMAX
 from statsmodels.tsa.holtwinters import ExponentialSmoothing
 import tensorflow as tf
 
+from sklearn.preprocessing import MinMaxScaler
 
 import datetime
 
@@ -190,6 +191,7 @@ DBL_EXP_config={key:None for key in dbl_exp_keys}
 # # espn_myunique_list=[item for item in espn_myunique_list if item['bbrefid'] not in exclude_bbrefids]
 # espn_myunique_list=[item for item in espn_myunique_list if item[1] not in exclude_bbrefids]
 
+
 for league,info in data_structure.items():
 	store_path=info['path']
 	league_player_data=info['players']
@@ -199,14 +201,33 @@ for league,info in data_structure.items():
 		alpha=np.arange(0,1,0.02)
 		beta=np.arange(0,1,0.02)
 		alphas_betas=list(product(alpha,beta))
+		MAE_perf={}
+
+		# FIND THE BEST (AIC) ARMA MODEL AND EXPORT TOP 5 INTO CSV FILE
+		# train=player_dat.points[:int(n*len(player_dat.points))]
+		# test=player_dat.points[int(n*len(player_dat.points)):].to_frame()
+
+		data_df=player_dat[['points']]
+		train=data_df[:int(n*len(data_df))]
+		test=data_df[int(n*len(data_df)):]
+
+		scaler_points=MinMaxScaler()
+		scaler_points.fit(train)
+
+		train[train.columns]=scaler_points.transform(train[train.columns])
+		test[test.columns]=scaler_points.transform(test[test.columns])
+
+		train=pd.DataFrame(train,columns=['points'])
+		test=pd.DataFrame(test,columns=['points'])
+
+		mts.save_scaler(fit_model_scaler=scaler_points,file_path=store_path,bid=bbrefid,model_type='stat')
+
 		if mts.stationary_check(player_dat.points):
 			print(f'{bbrefid} is stationary')
 			mts.acf_pacf_plot_export(bid=bbrefid,file_path=store_path,field_values=player_dat.points)
 
-			# FIND THE BEST (AIC) ARMA MODEL AND EXPORT TOP 5 INTO CSV FILE
-			train=player_dat.points[:int(n*len(player_dat.points))]
-			test=player_dat.points[int(n*len(player_dat.points)):].to_frame()
 			results_df=mts.optimize_ARMA(endog=train.values,orderList=orderList)
+
 			top_5_results=results_df.head()
 			file_name=os.path.join(store_path,f'{bbrefid}',f'{bbrefid}_optimized_arma.csv')
 			top_5_results.to_csv(file_name,index=False)
@@ -217,6 +238,7 @@ for league,info in data_structure.items():
 			# OBTAIN ARMA PARAMETERS (FROM EXPORTED CSV) AND SET CONFIGS FOR FORECASTING
 			optimized_arima_df=mts.obtain_optimized_arma_parameter_extracts(bid=bbrefid,file_path=store_path)
 			p,q=mts.optimized_param_decision(optimized_arima_df)
+			d=0
 
 			# DECIDE ON STATISTICAL MODEL BASED ON AIC
 			if mts.is_MA_or_AR_only(p,q):
@@ -225,51 +247,57 @@ for league,info in data_structure.items():
 					TRAIN_LEN=len(train)
 					HORIZON=len(test)
 					WINDOW=mts.window_sizing(horizon=HORIZON,p=param,q=param)
-					d=0
 					order=(0,d,param)
 					orderList=[0,param]
 					ma_model=SARIMAX(train,order=order)
 					ma_model_fit=ma_model.fit(disp=False)
-					# MA_config={'df':train,'trainLen':TRAIN_LEN,'window':WINDOW,'horizon':HORIZON,'q':param}
 					MA_config['df'],MA_config['trainLen'],MA_config['window'],MA_config['horizon'],MA_config['q']=train,TRAIN_LEN,WINDOW,HORIZON,param
 					pred_points=mts.rolling_forecast_MovingAverage(**MA_config)
 					file_name=os.path.join(store_path,f'{bbrefid}',f'{bbrefid}_test_results.csv')
 					test[f'pred_points_MA_q={param}']=pred_points[:len(test)]
 					test.to_csv(file_name,index=False)
+					MAE_perf['MA_MAE']=mts.MAE(y_true=test.points,y_pred=pred_points[:len(test)])
 					mts.save_arma_residual_diagnostics(model=ma_model_fit,bid=bbrefid,file_path=store_path,orderList=orderList)
 					mts.save_model(fit_model=ma_model_fit,file_path=store_path,bid=bbrefid,date=todays_date_string,model_type='MA')
+					file_name=os.path.join(store_path,f'{bbrefid}',f'{bbrefid}_STATS_MAE.csv')
+					MAE_perf_df=pd.DataFrame(MAE_perf.items(),columns=['Model','MAE'])
+					MAE_perf_df.to_csv(file_name,index=None)
 				elif ma_or_ar=='AR':
 					TRAIN_LEN=len(train)
 					HORIZON=len(test)
 					WINDOW=mts.window_sizing(horizon=HORIZON,p=param,q=param)
-					d=0
 					order=(param,d,0)
 					orderList=[param,0]
 					ar_model=SARIMAX(train,order=order)
 					ar_model_fit=ar_model.fit(disp=False)
-					# AR_config={'df':train,'trainLen':TRAIN_LEN,'window':WINDOW,'horizon':HORIZON,'p':param}
 					AR_config['df'],AR_config['trainLen'],AR_config['window'],AR_config['horizon'],AR_config['p']=train,TRAIN_LEN,WINDOW,HORIZON,param
 					pred_points=mts.rolling_forecast_AutoRegressive(**AR_config)
 					file_name=os.path.join(store_path,f'{bbrefid}',f'{bbrefid}_test_results.csv')
 					test[f'pred_points_AR_p={param}']=pred_points[:len(test)]
 					test.to_csv(file_name,index=False)
+					MAE_perf['AR_MAE']=mts.MAE(y_true=test.points,y_pred=pred_points[:len(test)])
 					mts.save_arma_residual_diagnostics(model=ar_model_fit,bid=bbrefid,file_path=store_path,orderList=orderList)
 					mts.save_model(fit_model=ar_model_fit,file_path=store_path,bid=bbrefid,date=todays_date_string,model_type='AR')
+					file_name=os.path.join(store_path,f'{bbrefid}',f'{bbrefid}_STATS_MAE.csv')
+					MAE_perf_df=pd.DataFrame(MAE_perf.items(),columns=['Model','MAE'])
+					MAE_perf_df.to_csv(file_name,index=None)
 			else:
 				TRAIN_LEN=len(train)
 				HORIZON=len(test)
 				WINDOW=mts.window_sizing(horizon=HORIZON,p=p,q=q)
 				orderList=[p,q]
-				d=0
 				bid_model_fit=SARIMAX(train,order=(p,d,q),simple_differencing=False).fit(disp=False)
-				# ARMA_config={'df':train,'trainLen':TRAIN_LEN,'horizon':HORIZON,'window':WINDOW,'orderList':orderList}
 				ARMA_config['df'],ARMA_config['trainLen'],ARMA_config['horizon'],ARMA_config['window'],ARMA_config['orderList']=train,TRAIN_LEN,HORIZON,WINDOW,orderList
 				bid_forecasts=mts.rolling_forecast_ARMA(**ARMA_config)
 				file_name=os.path.join(store_path,f'{bbrefid}',f'{bbrefid}_test_results.csv')
 				test['arma_point_preds']=bid_forecasts
 				test.to_csv(file_name,index=False)
+				MAE_perf['ARMA_MAE']=mts.MAE(y_true=test.points,y_pred=bid_forecasts[:len(test)])
 				mts.save_arma_residual_diagnostics(model=bid_model_fit,bid=bbrefid,file_path=store_path,orderList=orderList)
 				mts.save_model(fit_model=bid_model_fit,file_path=store_path,bid=bbrefid,date=todays_date_string,model_type='ARMA')
+				file_name=os.path.join(store_path,f'{bbrefid}',f'{bbrefid}_STATS_MAE.csv')
+				MAE_perf_df=pd.DataFrame(MAE_perf.items(),columns=['Model','MAE'])
+				MAE_perf_df.to_csv(file_name,index=None)
 
 		elif mts.difference(player_dat.points,n_diff=1):
 			print(f'{bbrefid} is stationary after 1 difference')
@@ -292,6 +320,7 @@ for league,info in data_structure.items():
 			# OBTAIN ARMA PARAMETERS (FROM EXPORTED CSV) AND SET CONFIGS FOR FORECASTING
 			optimized_arima_df=mts.obtain_optimized_arma_parameter_extracts(bid=bbrefid,file_path=store_path)
 			p,q=mts.optimized_param_decision(optimized_arima_df)
+			d=1
 
 			# DECIDE ON STATISTICAL MODEL BASED ON AIC
 			if mts.is_MA_or_AR_only(p,q):
@@ -301,52 +330,57 @@ for league,info in data_structure.items():
 					TRAIN_LEN=len(train)
 					HORIZON=len(test)
 					WINDOW=mts.window_sizing(horizon=HORIZON,p=param,q=param)
-					d=1
 					order=(0,d,param)
 					orderList=[0,param]
 					ma_model_fit=SARIMAX(train,order=order).fit(disp=False)
-					# MA_config={'df':train,'trainLen':TRAIN_LEN,'window':WINDOW,'horizon':HORIZON,'q':param}
 					MA_config['df'],MA_config['trainLen'],MA_config['window'],MA_config['horizon'],MA_config['q']=train,TRAIN_LEN,WINDOW,HORIZON,param
 					pred_points=mts.rolling_forecast_MovingAverage(**MA_config)
 					file_name=os.path.join(store_path,f'{bbrefid}',f'{bbrefid}_test_results.csv')
-					test[f'pred_points_MA_p={param}']=pred_points[:len(test)]
+					test[f'pred_points_MA_q={param}']=pred_points[:len(test)]
 					test.to_csv(file_name,index=False)
+					MAE_perf['MA_MAE']=mts.MAE(y_true=test.points,y_pred=pred_points[:len(test)])
 					mts.save_arma_residual_diagnostics(model=ma_model_fit,bid=bbrefid,file_path=store_path,orderList=orderList)
-
 					mts.save_model(fit_model=ma_model_fit,file_path=store_path,bid=bbrefid,date=todays_date_string,model_type='MA')
+					file_name=os.path.join(store_path,f'{bbrefid}',f'{bbrefid}_STATS_MAE.csv')
+					MAE_perf_df=pd.DataFrame(MAE_perf.items(),columns=['Model','MAE'])
+					MAE_perf_df.to_csv(file_name,index=None)
+
 				elif ma_or_ar=='AR':
 					# print(f'MovingAverage with q={param}')
 					TRAIN_LEN=len(train)
 					HORIZON=len(test)
 					WINDOW=mts.window_sizing(horizon=HORIZON,p=param,q=param)
-					d=1
 					order=(param,d,0)
 					orderList=[param,0]
 					ar_model_fit=SARIMAX(train,order=order).fit(disp=False)
-					# AR_config={'df':train,'trainLen':TRAIN_LEN,'window':WINDOW,'horizon':HORIZON,'p':param}
 					AR_config['df'],AR_config['trainLen'],AR_config['window'],AR_config['horizon'],AR_config['p']=train,TRAIN_LEN,WINDOW,HORIZON,param
 					pred_points=mts.rolling_forecast_AutoRegressive(**AR_config)
 					file_name=os.path.join(store_path,f'{bbrefid}',f'{bbrefid}_test_results.csv')
-					test[f'pred_points_AR_q={param}']=pred_points[:len(test)]
+					test[f'pred_points_AR_p={param}']=pred_points[:len(test)]
 					test.to_csv(file_name,index=False)
+					MAE_perf['AR_MAE']=mts.MAE(y_true=test.points,y_pred=pred_points[:len(test)])
 					mts.save_arma_residual_diagnostics(model=ar_model_fit,bid=bbrefid,file_path=store_path,orderList=orderList)
-
 					mts.save_model(fit_model=ar_model_fit,file_path=store_path,bid=bbrefid,date=todays_date_string,model_type='AR')
+					file_name=os.path.join(store_path,f'{bbrefid}',f'{bbrefid}_STATS_MAE.csv')
+					MAE_perf_df=pd.DataFrame(MAE_perf.items(),columns=['Model','MAE'])
+					MAE_perf_df.to_csv(file_name,index=None)
 			else:
 				# print('Not MovAvg or AutoReg alone')
 				TRAIN_LEN=len(train)
 				HORIZON=len(test)
 				WINDOW=mts.window_sizing(horizon=HORIZON,p=p,q=q)
-				d=1
 				orderList=[p,q]
 				bid_model_fit=SARIMAX(train,order=(p,d,q),simple_differencing=False).fit(disp=False)
 				# ARIMA_config={'df':train,'trainLen':TRAIN_LEN,'horizon':HORIZON,'window':WINDOW,'orderList':orderList,'d':d}
 				ARIMA_config['df'],ARIMA_config['trainLen'],ARIMA_config['horizon'],ARIMA_config['window'],ARIMA_config['orderList'],ARIMA_config['d']=train,TRAIN_LEN,HORIZON,WINDOW,orderList,d
 				bid_forecasts=mts.rolling_forecast_ARIMA(**ARIMA_config)
 				test[f'arima_point_preds_p={p}_q={q}']=bid_forecasts
+				MAE_perf['ARIMA_MAE']=mts.MAE(y_true=test.points,y_pred=bid_forecasts[:len(test)])
 				mts.save_arma_residual_diagnostics(model=bid_model_fit,bid=bbrefid,file_path=store_path,orderList=orderList)
-
 				mts.save_model(fit_model=bid_model_fit,file_path=store_path,bid=bbrefid,date=todays_date_string,model_type='ARIMA')
+				file_name=os.path.join(store_path,f'{bbrefid}',f'{bbrefid}_STATS_MAE.csv')
+				MAE_perf_df=pd.DataFrame(MAE_perf.items(),columns=['Model','MAE'])
+				MAE_perf_df.to_csv(file_name,index=None)
 
 			# FIND THE BEST (AIC) SGL EXP / DBL EXP MODEL AND EXPORT TOP 5 INTO CSV FILE
 			sgl_exp_results_df=mts.optimize_exponential(endog=train,orderList=alpha)
@@ -370,7 +404,7 @@ for league,info in data_structure.items():
 			EXP_config['df'],EXP_config['trainLen'],EXP_config['horizon'],EXP_config['window'],EXP_config['orderList']=train,TRAIN_LEN,HORIZON,WINDOW,orderList
 			bid_sgl_exp_forecasts=mts.rolling_forecast_exponential(**EXP_config)
 			test[f'exp_alpha={alpha}']=bid_sgl_exp_forecasts[:len(test)]
-
+			MAE_perf['EXP_MAE']=mts.MAE(y_true=test.points,y_pred=bid_sgl_exp_forecasts[:len(test)])
 			mts.save_exponential_smoothing_residual_summary(
 				residuals=fit_bid_sgl_exp_model.resid,
 				bid=bbrefid,
@@ -400,7 +434,7 @@ for league,info in data_structure.items():
 			DBL_EXP_config['df'],DBL_EXP_config['trainLen'],DBL_EXP_config['horizon'],DBL_EXP_config['window'],DBL_EXP_config['orderList']=train,TRAIN_LEN,HORIZON,WINDOW,orderList
 			bid_dbl_exp_forecasts=mts.rolling_forecast_double_exponential(**DBL_EXP_config)
 			test[f'exp_alpha={alpha}_beta={beta}']=bid_dbl_exp_forecasts[:len(test)]
-
+			MAE_perf['DBL_EXP_MAE']=mts.MAE(y_true=test.points,y_pred=bid_dbl_exp_forecasts[:len(test)])
 			mts.save_exponential_smoothing_residual_summary(
 				residuals=fit_bid_dbl_exp_model.resid,
 				bid=bbrefid,
@@ -408,11 +442,15 @@ for league,info in data_structure.items():
 				exponential_type='double',
 				orderList=orderList
 				)
-
 			mts.save_model(fit_model=fit_bid_dbl_exp_model,file_path=store_path,bid=bbrefid,date=todays_date_string,model_type='DBL EXP')
 
 			file_name=os.path.join(store_path,f'{bbrefid}',f'{bbrefid}_test_results.csv')
 			test.to_csv(file_name,index=False)
+
+			file_name=os.path.join(store_path,f'{bbrefid}',f'{bbrefid}_STATS_MAE.csv')
+			MAE_perf_df=pd.DataFrame(MAE_perf.items(),columns=['Model','MAE'])
+			MAE_perf_df.to_csv(file_name,index=None)
+
 
 		elif mts.difference(player_dat.points,n_diff=2):
 			print(f'{bbrefid} is stationary after 2 difference')
@@ -437,6 +475,7 @@ for league,info in data_structure.items():
 			# OBTAIN ARMA PARAMETERS (FROM EXPORTED CSV) AND SET CONFIGS FOR FORECASTING
 			optimized_arima_df=mts.obtain_optimized_arma_parameter_extracts(bid=bbrefid,file_path=store_path)
 			p,q=mts.optimized_param_decision(optimized_arima_df)
+			d=2
 
 			# DECIDE ON STATISTICAL MODEL BASED ON AIC
 			if mts.is_MA_or_AR_only(p,q):
@@ -446,7 +485,6 @@ for league,info in data_structure.items():
 					TRAIN_LEN=len(train)
 					HORIZON=len(test)
 					WINDOW=mts.window_sizing(horizon=HORIZON,p=param,q=param)
-					d=2
 					order=(0,d,param)
 					orderList=[0,param]
 					ma_model_fit=SARIMAX(train,order=order).fit(disp=False)
@@ -454,17 +492,20 @@ for league,info in data_structure.items():
 					MA_config['df'],MA_config['trainLen'],MA_config['window'],MA_config['horizon'],MA_config['q']=train,TRAIN_LEN,WINDOW,HORIZON,param
 					pred_points=mts.rolling_forecast_MovingAverage(**MA_config)
 					file_name=os.path.join(store_path,f'{bbrefid}',f'{bbrefid}_test_results.csv')
-					test[f'pred_points_MA_p={param}']=pred_points[:len(test)]
+					test[f'pred_points_MA_q={param}']=pred_points[:len(test)]
 					test.to_csv(file_name,index=False)
+					MAE_perf['MA_MAE']=mts.MAE(y_true=test.points,y_pred=pred_points[:len(test)])
 					mts.save_arma_residual_diagnostics(model=ma_model_fit,bid=bbrefid,file_path=store_path,orderList=orderList)
+					mts.save_model(fit_model=ma_model_fit,file_path=store_path,bid=bbrefid,date=todays_date_string,model_type='MA')
 
-					mts.save_model(fit_model=ma_model_fit,file_path=store_path,bid=bbrefid,date=todays_date_string,model_type='MA')		
+					file_name=os.path.join(store_path,f'{bbrefid}',f'{bbrefid}_STATS_MAE.csv')
+					MAE_perf_df=pd.DataFrame(MAE_perf.items(),columns=['Model','MAE'])
+					MAE_perf_df.to_csv(file_name,index=None)
 				elif ma_or_ar=='AR':
 					# print(f'MovingAverage with q={param}')
 					TRAIN_LEN=len(train)
 					HORIZON=len(test)
 					WINDOW=mts.window_sizing(horizon=HORIZON,p=param,q=param)
-					d=2
 					order=(param,d,0)
 					orderList=[param,0]
 					ar_model_fit=SARIMAX(train,order=order).fit(disp=False)
@@ -472,25 +513,32 @@ for league,info in data_structure.items():
 					AR_config['df'],AR_config['trainLen'],AR_config['window'],AR_config['horizon'],AR_config['p']=train,TRAIN_LEN,WINDOW,HORIZON,param
 					pred_points=mts.rolling_forecast_AutoRegressive(**AR_config)
 					file_name=os.path.join(store_path,f'{bbrefid}',f'{bbrefid}_test_results.csv')
-					test[f'pred_points_AR_q={param}']=pred_points[:len(test)]
+					test[f'pred_points_AR_p={param}']=pred_points[:len(test)]
 					test.to_csv(file_name,index=False)
+					MAE_perf['AR_MAE']=mts.MAE(y_true=test.points,y_pred=pred_points[:len(test)])
 					mts.save_arma_residual_diagnostics(model=ar_model_fit,bid=bbrefid,file_path=store_path,orderList=orderList)
-
 					mts.save_model(fit_model=ar_model_fit,file_path=store_path,bid=bbrefid,date=todays_date_string,model_type='AR')
+
+					file_name=os.path.join(store_path,f'{bbrefid}',f'{bbrefid}_STATS_MAE.csv')
+					MAE_perf_df=pd.DataFrame(MAE_perf.items(),columns=['Model','MAE'])
+					MAE_perf_df.to_csv(file_name,index=None)
 			else:
 				TRAIN_LEN=len(train)
 				HORIZON=len(test)
 				WINDOW=mts.window_sizing(horizon=HORIZON,p=p,q=q)
-				d=2
 				orderList=[p,q]
 				bid_model_fit=SARIMAX(train,order=(p,d,q),simple_differencing=False).fit(disp=False)
 				# ARIMA_config={'df':train,'trainLen':TRAIN_LEN,'horizon':HORIZON,'window':WINDOW,'orderList':orderList,'d':d}
 				ARIMA_config['df'],ARIMA_config['trainLen'],ARIMA_config['horizon'],ARIMA_config['window'],ARIMA_config['orderList'],ARIMA_config['d']=train,TRAIN_LEN,HORIZON,WINDOW,orderList,d
 				bid_forecasts=mts.rolling_forecast_ARIMA(**ARIMA_config)
 				test[f'arima_points_pred_p={p}_q={q}']=bid_forecasts
+				MAE_perf['ARIMA_MAE']=mts.MAE(y_true=test.points,y_pred=bid_forecasts[:len(test)])
 				mts.save_arma_residual_diagnostics(model=bid_model_fit,bid=bbrefid,file_path=store_path,orderList=orderList)
-
 				mts.save_model(fit_model=bid_model_fit,file_path=store_path,bid=bbrefid,date=todays_date_string,model_type='ARIMA')
+
+				file_name=os.path.join(store_path,f'{bbrefid}',f'{bbrefid}_STATS_MAE.csv')
+				MAE_perf_df=pd.DataFrame(MAE_perf.items(),columns=['Model','MAE'])
+				MAE_perf_df.to_csv(file_name,index=None)
 
 
 			# FIND THE BEST (AIC) SGL EXP / DBL EXP MODEL AND EXPORT TOP 5 INTO CSV FILE
@@ -510,13 +558,12 @@ for league,info in data_structure.items():
 			orderList=[alpha]
 			fit_bid_sgl_exp_model=ExponentialSmoothing(train,trend=None).fit(smoothing_level=alpha,optimized=True)
 			# EXP_config={'df':train,'trainLen':TRAIN_LEN,'horizon':HORIZON,'window':WINDOW,'orderList':orderList}
-			# 
+
 			EXP_config['df'],EXP_config['trainLen'],EXP_config['horizon'],EXP_config['window'],EXP_config['orderList']=train,TRAIN_LEN,HORIZON,WINDOW,orderList
 			bid_sgl_exp_forecasts=mts.rolling_forecast_exponential(**EXP_config)
 			test[f'exp_alpha={alpha}']=bid_sgl_exp_forecasts[:len(test)]
-
+			MAE_perf['EXP_MAE']=mts.MAE(y_true=test.points,y_pred=bid_sgl_exp_forecasts[:len(test)])
 			mts.save_exponential_smoothing_residual_summary(model=fit_bid_sgl_exp_model,bid=bbrefid,file_path=store_path,exponential_type='single',orderList=orderList)
-
 			mts.save_model(fit_model=fit_bid_sgl_exp_model,file_path=store_path,bid=bbrefid,date=todays_date_string,model_type='SGL EXP')
 
 			# FIND THE BEST (AIC) SGL EXP / DBL EXP MODEL AND EXPORT TOP 5 INTO CSV FILE
@@ -538,15 +585,18 @@ for league,info in data_structure.items():
 			DBL_EXP_config['df'],DBL_EXP_config['trainLen'],DBL_EXP_config['horizon'],DBL_EXP_config['window'],DBL_EXP_config['orderList']=train,TRAIN_LEN,HORIZON,WINDOW,orderList
 			bid_dbl_exp_forecasts=mts.rolling_forecast_double_exponential(**DBL_EXP_config)
 			test[f'exp_alpha={alpha}_beta={beta}']=bid_dbl_exp_forecasts[:len(test)]
-
+			MAE_perf['DBL_EXP_MAE']=mts.MAE(y_true=test.points,y_pred=bid_dbl_exp_forecasts[:len(test)])
 			mts.save_exponential_smoothing_residual_summary(model=fit_bid_dbl_exp_model,bid=bbrefid,file_path=store_path,exponential_type='double',orderList=orderList)
-
 			mts.save_model(fit_model=fit_bid_dbl_exp_model,file_path=store_path,bid=bbrefid,date=todays_date_string,model_type='DBL EXP')
 
 			file_name=os.path.join(store_path,f'{bbrefid}',f'{bbrefid}_test_results.csv')
 			test.to_csv(file_name,index=False)
 
+			file_name=os.path.join(store_path,f'{bbrefid}',f'{bbrefid}_STATS_MAE.csv')
+			MAE_perf_df=pd.DataFrame(MAE_perf.items(),columns=['Model','MAE'])
+			MAE_perf_df.to_csv(file_name,index=None)
 		else:
 			print(f'{bid} is not stationary')
+
 
 
