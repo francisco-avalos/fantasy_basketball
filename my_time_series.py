@@ -49,6 +49,12 @@ import pickle
 def mape(y_true, y_pred):
   return np.mean(np.abs((y_true - y_pred) / y_true)) * 100
 
+def MAE(y_true,y_pred):
+    if len(y_true) != len(y_pred):
+        raise ValueError("Lengths of y_true and y_pred must be the same.")
+    absolute_errors = [abs(true - pred) for true, pred in zip(y_true,y_pred)]
+    mean_absolute_error = sum(absolute_errors) / len(absolute_errors)
+    return mean_absolute_error
 
 
 def stationary_check(field_values) -> bool:
@@ -1084,7 +1090,10 @@ def optimized_param_decision(optimized_df1:pd.DataFrame):
   first_second_delta = second_aic - first_aic
   first_third_delta = third_aic - first_aic
 
-  aic_threshold=100
+  first_second_delta = first_second_delta * -1
+  first_third_delta = first_third_delta * -1
+
+  aic_threshold = 100
   idx=0
   if (first_second_delta >= aic_threshold) and (first_third_delta >= aic_threshold):
     idx=3
@@ -1277,9 +1286,12 @@ def save_model(fit_model,file_path:str,bid:str,date:str,model_type:str):
     with open(model_file_name,'wb') as file:
       pickle.dump(fit_model,file)
 
-def save_scaler(fit_model_scaler,file_path:str,bid:str):
+def save_scaler(fit_model_scaler,file_path:str,bid:str,model_type:str):
   model_scale_file_path=create_model_scaler_folder(bid=bid,file_path=file_path)
-  model_scaler_file_name=os.path.join(model_scale_file_path,f'{bid}_scaler.pkl')
+  if model_type=='stat':
+    model_scaler_file_name=os.path.join(model_scale_file_path,f'{bid}_STAT_scaler.pkl')
+  elif model_type=='ml':
+    model_scaler_file_name=os.path.join(model_scale_file_path,f'{bid}_ML_scaler.pkl')
   with open(model_scaler_file_name,'wb') as file:
     pickle.dump(fit_model_scaler,file)
 
