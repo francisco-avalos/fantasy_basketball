@@ -506,4 +506,17 @@
 -- );
 
 
+########################################################################################################################
+########################################################################################################################
+
+DROP TABLE IF EXISTS basketball.model_evaluation;
+CREATE TABLE basketball.model_evaluation
+(
+  `league` VARCHAR(50),
+  `slug` VARCHAR(50) NOT NULL,
+  `model_type` VARCHAR(20),
+  `evaluation_metric` VARCHAR(20),
+  `evaluation_metric_value` DECIMAL(5,3),
+  PRIMARY KEY (`league`, `slug`,`model_type`,`evaluation_metric`)
+);
 
