@@ -133,12 +133,15 @@ leagueid=os.environ.get('leagueid')
 espn_s2=os.environ.get('espn_s2')
 swid=os.environ.get('swid')
 
+league_config={
+    "league_id":leagueid,
+    "year":2024,
+    "espn_s2":espn_s2,
+    "swid":swid,
+    "debug":False
+}
 
-league=League(league_id=leagueid, 
-                year=2024,
-                espn_s2=espn_s2,
-                swid=swid, 
-                debug=False)
+league=League(**league_config)
 
 
 # connection=mysql.connect(host=sports_db_admin_host,
@@ -308,6 +311,12 @@ FROM basketball.injured_player_news_yh
 ORDER BY exp_return_date ASC;
 '''
 
+predictions_query='''
+SELECT *
+FROM basketball.predictions
+;
+'''
+
 
 p = ''
 my_espn_players_sched_query=f'''
@@ -383,6 +392,8 @@ with connection_pool.get_connection() as connection:
         current_players_yh_at_risk_df=pd.DataFrame(current_players_yh)
         current_players_yh_at_risk_df.columns=['Name']
         df_yh_for_agg = pd.concat([execute_query_and_fetch_df(my_yahoo_players_sched_query, connection) for p in current_players_yh])
+
+        predictions = execute_query_and_fetch_df(predictions_query,connection)
 
 
 # if connection.is_connected():
