@@ -232,7 +232,9 @@ for league,info in data_structure.items():
 		val_points[val_points.columns]=scaler_points.transform(val_points[val_points.columns])
 		test_points[test_points.columns]=scaler_points.transform(test_points[test_points.columns])
 
-		mts.save_scaler(fit_model_scaler=scaler_points,file_path=store_path,bid=bbrefid)
+		# unscaled_test_points=pd.DataFrame(scaler_points.inverse_transform(test_points), columns=['points']) # imhere
+
+		mts.save_scaler(fit_model_scaler=scaler_points,file_path=store_path,bid=bbrefid,model_type='ml')
 
 		column_indices={name: i for i, name in enumerate(train_points.columns)}
 
@@ -271,6 +273,7 @@ for league,info in data_structure.items():
 		# DataWindow_config['input_width'],DataWindow_config['label_width'], \
 		# 	DataWindow_config['shift'],DataWindow_config['batch_size']=length_steps,length_steps,length_steps,batch_size
 
+
 		# multi_window=mts.DataWindow(**DataWindow_config)
 		ms_baseline_repeat=mts.RepeatBaseline(label_index=column_indices['points'])
 		ms_baseline_repeat.compile(loss=MeanSquaredError(),metrics=[MeanAbsoluteError()])
@@ -289,6 +292,7 @@ for league,info in data_structure.items():
 		ms_perf['Linear']=ms_linear.evaluate(multi_window.test,verbose=0)
 
 		mts.save_model(fit_model=history.model,file_path=store_path,bid=bbrefid,date=todays_date_string,model_type='LINEAR')
+
 
 		## Baseline - Neural Network
 		ms_dense=Sequential([
@@ -312,7 +316,13 @@ for league,info in data_structure.items():
 		ms_val_perf['Deep - LSTM']=deep_lstm_model.evaluate(multi_window.val)
 		ms_perf['Deep - LSTM']=deep_lstm_model.evaluate(multi_window.test,verbose=0)
 
+		file_name=os.path.join(store_path,f'{bbrefid}',f'{bbrefid}_ML_MAE.csv')
+		ms_perf_df=pd.DataFrame(ms_perf.items(),columns=['Model','MAE'])
+		ms_perf_df=ms_perf_df.tail(1)
+		ms_perf_df.to_csv(file_name,index=None)
+
 		mts.save_model(fit_model=history.model,file_path=store_path,bid=bbrefid,date=todays_date_string,model_type='LSTM')
+
 
 
 		# ## Baseline - CNN
@@ -337,17 +347,16 @@ for league,info in data_structure.items():
 		# ms_val_perf['Deep - CNN']=cnn_model.evaluate(multi_window.val)
 		# ms_perf['Deep - CNN']=cnn_model.evaluate(multi_window.test,verbose=0)
 
-		print(bbrefid)
-		# print(ms_perf)
 
-		#imhere
 		# ms_dense=Sequential([
 		# 	Dense(64,activation='relu'),
 		# 	Dense(64,activation='relu'),
 		# 	Dense(1,kernel_initializer=tf.initializers.zeros)
 		# ])
 		# history=mts.compile_and_fit(ms_dense,multi_window)
-		
+
+
+
 
 
 
