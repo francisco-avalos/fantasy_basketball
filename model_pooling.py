@@ -181,7 +181,7 @@ conf_lower_bound,conf_upper_bound=0,0
 
 ## FORECASTING LENGTH
 num_next_games=5
-
+# pred_x=[1,2,3,4,5]
 
 
 connection=mysql.connect(**config)
@@ -196,8 +196,11 @@ for league,info in data_structure.items():
 		bbrefid_pkl_files_sorted=sorted(bbrefid_pkl_files,key=lambda x: mf.date_extract(x) or '', reverse=True)
 
 		bbrefid_scale_file_path=os.path.join(file_path,f'{bbrefid}','scalers')
-		scaler_file=glob.glob(os.path.join(bbrefid_scale_file_path,'*.pkl'))
-		loaded_scaler=mts.load_scaler(scaler_file[0])
+		ml_scaler_file=glob.glob(os.path.join(bbrefid_scale_file_path,'*_ML_scaler.pkl'))
+		stat_scaler_file=glob.glob(os.path.join(bbrefid_scale_file_path,'*_STAT_scaler.pkl'))
+		
+		ML_loaded_scaler=mts.load_scaler(ml_scaler_file[0])
+		STAT_loaded_scaler=mts.load_scaler(stat_scaler_file[0])
 
 		if bbrefid_pkl_files_sorted:
 			most_recent_date=mf.date_extract(bbrefid_pkl_files_sorted[0])
@@ -210,20 +213,29 @@ for league,info in data_structure.items():
 					print(f'Type - {is_stats_model_type}')
 					if is_stats_model_type=='ARIMA':
 						d=1
-					refitted_model=loaded_model.apply(player_data.points,refit=False)
+					alpha,beta=0,0
+					player_data_points=np.transpose(player_data.points.values)
+					player_data_points=player_data_points.reshape(-1,1)
+					scaled_x=STAT_loaded_scaler.transform(player_data_points)
+
+					refitted_model=loaded_model.apply(scaled_x,refit=False)
 					next_games_predictions=refitted_model.forecast(num_next_games)
+					next_games_predictions=next_games_predictions.reshape(-1,1)
+					next_games_predictions=STAT_loaded_scaler.inverse_transform(next_games_predictions)
 
 					confidence_interval=refitted_model.get_forecast(steps=num_next_games)
 					confidence_interval=confidence_interval.conf_int()
+					confidence_interval=STAT_loaded_scaler.inverse_transform(confidence_interval)
 
 					optimized_arima_df=mts.obtain_optimized_arma_parameter_extracts(bid=bbrefid,file_path=file_path)
 					p,q=mts.optimized_param_decision(optimized_arima_df)
 
-					next_games_predictions=next_games_predictions.to_frame()
+					# next_games_predictions=next_games_predictions.to_frame()
+					next_games_predictions=pd.DataFrame(next_games_predictions)
 					next_games_predictions.reset_index(inplace=True)
 					next_games_predictions.columns=['day','predicted_mean']
 					next_games_predictions['day']=next_games_predictions.index+1
-					conf_lower_bound,conf_upper_bound=confidence_interval.iloc[:,0].values,confidence_interval.iloc[:,1].values
+					conf_lower_bound,conf_upper_bound=confidence_interval[:,0],confidence_interval[:,1]
 
 					kwargs['df'],kwargs['league'],kwargs['bid'],kwargs['model_type'],kwargs['p'],kwargs['d'],kwargs['q'], \
 						kwargs['alpha'],kwargs['beta'],kwargs['ci_lower_bound'],kwargs['ci_upper_bound'] = \
@@ -243,12 +255,21 @@ for league,info in data_structure.items():
 					print('Exponential TYPE MODEL')
 					conf_lower_bound,conf_upper_bound=0,0
 					if is_stats_model_type=='SGL_EXP':
-						p,q=0,0
+						p,q,beta=0,0,0
+						#
+						player_data_points=np.transpose(player_data.points.values)
+						player_data_points=player_data_points.reshape(-1,1)
+						scaled_x=STAT_loaded_scaler.transform(player_data_points)
+						#
 						alpha=loaded_model.params['smoothing_level']
 						print(f'Type - {is_stats_model_type}, alpha = {alpha}')
-						refitted_model=ExponentialSmoothing(player_data.points,trend=None,).fit(smoothing_level=alpha,optimized=True)
+						refitted_model=ExponentialSmoothing(scaled_x,trend=None,).fit(smoothing_level=alpha,optimized=True)
 						next_games_predictions=refitted_model.predict(1,num_next_games)
-						next_games_predictions=next_games_predictions.to_frame()
+						#
+						next_games_predictions=next_games_predictions.reshape(-1,1)
+						next_games_predictions=STAT_loaded_scaler.inverse_transform(next_games_predictions)
+						#
+						next_games_predictions=pd.DataFrame(next_games_predictions)
 						next_games_predictions.reset_index(inplace=True)
 						next_games_predictions.columns=['day','predicted_mean']
 						next_games_predictions['day']=next_games_predictions.index+1
@@ -267,12 +288,21 @@ for league,info in data_structure.items():
 							print(f'Finished inserting predictions for {bbrefid} - {is_stats_model_type}')
 					elif is_stats_model_type=='DBL_EXP':
 						p,q=0,0
+						#
+						player_data_points=np.transpose(player_data.points.values)
+						player_data_points=player_data_points.reshape(-1,1)
+						scaled_x=STAT_loaded_scaler.transform(player_data_points)
+						#
 						alpha=loaded_model.params['smoothing_level']
 						beta=loaded_model.params['smoothing_trend']
 						print(f'Type - {is_stats_model_type}, alpha = {alpha}, beta = {beta}')
-						refitted_model=ExponentialSmoothing(player_data.points,trend=None,).fit(smoothing_level=alpha,smoothing_trend=beta,optimized=True)
+						refitted_model=ExponentialSmoothing(scaled_x,trend=None,).fit(smoothing_level=alpha,smoothing_trend=beta,optimized=True)
 						next_games_predictions=refitted_model.predict(1,num_next_games)
-						next_games_predictions=next_games_predictions.to_frame()
+						#
+						next_games_predictions=next_games_predictions.reshape(-1,1)
+						next_games_predictions=STAT_loaded_scaler.inverse_transform(next_games_predictions)
+						#
+						next_games_predictions=pd.DataFrame(next_games_predictions)
 						next_games_predictions.reset_index(inplace=True)
 						next_games_predictions.columns=['day','predicted_mean']
 						next_games_predictions['day']=next_games_predictions.index+1
@@ -290,7 +320,7 @@ for league,info in data_structure.items():
 							connection.commit()
 							del next_games_predictions
 							os.remove(export_import_data_file_path)
-							print(f'Finished inserting predictions for {bbrefid}')
+							print(f'Finished inserting predictions for {bbrefid} - {is_stats_model_type}')
 				elif is_stats_model_type == 'LINEAR':
 					next_games_predictions_prep=np.array([[1,2,3,4,5]])
 					next_games_predictions_prep=np.transpose(next_games_predictions_prep)
@@ -298,7 +328,7 @@ for league,info in data_structure.items():
 
 					next_games_predictions_2d = np.squeeze(next_games_predictions)
 					next_games_predictions=pd.DataFrame(next_games_predictions_2d)
-					next_games_predictions=loaded_scaler.inverse_transform(next_games_predictions)
+					next_games_predictions=ML_loaded_scaler.inverse_transform(next_games_predictions)
 					next_games_predictions=pd.DataFrame(next_games_predictions)
 
 					next_games_predictions.reset_index(inplace=True)
@@ -328,7 +358,7 @@ for league,info in data_structure.items():
 
 					next_games_predictions_2d = np.squeeze(next_games_predictions)
 					next_games_predictions=pd.DataFrame(next_games_predictions_2d)
-					next_games_predictions=loaded_scaler.inverse_transform(next_games_predictions)
+					next_games_predictions=ML_loaded_scaler.inverse_transform(next_games_predictions)
 					next_games_predictions=pd.DataFrame(next_games_predictions)
 
 					next_games_predictions.reset_index(inplace=True)
@@ -350,7 +380,6 @@ for league,info in data_structure.items():
 						del next_games_predictions,next_games_predictions_prep,next_games_predictions_2d
 						os.remove(export_import_data_file_path)
 						print(f'Finished inserting predictions for {bbrefid} - {is_stats_model_type}')
-
 				elif is_stats_model_type == 'LSTM':
 					next_games_predictions_prep=np.array([[1,2,3,4,5]])
 					next_games_predictions_prep=np.transpose(next_games_predictions_prep)
@@ -358,7 +387,7 @@ for league,info in data_structure.items():
 
 					next_games_predictions_2d = np.squeeze(next_games_predictions)
 					next_games_predictions=pd.DataFrame(next_games_predictions_2d)
-					next_games_predictions=loaded_scaler.inverse_transform(next_games_predictions)
+					next_games_predictions=ML_loaded_scaler.inverse_transform(next_games_predictions)
 					next_games_predictions=pd.DataFrame(next_games_predictions)
 
 					next_games_predictions.reset_index(inplace=True)
@@ -382,9 +411,21 @@ for league,info in data_structure.items():
 						print(f'Finished inserting predictions for {bbrefid} - {is_stats_model_type}')
 
 
-
 if(connection.is_connected()):
 	cursor.close()
 	connection.close()
 	print('MySQL connection is closed')
+
+
+
+# DROP TABLE IF EXISTS basketball.model_evaluation;
+# CREATE TABLE basketball.	
+# (
+#   `league` VARCHAR(50),
+#   `slug` VARCHAR(50) NOT NULL,
+#   `model_type` VARCHAR(20),
+#   `evaluation_metric` VARCHAR(20),
+#   `evaluation_metric_value` DECIMAL(5,3),
+#   PRIMARY KEY (`league`, `slug`,`model_type`,`evaluation_metric`)
+# );
 
