@@ -89,6 +89,10 @@ truncate_predictions_table_qry="""
 TRUNCATE basketball.predictions;
 """
 
+truncate_deciding_model_table_qry="""
+TRUNCATE basketball.model_evaluation;
+"""
+
 
 ## CREDENTIALS 
 sports_db_admin_host=os.environ.get('sports_db_admin_host')
@@ -129,6 +133,7 @@ if connection.is_connected():
     espn_myunique_list=cursor.fetchall()
 
     cursor.execute(truncate_predictions_table_qry)
+    cursor.execute(truncate_deciding_model_table_qry)
 
 if(connection.is_connected()):
     cursor.close()
@@ -143,9 +148,13 @@ else:
 yahoo_file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/basketball_yahoo'
 espn_file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/basketball_espn'
 export_import_data_file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/exported_preds.csv'
+export_import_mae_file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/exported_mae.csv'
 
 # SET UP INSERT DB QUERY
 load_into_qry=f"LOAD DATA LOCAL INFILE '{export_import_data_file_path}' REPLACE INTO TABLE basketball.predictions \
+	FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' IGNORE 1 ROWS;"
+
+load_into_model_decision_qry=f"LOAD DATA LOCAL INFILE '{export_import_mae_file_path}' REPLACE INTO TABLE basketball.model_evaluation \
 	FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' IGNORE 1 ROWS;"
 
 
@@ -202,6 +211,40 @@ for league,info in data_structure.items():
 		ML_loaded_scaler=mts.load_scaler(ml_scaler_file[0])
 		STAT_loaded_scaler=mts.load_scaler(stat_scaler_file[0])
 
+		bbrefid_MAE_file_path=os.path.join(file_path,f'{bbrefid}')
+		bbrefid_MAE_files=glob.glob(os.path.join(bbrefid_MAE_file_path,'*_MAE.csv'))
+		mae_file1=bbrefid_MAE_files[0]
+		mae_file2=bbrefid_MAE_files[1]
+
+		file_1_dat=pd.read_csv(mae_file1,sep=',')
+		file_2_dat=pd.read_csv(mae_file2,sep=',')
+
+		# print(bbrefid)
+		combined_df=pd.concat([file_1_dat,file_2_dat],ignore_index=True)
+		combined_df=combined_df.sort_values(by='MAE')
+		
+		winning_model=combined_df.iloc[0]['Model']
+
+		combined_df['final_model']=0
+		combined_df['League']=league
+		combined_df['slug']=bbrefid
+		combined_df['evaluation_metric']='MAE'
+		combined_df.loc[combined_df.index[0],'final_model']=1
+
+		reordered_columns=['League','slug','Model','evaluation_metric','MAE','final_model']
+		combined_df=combined_df.reindex(columns=reordered_columns)
+		combined_df.columns=['league','slug','model_type','evaluation_metric','evaluation_metric_value','champion_model']
+
+		# connection=mysql.connect(**config)
+		if connection.is_connected():
+			cursor=connection.cursor()
+			combined_df.to_csv(export_import_mae_file_path,index=False)
+			cursor.execute(load_into_model_decision_qry)
+			connection.commit()
+			del combined_df
+			os.remove(export_import_mae_file_path)
+
+
 		if bbrefid_pkl_files_sorted:
 			most_recent_date=mf.date_extract(bbrefid_pkl_files_sorted[0])
 			most_recent_files=[file for file in bbrefid_pkl_files_sorted if mf.date_extract(file)==most_recent_date]
@@ -242,6 +285,7 @@ for league,info in data_structure.items():
 						next_games_predictions, league, bbrefid, is_stats_model_type, p, d, q, alpha, beta, conf_lower_bound, conf_upper_bound
 					next_games_predictions=mf.prepare_predictions_table(**kwargs)
 
+					# connection=mysql.connect(**config)
 					if connection.is_connected():
 						cursor=connection.cursor()
 						next_games_predictions.to_csv(export_import_data_file_path,index=False)
@@ -279,6 +323,7 @@ for league,info in data_structure.items():
 							next_games_predictions, league, bbrefid, is_stats_model_type, p, d, q, alpha, beta, conf_lower_bound, conf_upper_bound
 						next_games_predictions=mf.prepare_predictions_table(**kwargs)
 
+						# connection=mysql.connect(**config)
 						if connection.is_connected():
 							cursor=connection.cursor()
 							next_games_predictions.to_csv(export_import_data_file_path,index=False)
@@ -286,6 +331,7 @@ for league,info in data_structure.items():
 							connection.commit()
 							del next_games_predictions
 							print(f'Finished inserting predictions for {bbrefid} - {is_stats_model_type}')
+
 					elif is_stats_model_type=='DBL_EXP':
 						p,q=0,0
 						#
@@ -312,7 +358,7 @@ for league,info in data_structure.items():
 							next_games_predictions, league, bbrefid, is_stats_model_type, p, d, q, alpha, beta, conf_lower_bound, conf_upper_bound
 						next_games_predictions=mf.prepare_predictions_table(**kwargs)
 
-						connection=mysql.connect(**config)
+						# connection=mysql.connect(**config)
 						if connection.is_connected():
 							cursor=connection.cursor()
 							next_games_predictions.to_csv(export_import_data_file_path,index=False)
@@ -321,6 +367,7 @@ for league,info in data_structure.items():
 							del next_games_predictions
 							os.remove(export_import_data_file_path)
 							print(f'Finished inserting predictions for {bbrefid} - {is_stats_model_type}')
+
 				elif is_stats_model_type == 'LINEAR':
 					next_games_predictions_prep=np.array([[1,2,3,4,5]])
 					next_games_predictions_prep=np.transpose(next_games_predictions_prep)
@@ -341,7 +388,7 @@ for league,info in data_structure.items():
 						next_games_predictions, league, bbrefid, is_stats_model_type, p, d, q, alpha, beta, conf_lower_bound, conf_upper_bound
 					next_games_predictions=mf.prepare_predictions_table(**kwargs)
 
-					connection=mysql.connect(**config)
+					# connection=mysql.connect(**config)
 					if connection.is_connected():
 						cursor=connection.cursor()
 						next_games_predictions.to_csv(export_import_data_file_path,index=False)
@@ -371,7 +418,7 @@ for league,info in data_structure.items():
 						next_games_predictions, league, bbrefid, is_stats_model_type, p, d, q, alpha, beta, conf_lower_bound, conf_upper_bound
 					next_games_predictions=mf.prepare_predictions_table(**kwargs)
 
-					connection=mysql.connect(**config)
+					# connection=mysql.connect(**config)
 					if connection.is_connected():
 						cursor=connection.cursor()
 						next_games_predictions.to_csv(export_import_data_file_path,index=False)
@@ -380,6 +427,7 @@ for league,info in data_structure.items():
 						del next_games_predictions,next_games_predictions_prep,next_games_predictions_2d
 						os.remove(export_import_data_file_path)
 						print(f'Finished inserting predictions for {bbrefid} - {is_stats_model_type}')
+
 				elif is_stats_model_type == 'LSTM':
 					next_games_predictions_prep=np.array([[1,2,3,4,5]])
 					next_games_predictions_prep=np.transpose(next_games_predictions_prep)
@@ -400,7 +448,7 @@ for league,info in data_structure.items():
 						next_games_predictions, league, bbrefid, is_stats_model_type, p, d, q, alpha, beta, conf_lower_bound, conf_upper_bound
 					next_games_predictions=mf.prepare_predictions_table(**kwargs)
 
-					connection=mysql.connect(**config)
+					# connection=mysql.connect(**config)
 					if connection.is_connected():
 						cursor=connection.cursor()
 						next_games_predictions.to_csv(export_import_data_file_path,index=False)
@@ -418,14 +466,4 @@ if(connection.is_connected()):
 
 
 
-# DROP TABLE IF EXISTS basketball.model_evaluation;
-# CREATE TABLE basketball.	
-# (
-#   `league` VARCHAR(50),
-#   `slug` VARCHAR(50) NOT NULL,
-#   `model_type` VARCHAR(20),
-#   `evaluation_metric` VARCHAR(20),
-#   `evaluation_metric_value` DECIMAL(5,3),
-#   PRIMARY KEY (`league`, `slug`,`model_type`,`evaluation_metric`)
-# );
 
