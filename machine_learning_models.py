@@ -317,13 +317,16 @@ for league,info in data_structure.items():
 		ms_perf['Deep - LSTM']=deep_lstm_model.evaluate(multi_window.test,verbose=0)
 
 		file_name=os.path.join(store_path,f'{bbrefid}',f'{bbrefid}_ML_MAE.csv')
-		ms_perf_df=pd.DataFrame(ms_perf.items(),columns=['Model','MAE'])
+		# ms_perf_df=pd.DataFrame(ms_perf.items(),columns=['Model','MAE'])
+		# ms_perf_df=pd.DataFrame(ms_perf,columns=['Model','MAE'])
+		ms_perf_df=pd.DataFrame(ms_perf)
 		ms_perf_df=ms_perf_df.tail(1)
+		ms_perf_df=ms_perf_df.transpose()
+		ms_perf_df=ms_perf_df.reset_index()
+		ms_perf_df.columns=['Model','MAE']
 		ms_perf_df.to_csv(file_name,index=None)
 
 		mts.save_model(fit_model=history.model,file_path=store_path,bid=bbrefid,date=todays_date_string,model_type='LSTM')
-
-
 
 		# ## Baseline - CNN
 		# # length_steps=4
