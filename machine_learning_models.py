@@ -238,7 +238,7 @@ for league,info in data_structure.items():
 
 		column_indices={name: i for i, name in enumerate(train_points.columns)}
 
-		# baseline - Last
+		# LAST
 		length_steps=2
 		batch_size=10
 
@@ -252,7 +252,7 @@ for league,info in data_structure.items():
 		# wide_DataWindow_config['train_df'],wide_DataWindow_config['val_df'], \
 		# 	wide_DataWindow_config['test_df'],wide_DataWindow_config['label_columns']=train_points,val_points,test_points,['points']
 
-		# Window Sizing baseline - Last
+		# Window Sizing LAST
 		DataWindow_config['input_width'],DataWindow_config['label_width'], \
 			DataWindow_config['shift'],DataWindow_config['batch_size']=length_steps,length_steps,length_steps,batch_size
 
@@ -261,15 +261,15 @@ for league,info in data_structure.items():
 		ms_baseline_last=mts.MultiStepLastBaseline(label_index=column_indices['points'], steps=length_steps)
 		ms_baseline_last.compile(loss=MeanSquaredError(),metrics=[MeanAbsoluteError()])
 
-		ms_val_perf['Baseline - Last']=ms_baseline_last.evaluate(multi_window.val)
-		ms_perf['Baseline - Last']=ms_baseline_last.evaluate(multi_window.test,verbose=0)
+		ms_val_perf['LAST']=ms_baseline_last.evaluate(multi_window.val)
+		ms_perf['LAST']=ms_baseline_last.evaluate(multi_window.test,verbose=0)
 
 
-		# # baseline - Repeat
+		# # REPEAT
 		# # length_steps=5
 		# # batch_size=10
 
-		# # Window Sizing baseline - Repeat
+		# # Window Sizing REPEAT
 		# DataWindow_config['input_width'],DataWindow_config['label_width'], \
 		# 	DataWindow_config['shift'],DataWindow_config['batch_size']=length_steps,length_steps,length_steps,batch_size
 
@@ -278,8 +278,8 @@ for league,info in data_structure.items():
 		ms_baseline_repeat=mts.RepeatBaseline(label_index=column_indices['points'])
 		ms_baseline_repeat.compile(loss=MeanSquaredError(),metrics=[MeanAbsoluteError()])
 
-		ms_val_perf['Baseline - Repeat']=ms_baseline_repeat.evaluate(multi_window.val)
-		ms_perf['Baseline - Repeat']=ms_baseline_repeat.evaluate(multi_window.test,verbose=0)
+		ms_val_perf['REPEAT']=ms_baseline_repeat.evaluate(multi_window.val)
+		ms_perf['REPEAT']=ms_baseline_repeat.evaluate(multi_window.test,verbose=0)
 
 
 		## Baseline - Linear
@@ -288,8 +288,8 @@ for league,info in data_structure.items():
 		])
 		history=mts.compile_and_fit(ms_linear,multi_window)
 
-		ms_val_perf['Linear']=ms_linear.evaluate(multi_window.val)
-		ms_perf['Linear']=ms_linear.evaluate(multi_window.test,verbose=0)
+		ms_val_perf['LINEAR']=ms_linear.evaluate(multi_window.val)
+		ms_perf['LINEAR']=ms_linear.evaluate(multi_window.test,verbose=0)
 
 		mts.save_model(fit_model=history.model,file_path=store_path,bid=bbrefid,date=todays_date_string,model_type='LINEAR')
 
@@ -302,8 +302,8 @@ for league,info in data_structure.items():
 		])
 		history=mts.compile_and_fit(ms_dense,multi_window)
 
-		ms_val_perf['Deep - Dense']=ms_dense.evaluate(multi_window.val)
-		ms_perf['Deep - Dense']=ms_dense.evaluate(multi_window.test,verbose=0)
+		ms_val_perf['NEURAL_NETWORK']=ms_dense.evaluate(multi_window.val)
+		ms_perf['NEURAL_NETWORK']=ms_dense.evaluate(multi_window.test,verbose=0)
 
 		mts.save_model(fit_model=history.model,file_path=store_path,bid=bbrefid,date=todays_date_string,model_type='NEURAL_NETWORK')
 
@@ -313,8 +313,8 @@ for league,info in data_structure.items():
 			Dense(units=1)
 		])
 		history=mts.compile_and_fit(deep_lstm_model,multi_window)
-		ms_val_perf['Deep - LSTM']=deep_lstm_model.evaluate(multi_window.val)
-		ms_perf['Deep - LSTM']=deep_lstm_model.evaluate(multi_window.test,verbose=0)
+		ms_val_perf['LSTM']=deep_lstm_model.evaluate(multi_window.val)
+		ms_perf['LSTM']=deep_lstm_model.evaluate(multi_window.test,verbose=0)
 
 		file_name=os.path.join(store_path,f'{bbrefid}',f'{bbrefid}_ML_MAE.csv')
 		# ms_perf_df=pd.DataFrame(ms_perf.items(),columns=['Model','MAE'])

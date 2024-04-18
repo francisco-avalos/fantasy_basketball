@@ -27,7 +27,7 @@ if run_fa=='yes':
 		print('Begin full list now... \n')
 		for script in full_list:
 			start_time=time.perf_counter()
-			print(f'Preparing to run: {script}')
+			print(f'======= Now running: {script}')
 			call(['python', script])
 			end_time=time.perf_counter()
 			lapsed_time_min=(end_time-start_time)/60
@@ -44,7 +44,7 @@ elif run_fa=='no':
 		print('Begin small list now... \n')
 		for script in small_list:
 			start_time=time.perf_counter()
-			print(f'Preparing to run: {script}')
+			print(f'======= Now running: {script}')
 			call(['python', script])
 			end_time=time.perf_counter()
 			lapsed_time_min=(end_time-start_time)/60

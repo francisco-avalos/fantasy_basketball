@@ -292,7 +292,7 @@ for league,info in data_structure.items():
 				file_name=os.path.join(store_path,f'{bbrefid}',f'{bbrefid}_test_results.csv')
 				test['arma_point_preds']=bid_forecasts
 				test.to_csv(file_name,index=False)
-				MAE_perf['ARMA_MAE']=mts.MAE(y_true=test.points,y_pred=bid_forecasts[:len(test)])
+				MAE_perf['ARMA']=mts.MAE(y_true=test.points,y_pred=bid_forecasts[:len(test)])
 				mts.save_arma_residual_diagnostics(model=bid_model_fit,bid=bbrefid,file_path=store_path,orderList=orderList)
 				mts.save_model(fit_model=bid_model_fit,file_path=store_path,bid=bbrefid,date=todays_date_string,model_type='ARMA')
 				file_name=os.path.join(store_path,f'{bbrefid}',f'{bbrefid}_STATS_MAE.csv')
@@ -375,7 +375,7 @@ for league,info in data_structure.items():
 				ARIMA_config['df'],ARIMA_config['trainLen'],ARIMA_config['horizon'],ARIMA_config['window'],ARIMA_config['orderList'],ARIMA_config['d']=train,TRAIN_LEN,HORIZON,WINDOW,orderList,d
 				bid_forecasts=mts.rolling_forecast_ARIMA(**ARIMA_config)
 				test[f'arima_point_preds_p={p}_q={q}']=bid_forecasts
-				MAE_perf['ARIMA_MAE']=mts.MAE(y_true=test.points,y_pred=bid_forecasts[:len(test)])
+				MAE_perf['ARIMA']=mts.MAE(y_true=test.points,y_pred=bid_forecasts[:len(test)])
 				mts.save_arma_residual_diagnostics(model=bid_model_fit,bid=bbrefid,file_path=store_path,orderList=orderList)
 				mts.save_model(fit_model=bid_model_fit,file_path=store_path,bid=bbrefid,date=todays_date_string,model_type='ARIMA')
 				file_name=os.path.join(store_path,f'{bbrefid}',f'{bbrefid}_STATS_MAE.csv')
@@ -404,7 +404,7 @@ for league,info in data_structure.items():
 			EXP_config['df'],EXP_config['trainLen'],EXP_config['horizon'],EXP_config['window'],EXP_config['orderList']=train,TRAIN_LEN,HORIZON,WINDOW,orderList
 			bid_sgl_exp_forecasts=mts.rolling_forecast_exponential(**EXP_config)
 			test[f'exp_alpha={alpha}']=bid_sgl_exp_forecasts[:len(test)]
-			MAE_perf['EXP_MAE']=mts.MAE(y_true=test.points,y_pred=bid_sgl_exp_forecasts[:len(test)])
+			MAE_perf['SGL_EXP']=mts.MAE(y_true=test.points,y_pred=bid_sgl_exp_forecasts[:len(test)])
 			mts.save_exponential_smoothing_residual_summary(
 				residuals=fit_bid_sgl_exp_model.resid,
 				bid=bbrefid,
@@ -434,7 +434,7 @@ for league,info in data_structure.items():
 			DBL_EXP_config['df'],DBL_EXP_config['trainLen'],DBL_EXP_config['horizon'],DBL_EXP_config['window'],DBL_EXP_config['orderList']=train,TRAIN_LEN,HORIZON,WINDOW,orderList
 			bid_dbl_exp_forecasts=mts.rolling_forecast_double_exponential(**DBL_EXP_config)
 			test[f'exp_alpha={alpha}_beta={beta}']=bid_dbl_exp_forecasts[:len(test)]
-			MAE_perf['DBL_EXP_MAE']=mts.MAE(y_true=test.points,y_pred=bid_dbl_exp_forecasts[:len(test)])
+			MAE_perf['DBL_EXP']=mts.MAE(y_true=test.points,y_pred=bid_dbl_exp_forecasts[:len(test)])
 			mts.save_exponential_smoothing_residual_summary(
 				residuals=fit_bid_dbl_exp_model.resid,
 				bid=bbrefid,
@@ -532,7 +532,7 @@ for league,info in data_structure.items():
 				ARIMA_config['df'],ARIMA_config['trainLen'],ARIMA_config['horizon'],ARIMA_config['window'],ARIMA_config['orderList'],ARIMA_config['d']=train,TRAIN_LEN,HORIZON,WINDOW,orderList,d
 				bid_forecasts=mts.rolling_forecast_ARIMA(**ARIMA_config)
 				test[f'arima_points_pred_p={p}_q={q}']=bid_forecasts
-				MAE_perf['ARIMA_MAE']=mts.MAE(y_true=test.points,y_pred=bid_forecasts[:len(test)])
+				MAE_perf['ARIMA']=mts.MAE(y_true=test.points,y_pred=bid_forecasts[:len(test)])
 				mts.save_arma_residual_diagnostics(model=bid_model_fit,bid=bbrefid,file_path=store_path,orderList=orderList)
 				mts.save_model(fit_model=bid_model_fit,file_path=store_path,bid=bbrefid,date=todays_date_string,model_type='ARIMA')
 
@@ -562,7 +562,7 @@ for league,info in data_structure.items():
 			EXP_config['df'],EXP_config['trainLen'],EXP_config['horizon'],EXP_config['window'],EXP_config['orderList']=train,TRAIN_LEN,HORIZON,WINDOW,orderList
 			bid_sgl_exp_forecasts=mts.rolling_forecast_exponential(**EXP_config)
 			test[f'exp_alpha={alpha}']=bid_sgl_exp_forecasts[:len(test)]
-			MAE_perf['EXP_MAE']=mts.MAE(y_true=test.points,y_pred=bid_sgl_exp_forecasts[:len(test)])
+			MAE_perf['SGL_EXP']=mts.MAE(y_true=test.points,y_pred=bid_sgl_exp_forecasts[:len(test)])
 			mts.save_exponential_smoothing_residual_summary(model=fit_bid_sgl_exp_model,bid=bbrefid,file_path=store_path,exponential_type='single',orderList=orderList)
 			mts.save_model(fit_model=fit_bid_sgl_exp_model,file_path=store_path,bid=bbrefid,date=todays_date_string,model_type='SGL EXP')
 
@@ -585,7 +585,7 @@ for league,info in data_structure.items():
 			DBL_EXP_config['df'],DBL_EXP_config['trainLen'],DBL_EXP_config['horizon'],DBL_EXP_config['window'],DBL_EXP_config['orderList']=train,TRAIN_LEN,HORIZON,WINDOW,orderList
 			bid_dbl_exp_forecasts=mts.rolling_forecast_double_exponential(**DBL_EXP_config)
 			test[f'exp_alpha={alpha}_beta={beta}']=bid_dbl_exp_forecasts[:len(test)]
-			MAE_perf['DBL_EXP_MAE']=mts.MAE(y_true=test.points,y_pred=bid_dbl_exp_forecasts[:len(test)])
+			MAE_perf['DBL_EXP']=mts.MAE(y_true=test.points,y_pred=bid_dbl_exp_forecasts[:len(test)])
 			mts.save_exponential_smoothing_residual_summary(model=fit_bid_dbl_exp_model,bid=bbrefid,file_path=store_path,exponential_type='double',orderList=orderList)
 			mts.save_model(fit_model=fit_bid_dbl_exp_model,file_path=store_path,bid=bbrefid,date=todays_date_string,model_type='DBL EXP')
 
