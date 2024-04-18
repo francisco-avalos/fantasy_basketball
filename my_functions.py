@@ -6,6 +6,7 @@ import time
 import os
 import numpy as np
 import re
+import mysql.connector as mysql
 # import statsmodels.api as sm
 # from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 # import matplotlib.pyplot as plt
@@ -287,5 +288,12 @@ def date_extract(file_name:str):
 		return match.group(0)
 	else:
 		return None
+
+def execute_query_and_fetch_df(query, connection):
+    with connection.cursor() as cursor:
+        cursor.execute(query)
+        result = cursor.fetchall()
+    return pd.DataFrame(result, columns=cursor.column_names)
+
 
 
