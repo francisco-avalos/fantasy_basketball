@@ -16,7 +16,7 @@ import random
 # ESPN 
 from espn_api.basketball import League
 
-from my_functions import clean_string, remove_name_suffixes
+from my_functions import clean_string, remove_name_suffixes,execute_query_and_fetch_df
 
 
 
@@ -73,13 +73,6 @@ league=League(league_id=leagueid,
 #                         user=sports_db_admin_user,
 #                         password=sports_db_admin_pw,
 #                         port=sports_db_admin_port)
-
-
-def execute_query_and_fetch_df(query, connection):
-    with connection.cursor() as cursor:
-        cursor.execute(query)
-        result = cursor.fetchall()
-    return pd.DataFrame(result, columns=cursor.column_names)
 
 
 espn_query='''
