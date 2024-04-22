@@ -265,6 +265,66 @@ WHERE MTS.name LIKE CONCAT("%", "{p}","%")
 GROUP BY MTS.name, TSCHED.start_time;
 '''
 
+historicals_query=f'''
+SELECT
+    DATE(SUBDATE(TSCHED.start_time,INTERVAL 8 HOUR)) AS start_time_pst,
+    REPLACE(REPLACE(TSCHED.away_team,'Team.',''),'_',' ') AS away_team,
+    REPLACE(REPLACE(TSCHED.home_team,'Team.',''),'_',' ') AS home_team,
+    TSCHED.away_team_score,
+    TSCHED.home_team_score,
+    CASE
+        WHEN TSCHED.away_team = HPD.team AND (TSCHED.away_team_score - TSCHED.home_team_score) > 0 THEN 'WIN'
+        WHEN TSCHED.home_team = HPD.team AND (TSCHED.away_team_score - TSCHED.home_team_score) > 0 THEN 'WIN'
+        WHEN TSCHED.away_team = HPD.team AND (TSCHED.away_team_score - TSCHED.home_team_score) < 0 THEN 'LOST'
+        WHEN TSCHED.home_team = HPD.team AND (TSCHED.away_team_score - TSCHED.home_team_score) < 0 THEN 'LOST'
+    END AS players_team_game_outcome,
+    HPD.slug,
+    REPLACE(REPLACE(HPD.team,'Team.',''),'_',' ') AS team,
+    REPLACE(HPD.location,'Location.','') AS location,
+    REPLACE(REPLACE(HPD.opponent,'Team.',''),'_',' ') AS opponent,
+    HPD.points,
+    REPLACE(REPLACE(CT.current_team,'Team.',''),'_',' ') AS players_current_team,
+    IF(REPLACE(REPLACE(CT.current_team,'Team.',''),'_',' ') = REPLACE(REPLACE(TSCHED.away_team,'Team.',''),'_',' '), REPLACE(REPLACE(TSCHED.home_team,'Team.',''),'_',' '),REPLACE(REPLACE(TSCHED.away_team,'Team.',''),'_',' ')) AS opponent_team
+FROM basketball.high_level_nba_team_schedules TSCHED
+LEFT JOIN basketball.historical_player_data HPD ON (HPD.team = TSCHED.away_team OR HPD.team = TSCHED.home_team)
+    AND DATE(SUBDATE(TSCHED.start_time, INTERVAL 8 HOUR)) = HPD.date
+    AND HPD.slug = 'wagnemo01'
+LEFT JOIN (SELECT SUBSTRING_INDEX(GROUP_CONCAT(DISTINCT team ORDER BY DATE DESC SEPARATOR '; '), '; ',1) AS current_team FROM basketball.historical_player_data WHERE slug = 'wagnemo01') CT ON 1=1
+WHERE TSCHED.away_team IN (SELECT
+                        SUBSTRING_INDEX(GROUP_CONCAT(DISTINCT team ORDER BY DATE DESC SEPARATOR '; '), '; ',1) AS current_team
+                    FROM basketball.historical_player_data
+                    WHERE slug = 'wagnemo01')
+    OR TSCHED.home_team IN (SELECT 
+                        SUBSTRING_INDEX(GROUP_CONCAT(DISTINCT team ORDER BY DATE DESC SEPARATOR '; '), '; ',1) AS current_team
+                    FROM basketball.historical_player_data 
+                    WHERE slug = 'wagnemo01')
+ORDER BY TSCHED.start_time DESC
+;
+'''
+
+predictions_query='''
+SELECT *
+FROM basketball.predictions
+WHERE slug = 'wagnemo01'
+;
+'''
+
+model_eval_query='''
+SELECT *
+FROM basketball.model_evaluation
+WHERE slug = 'wagnemo01'
+'''
+
+model_eval_pred_query=f'''
+SELECT *
+FROM basketball.model_evaluation ME
+LEFT JOIN basketball.predictions P ON ME.slug = P.slug
+    AND P.league = ME.league
+    AND P.model_type = ME.model_type
+WHERE ME.slug = 'wagnemo01'
+;
+'''
+
 
 my_safe_players=['Jayson Tatum', 'Kyrie Irving','Jaylen Brown']
 
@@ -307,6 +367,12 @@ with connection_pool.get_connection() as connection:
         current_players_yh_at_risk_df.columns=['Name']
 
         df_yh_for_agg = pd.concat([execute_query_and_fetch_df(my_yahoo_players_sched_query, connection) for p in current_players_yh])
+
+        historicals_df=execute_query_and_fetch_df(historicals_query,connection)
+        predictions_df=execute_query_and_fetch_df(predictions_query,connection)
+        model_eval_df=execute_query_and_fetch_df(model_eval_query,connection)
+        model_eval_pred_df=execute_query_and_fetch_df(model_eval_pred_query,connection)
+
 
 # if connection.is_connected():
 #     cursor=connection.cursor()
@@ -351,9 +417,13 @@ fa_yahoo_df['minutes_played']=fa_yahoo_df['seconds_played']/60
 
 
 
+points_mean=historicals_df[~historicals_df.points.isna()]['points'].mean()
+nan_rows=historicals_df.index[historicals_df.points.isna()][1:]
+historicals_df.loc[nan_rows,'points']=points_mean
 
 
-
+sorted_idx=historicals_df.sort_values(by='start_time_pst',ascending=False).index
+sorted_values=historicals_df.sort_values(by='start_time_pst',ascending=True)['points'].values
 
 ####################################################################################################
 # 000 - FREE AGENT SCREEN TOOL
@@ -940,6 +1010,30 @@ def line_plot(metric='points',leagueid='ESPN'):
 #             color='name',
 #             barmode='stack'
 # )
+
+
+def line_plot_preds():
+
+    line_plot=px.line(historicals_df,
+        x=sorted_idx,
+        y=sorted_values
+    )
+    line_plot.update_traces(mode='lines+markers',line_color='blue',name='Historical Points')
+    # line_plot.update_traces()
+    model_trace=px.line(
+                        x=model_eval_pred_df[model_eval_pred_df.champion_model==1]['day']+len(historicals_df),
+                        y=model_eval_pred_df[model_eval_pred_df.champion_model==1]['predictions'].values
+        )
+    model_trace.update_traces(mode='lines+markers',line_color='red',name='Model Predictions')
+    # model_trace.update_traces()
+    line_plot.add_trace(model_trace.data[0])
+    line_plot.update_layout(
+                            title='Historical and Predictions - Points',
+                            xaxis_title='Time',
+                            yaxis_title='Points'
+        )
+    line_plot.update_traces(showlegend=True)
+    return line_plot
 
 def bar_plot(metric='points',leagueid='ESPN'):
 
