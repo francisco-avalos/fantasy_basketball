@@ -9,7 +9,7 @@ from dash import dcc, html, Input, Output, dash_table
 import plotly.express as px
 from dash_create import app
 
-from callbacks import line_plot, bar_plot, heatmap, heatmap_weights, boxplot_by_player, boxplot_by_player_weekday_class, injury_probabilities
+from callbacks import line_plot, bar_plot, heatmap, heatmap_weights, boxplot_by_player, boxplot_by_player_weekday_class, injury_probabilities, line_plot_preds
 from callbacks import execute_query_and_fetch_df
 from my_functions import clean_string, remove_name_suffixes
 
@@ -285,11 +285,33 @@ JOIN basketball.calendar C ON MTS.date=C.day
 WHERE name IN (SELECT DISTINCT name FROM basketball.live_yahoo_players);
 '''
 
-my_live_yahoo_qry='''
-SELECT * 
-FROM basketball.live_yahoo_players
+
+##
+my_live_espn_qry='''
+SELECT 
+    LEP.name,
+    BRP.BBRefID AS slug
+FROM basketball.live_espn_players LEP
+JOIN basketball.basketball_references_players BRP ON LEP.name = BBRefName
 ;
 '''
+
+my_live_yahoo_qry='''
+SELECT 
+    LYP.name,
+    BRP.BBRefID AS slug
+FROM basketball.live_yahoo_players LYP
+JOIN basketball.basketball_references_players BRP ON LYP.name = BBRefName
+;
+'''
+##
+
+
+# my_live_yahoo_qry='''
+# SELECT * 
+# FROM basketball.live_yahoo_players
+# ;
+# '''
 
 my_injured_espn_team_qry='''
 SELECT 
@@ -311,10 +333,55 @@ FROM basketball.injured_player_news_yh
 ORDER BY exp_return_date ASC;
 '''
 
+
+historicals_query=f'''
+SELECT
+    DATE(SUBDATE(TSCHED.start_time,INTERVAL 8 HOUR)) AS start_time_pst,
+    REPLACE(REPLACE(TSCHED.away_team,'Team.',''),'_',' ') AS away_team,
+    REPLACE(REPLACE(TSCHED.home_team,'Team.',''),'_',' ') AS home_team,
+    TSCHED.away_team_score,
+    TSCHED.home_team_score,
+    CASE
+        WHEN TSCHED.away_team = HPD.team AND (TSCHED.away_team_score - TSCHED.home_team_score) > 0 THEN 'WIN'
+        WHEN TSCHED.home_team = HPD.team AND (TSCHED.away_team_score - TSCHED.home_team_score) > 0 THEN 'WIN'
+        WHEN TSCHED.away_team = HPD.team AND (TSCHED.away_team_score - TSCHED.home_team_score) < 0 THEN 'LOST'
+        WHEN TSCHED.home_team = HPD.team AND (TSCHED.away_team_score - TSCHED.home_team_score) < 0 THEN 'LOST'
+    END AS players_team_game_outcome,
+    HPD.slug,
+    REPLACE(REPLACE(HPD.team,'Team.',''),'_',' ') AS team,
+    REPLACE(HPD.location,'Location.','') AS location,
+    REPLACE(REPLACE(HPD.opponent,'Team.',''),'_',' ') AS opponent,
+    HPD.points,
+    REPLACE(REPLACE(CT.current_team,'Team.',''),'_',' ') AS players_current_team,
+    IF(REPLACE(REPLACE(CT.current_team,'Team.',''),'_',' ') = REPLACE(REPLACE(TSCHED.away_team,'Team.',''),'_',' '), REPLACE(REPLACE(TSCHED.home_team,'Team.',''),'_',' '),REPLACE(REPLACE(TSCHED.away_team,'Team.',''),'_',' ')) AS opponent_team
+FROM basketball.high_level_nba_team_schedules TSCHED
+LEFT JOIN basketball.historical_player_data HPD ON (HPD.team = TSCHED.away_team OR HPD.team = TSCHED.home_team)
+    AND DATE(SUBDATE(TSCHED.start_time, INTERVAL 8 HOUR)) = HPD.date
+    AND HPD.slug = 'wagnemo01'
+LEFT JOIN (SELECT SUBSTRING_INDEX(GROUP_CONCAT(DISTINCT team ORDER BY DATE DESC SEPARATOR '; '), '; ',1) AS current_team FROM basketball.historical_player_data WHERE slug = 'wagnemo01') CT ON 1=1
+WHERE TSCHED.away_team IN (SELECT
+                        SUBSTRING_INDEX(GROUP_CONCAT(DISTINCT team ORDER BY DATE DESC SEPARATOR '; '), '; ',1) AS current_team
+                    FROM basketball.historical_player_data
+                    WHERE slug = 'wagnemo01')
+    OR TSCHED.home_team IN (SELECT 
+                        SUBSTRING_INDEX(GROUP_CONCAT(DISTINCT team ORDER BY DATE DESC SEPARATOR '; '), '; ',1) AS current_team
+                    FROM basketball.historical_player_data 
+                    WHERE slug = 'wagnemo01')
+ORDER BY TSCHED.start_time DESC
+;
+'''
+
 predictions_query='''
 SELECT *
 FROM basketball.predictions
+WHERE slug = 'wagnemo01'
 ;
+'''
+
+model_eval_query='''
+SELECT *
+FROM basketball.model_evaluation
+WHERE slug = 'wagnemo01'
 '''
 
 
@@ -369,7 +436,14 @@ with connection_pool.get_connection() as connection:
         inj_df = execute_query_and_fetch_df(my_injured_espn_team_qry, connection)
         inj_df_yf = execute_query_and_fetch_df(my_injured_yahoo_team_qry, connection)
 
-        myteam=league.teams[10]
+        #### NEW SECTION
+
+        my_live_espn_df=execute_query_and_fetch_df(my_live_espn_qry,connection)
+        my_live_yahoo_df=execute_query_and_fetch_df(my_live_yahoo_qry,connection)
+        #### NEW SECTION
+
+        ####################### REWRITE SECTION
+        myteam=league.teams[10] #come back
         current_players=clean_string(myteam.roster).split(',')
         current_players=[remove_name_suffixes(x) for x in current_players]
         current_players=[x.strip(' ') for x in current_players]
@@ -392,9 +466,13 @@ with connection_pool.get_connection() as connection:
         current_players_yh_at_risk_df=pd.DataFrame(current_players_yh)
         current_players_yh_at_risk_df.columns=['Name']
         df_yh_for_agg = pd.concat([execute_query_and_fetch_df(my_yahoo_players_sched_query, connection) for p in current_players_yh])
+        ####################### REWRITE SECTION
 
-        predictions = execute_query_and_fetch_df(predictions_query,connection)
 
+
+        historicals_df=execute_query_and_fetch_df(historicals_query,connection)
+        predictions_df=execute_query_and_fetch_df(predictions_query,connection)
+        model_eval_df=execute_query_and_fetch_df(model_eval_query,connection)
 
 # if connection.is_connected():
 #     cursor=connection.cursor()
@@ -1850,7 +1928,110 @@ page3 = html.Div([
     #Row 3 : Filters
     html.Div([ # External row
 
-        html.Br()
+        html.Div([ # External 12-column
+
+            html.Div([ # Internal row
+
+                ######################################################################################## 
+
+                #Filter pt 1
+                html.Div([
+
+                    html.Div([
+                        html.H5(
+                            children='League:',
+                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
+                        ),
+                        #Date range picker
+                        html.Div([#'Focus Field: ',
+                            dcc.Dropdown(id='id-league',
+                                    options=[{'label':'ESPN','value':'ESPN'},
+                                              {'label':'Yahoo','value':'Yahoo'}],
+                                              value='ESPN'
+                                )
+
+                        ], style = {'margin-top' : '5px'}
+                        )
+
+                    ],
+                    style = {'margin-top' : '10px',
+                            'margin-bottom' : '5px',
+                            'text-align' : 'left',
+                            'paddingLeft': 5})
+
+                ],
+                className = 'col-4'), # Filter part 1
+
+                ######################################################################################## #imhere
+
+                #Filter pt 2
+                html.Div([
+                    html.Div([
+                        html.H5(
+                            children='League-Players',
+                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
+                        ),
+                        html.Div([
+                            dcc.Dropdown(id='id-player-dropdown',
+                                        options=[{'label':row['name'],'value':row['slug']} for idx,row in my_live_espn_df.iterrows()],
+                                        value=None
+                            )
+                        ], style = {'margin-top' : '5px'}
+                        )
+                    ],
+                    style = {'margin-top' : '10px',
+                            'margin-bottom' : '5px',
+                            'text-align' : 'left',
+                            'paddingLeft': 5})
+                ],
+                className = 'col-4'), #Filter pt 2
+                # my_live_espn_df,my_live_yahoo_df
+
+                ########################################################################################
+
+                #Filter pt 3
+                html.Div([
+
+                    html.Div([
+                        html.H5(
+                            children='Model:',
+                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
+                        ),
+                        html.Div([ #'Enter # of days back: ',
+                            dcc.Dropdown(id='id-dropdown',
+                                         options=[{'label':'AutoRegressive-Moving-Average','value':'ARMA'},
+                                                  {'label':'Last','value':'LAST'},
+                                                  {'label':'Linear','value':'LINEAR'},
+                                                  {'label':'Long Short-Term Memory','value':'LSTM'},
+                                                  {'label':'Neural Network','value':'NEURAL_NETWORK'},
+                                                  {'label':'Repeat','value':'REPEAT'}],
+                                    value='ARMA'
+                                )
+                        ], style = {'margin-top' : '5px'}
+                        )
+
+                    ],
+                    style = {'margin-top' : '10px',
+                            'margin-bottom' : '5px',
+                            'text-align' : 'left',
+                            'paddingLeft': 5})
+
+                ],
+                className = 'col-4'), # Filter part 3
+
+                ########################################################################################          
+
+                html.Div([
+                ],
+                className = 'col-2') # Blank 2 columns
+
+
+            ],
+            className = 'row') # Internal row
+
+        ],
+        className = 'col-12',
+        style = filterdiv_borderstyling) # External 12-column
 
     ],
     className = 'row sticky-top'), # External row
@@ -1862,8 +2043,21 @@ page3 = html.Div([
     #####################
     #Row 5 : Charts
     html.Div([ # External row
+        
+        html.Div([
+        ],
+        className = 'col-1'), # Blank 1 column
 
-        html.Br()
+        html.Div([
+            html.Div([ # Internal row 1
+                html.Div([
+                    dcc.Graph(id='preds-line',figure=line_plot_preds(),config=config)
+                ])
+            ]),
+
+        ],
+        className = 'row'),
+        # imhere
 
     ])
 
@@ -1871,3 +2065,233 @@ page3 = html.Div([
 
 
 
+
+
+
+    # #####################
+    # #Row 5 : Charts
+    # html.Div([ # External row
+
+    #     html.Div([
+    #     ],
+    #     className = 'col-1'), # Blank 1 column
+
+    #     html.Div([ # External 10-column
+    #         html.H2(children = "Minutes-Played Weighted Production",
+    #             style = {'color' : corporate_colors['white']}),
+
+
+    #         html.Div([ # Internal row 1
+
+    #             # min-weight focus field prod heatmap
+    #             html.Div([
+    #                 dcc.Graph(id='heat-map', figure=heatmap(), config=config),
+    #             ],
+    #             className = 'col-6'),
+                
+    #             # min-weights
+    #             html.Div([
+    #                 dcc.Graph(id='heat-map-weights', figure=heatmap_weights(), config=config)
+    #             ],
+    #             className = 'col-6'),
+
+    #         ],
+    #         className = 'row'), # Internal row 1
+
+
+    #         html.Div([ # Internal row 2
+
+    #             # Chart Column
+    #             html.Div([
+    #                 dcc.Graph(id='line_plot', figure=line_plot(), config=config)
+    #             ],
+    #             className = 'col-4'),
+
+    #             # # Chart Column
+    #             # html.Div([
+    #             #     dcc.Graph(
+    #             #         id='sales-bubble-county')
+    #             # ],
+    #             # className = 'col-4'),
+
+    #             # # Chart Column
+    #             # html.Div([
+    #             #     dcc.Graph(
+    #             #         id='sales-count-city')
+    #             # ],
+    #             # className = 'col-4')
+
+    #         ],
+    #         className = 'row'), # Internal row 2
+
+
+    #         html.Div([ # Internal row 3
+
+    #             # Chart Column
+    #             html.Div([
+    #                 dcc.Graph(id='bar-plot', figure=bar_plot(), config=config)
+    #             ],
+    #             className = 'col-4'),
+
+    #             # # Chart Column
+    #             # html.Div([
+    #             #     dcc.Graph(
+    #             #         id='sales-bubble-county')
+    #             # ],
+    #             # className = 'col-4'),
+
+    #             # # Chart Column
+    #             # html.Div([
+    #             #     dcc.Graph(
+    #             #         id='sales-count-city')
+    #             # ],
+    #             # className = 'col-4')
+
+    #         ],
+    #         className = 'row'), # Internal row 3
+
+    #         html.Div([ # Internal row 4
+
+    #             # Chart Column
+    #             html.Div([
+    #                 dcc.Graph(id='box-plot', figure=boxplot_by_player(), config=config)
+    #             ],
+    #             className = 'col-12'),
+
+    #             # # Chart Column
+    #             # html.Div([
+    #             #     dcc.Graph(
+    #             #         id='sales-bubble-county')
+    #             # ],
+    #             # className = 'col-4'),
+
+    #             # # Chart Column
+    #             # html.Div([
+    #             #     dcc.Graph(
+    #             #         id='sales-count-city')
+    #             # ],
+    #             # className = 'col-4')
+
+    #         ],
+    #         className = 'row'), # Internal row 4
+
+    #         html.Div([ # Internal row 5
+
+    #             # Chart Column
+    #             html.Div([
+    #                 dcc.Graph(id='box-plot-x-week-class', figure=boxplot_by_player_weekday_class(), config=config)
+    #             ],
+    #             className = 'col-12'),
+
+    #             # # Chart Column
+    #             # html.Div([
+    #             #     dcc.Graph(
+    #             #         id='sales-bubble-county')
+    #             # ],
+    #             # className = 'col-4'),
+
+    #             # # Chart Column
+    #             # html.Div([
+    #             #     dcc.Graph(
+    #             #         id='sales-count-city')
+    #             # ],
+    #             # className = 'col-4')
+
+    #         ],
+    #         className = 'row'), # Internal row 5
+
+    #         html.Div([ # Internal row 6
+
+    #             # Players at risk table and title
+    #             html.Div([
+    #                 html.H5("Players at risk of being \n picked up if dropped",
+    #                     style={'color': corporate_colors['white']}),
+    #                 dash_table.DataTable(
+    #                     id='id-my-team',
+    #                     data=players_at_risk.to_dict('records'),
+    #                     columns=[{"name": i, "id": i} for i in players_at_risk.columns],
+    #                     style_cell=dict(textAlign='left'),
+    #                     style_header=dict(backgroundColor="paleturquoise"),
+    #                     style_table={'overflowX':'auto','width':'100%'},
+    #                 )
+    #             ],
+    #             className='col-md-4 col-sm-12'),
+
+    #             # Injured Players table and title
+    #             html.Div([
+    #                 html.H5("Injured Players",
+    #                     style={'color': corporate_colors['white']}),
+    #                 dash_table.DataTable(
+    #                     id='id-injured',
+    #                     data=inj_df.to_dict('records'),
+    #                     columns=[{"name": i, "id": i} for i in inj_df.columns],
+    #                     style_cell=dict(textAlign='left'),
+    #                     style_header=dict(backgroundColor="paleturquoise"),
+    #                     style_table={'overflowX':'auto','width':'100%'},
+    #                 )
+    #             ],
+    #             className='col-md-4 col-sm-12'),
+
+    #             # Expected games this week table and title
+    #             html.Div([
+    #                 html.H5("Expected games this week",
+    #                     style={'color': corporate_colors['white']}),
+    #                 dash_table.DataTable(
+    #                     id='my-table',
+    #                     data=aggregate_yh.to_dict('records'),
+    #                     columns=[{"name": i, "id": i} for i in aggregate_yh.columns],
+    #                     style_cell=dict(textAlign='left'),
+    #                     style_header=dict(backgroundColor="paleturquoise"),
+    #                     style_table={'overflowX':'auto','width':'100%'},
+    #                 )
+    #             ],
+    #             className='col-md-4 col-sm-12'),
+
+    #         ],
+    #         className='row'),  # Internal row 6
+
+    #         html.Div([ # Internal row 7
+
+    #             html.H6("Probability of injury duration",
+    #                 style={'color':corporate_colors['white']}),
+    #             # Chart Column
+    #             html.Div([
+    #                 dash_table.DataTable(id='id-inj-prob-table',
+    #                                     data=injury_probabilities_df.to_dict('records'),
+    #                                     columns=[{"name":i,"id":i} if i != 'probabilities' else {"name":i,"id":i,"type":"numeric","format": {"specifier":'.2%'}} for i in injury_probabilities_df.columns],
+    #                                     style_cell=dict(textAlign='left'),
+    #                                     style_header=dict(backgroundColor="paleturquoise")
+    #                                 )
+    #             ],
+    #             className = 'col-md-4 col-sm-12'),
+
+    #             # # Chart Column
+    #             # html.Div([
+    #             #     dcc.Graph(
+    #             #         id='sales-bubble-county')
+    #             # ],
+    #             # className = 'col-4'),
+
+    #             # # Chart Column
+    #             # html.Div([
+    #             #     dcc.Graph(
+    #             #         id='sales-count-city')
+    #             # ],
+    #             # className = 'col-4')
+
+    #         ],
+    #         className = 'row'), # Internal row 7
+
+
+    #     ],
+    #     className = 'col-10',
+    #     style = externalgraph_colstyling), # External 10-column
+
+    #     html.Div([
+    #     ],
+    #     className = 'col-1'), # Blank 1 column
+
+    # ],
+    # className = 'row',
+    # style = externalgraph_rowstyling
+    # ), # External row
