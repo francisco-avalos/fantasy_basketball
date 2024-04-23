@@ -56,17 +56,17 @@ connection_pool = pooling.MySQLConnectionPool(
     **dbconfig
 )
 
-leagueid=os.environ.get('leagueid')
-espn_s2=os.environ.get('espn_s2')
-swid=os.environ.get('swid')
+# leagueid=os.environ.get('leagueid')
+# espn_s2=os.environ.get('espn_s2')
+# swid=os.environ.get('swid')
 
 
-# espn connect
-league=League(league_id=leagueid, 
-                year=2024,
-                espn_s2=espn_s2,
-                swid=swid, 
-                debug=False)
+# # espn connect
+# league=League(league_id=leagueid, 
+#                 year=2024,
+#                 espn_s2=espn_s2,
+#                 swid=swid, 
+#                 debug=False)
 
 # connection=mysql.connect(host=sports_db_admin_host,
 #                         database=sports_db_admin_db,
@@ -315,6 +315,26 @@ FROM basketball.model_evaluation
 WHERE slug = 'wagnemo01'
 '''
 
+## 
+my_live_espn_qry='''
+SELECT 
+    LEP.name,
+    BRP.BBRefID AS slug
+FROM basketball.live_espn_players LEP
+JOIN basketball.basketball_references_players BRP ON LEP.name = BBRefName
+;
+'''
+
+my_live_yahoo_qry='''
+SELECT 
+    LYP.name,
+    BRP.BBRefID AS slug
+FROM basketball.live_yahoo_players LYP
+JOIN basketball.basketball_references_players BRP ON LYP.name = BBRefName
+;
+'''
+
+
 model_eval_pred_query=f'''
 SELECT *
 FROM basketball.model_evaluation ME
@@ -324,6 +344,7 @@ LEFT JOIN basketball.predictions P ON ME.slug = P.slug
 WHERE ME.slug = 'wagnemo01'
 ;
 '''
+## 
 
 
 my_safe_players=['Jayson Tatum', 'Kyrie Irving','Jaylen Brown']
@@ -346,11 +367,21 @@ with connection_pool.get_connection() as connection:
         live_yahoo_players_df = execute_query_and_fetch_df(my_live_yahoo_qry, connection)
         inj_df = execute_query_and_fetch_df(my_injured_espn_team_qry, connection)
         inj_df_yf = execute_query_and_fetch_df(my_injured_yahoo_team_qry, connection)
-        
-        myteam=league.teams[10]
-        current_players=clean_string(myteam.roster).split(',')
-        current_players=[remove_name_suffixes(x) for x in current_players]
-        current_players=[x.strip(' ') for x in current_players]
+
+
+        #### NEW SECTION
+
+        my_live_espn_df=execute_query_and_fetch_df(my_live_espn_qry,connection)
+        my_live_yahoo_df=execute_query_and_fetch_df(my_live_yahoo_qry,connection)
+        #### NEW SECTION
+
+        ####################### REWRITE SECTION
+        # myteam=league.teams[10]
+        # current_players=clean_string(myteam.roster).split(',')
+        # current_players=[remove_name_suffixes(x) for x in current_players]
+        # current_players=[x.strip(' ') for x in current_players]
+        current_players=my_live_espn_df['name'].values.tolist()
+
         players_at_risk=list(set(current_players)-set(my_safe_players))
         players_at_risk=pd.DataFrame(players_at_risk)
         players_at_risk.columns=['Name']
@@ -763,10 +794,11 @@ def graph_update(input_value,focus_field_value, calc_value,display_field, top_n_
 
 
 
-myteam=league.teams[10]
-current_players=clean_string(myteam.roster).split(',')
-current_players=[remove_name_suffixes(x) for x in current_players]
-current_players=[x.strip(' ') for x in current_players]
+# myteam=league.teams[10]
+# current_players=clean_string(myteam.roster).split(',')
+# current_players=[remove_name_suffixes(x) for x in current_players]
+# current_players=[x.strip(' ') for x in current_players]
+current_players=my_live_espn_df['name'].values.tolist()
 
 
 players_at_risk=list(set(current_players)-set(my_safe_players))
