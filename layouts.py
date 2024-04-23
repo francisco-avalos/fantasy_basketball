@@ -1971,15 +1971,6 @@ page3 = html.Div([
                                               {'label':'Yahoo','value':'Yahoo'}],
                                               value='ESPN'
                                 ),
-                            dcc.Dropdown(
-                                id='League-Players'
-                            ),
-                            html.Div(id='output'),
-                            dcc.Dropdown(
-                                id='id-model'
-                            ),
-                            html.Div(id='model-output'),
-
                         ], style = {'margin-top' : '5px'}
                         )
 
@@ -1992,62 +1983,55 @@ page3 = html.Div([
                 ],
                 className = 'col-4'), # Filter part 1
 
-                ######################################################################################## #imhere
+                ########################################################################################
 
-                #Filter pt 2
-                # html.Div([
-                #     html.Div([
-                #         html.H5(
-                #             children='League-Players',
-                #             style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
-                #         ),
-                #         html.Div([
-                #             dcc.Dropdown(id='id-player-dropdown',
-                #                         options=[{'label':row['name'],'value':row['slug']} for idx,row in my_live_espn_df.iterrows()],
-                #                         value=None
-                #             )
-                #         ], style = {'margin-top' : '5px'}
-                #         ),
-                #     ],
-                #     style = {'margin-top' : '10px',
-                #             'margin-bottom' : '5px',
-                #             'text-align' : 'left',
-                #             'paddingLeft': 5})
-                # ],
-                # className = 'col-4'), #Filter pt 2
-                # # my_live_espn_df,my_live_yahoo_df
+                # Filter pt 2
+                html.Div([
+                    html.Div([
+                        html.H5(
+                            children='Team Players:',
+                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
+                        ),
+                        html.Div([
+                            dcc.Dropdown(
+                                id='League-Players'
+                            ),
+                            html.Div(id='output'),
+                        ], style = {'margin-top' : '5px'}
+                        ),
+                    ],
+                    style = {'margin-top' : '10px',
+                            'margin-bottom' : '5px',
+                            'text-align' : 'left',
+                            'paddingLeft': 5})
+                ],
+                className = 'col-4'), #Filter pt 2
 
                 ########################################################################################
 
-                # #Filter pt 3
-                # html.Div([
 
-                #     html.Div([
-                #         html.H5(
-                #             children='Model:',
-                #             style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
-                #         ),
-                #         html.Div([ #'Enter # of days back: ',
-                #             dcc.Dropdown(id='id-dropdown',
-                #                          options=[{'label':'AutoRegressive-Moving-Average','value':'ARMA'},
-                #                                   {'label':'Last','value':'LAST'},
-                #                                   {'label':'Linear','value':'LINEAR'},
-                #                                   {'label':'Long Short-Term Memory','value':'LSTM'},
-                #                                   {'label':'Neural Network','value':'NEURAL_NETWORK'},
-                #                                   {'label':'Repeat','value':'REPEAT'}],
-                #                     value='ARMA'
-                #                 )
-                #         ], style = {'margin-top' : '5px'}
-                #         )
+                # Filter pt 3
+                html.Div([
+                    html.Div([
+                        html.H5(
+                            children='Models:',
+                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
+                        ),
+                        html.Div([
+                            dcc.Dropdown(
+                                id='id-model'
+                            ),
+                            html.Div(id='model-output'),
+                        ], style = {'margin-top' : '5px'}
+                        ),
+                    ],
+                    style = {'margin-top' : '10px',
+                            'margin-bottom' : '5px',
+                            'text-align' : 'left',
+                            'paddingLeft': 5})
+                ],
+                className = 'col-4'), #Filter pt 3
 
-                #     ],
-                #     style = {'margin-top' : '10px',
-                #             'margin-bottom' : '5px',
-                #             'text-align' : 'left',
-                #             'paddingLeft': 5})
-
-                # ],
-                # className = 'col-4'), # Filter part 3
 
                 ########################################################################################          
 
@@ -2148,127 +2132,4 @@ def update_model_list(selected_player, selected_league):
     # Return empty options and default value if no valid data found or when any of the inputs are None
     return [], None
 ### NEW
-
-
-# @app.callback(
-#     [Output('League-Players', 'options'),
-#      Output('League-Players', 'value')],
-#     [Input('id-league', 'value')]
-# )
-# def update_player_list(selected_value):
-#     if selected_value == 'ESPN':
-#         options = [{'label': row['name'], 'value': row['slug']} for idx, row in my_live_espn_df.iterrows()]
-#         default_val = my_live_espn_df.iloc[0, 1] if not my_live_espn_df.empty else None
-#     elif selected_value == 'Yahoo':
-#         options = [{'label': row['name'], 'value': row['slug']} for idx, row in my_live_yahoo_df.iterrows()]
-#         default_val = my_live_yahoo_df.iloc[0, 1] if not my_live_yahoo_df.empty else None
-#     else:
-#         options = []
-#         default_val = None
-#     return options, default_val
-
-# @app.callback(
-#     Output('output', 'children'),
-#     [Input('League-Players', 'value')]
-# )
-# def update_player_picked_comment(selected_value):
-#     if selected_value is not None:
-#         return f'You have selected {selected_value}'
-#     else:
-#         return 'Please select a value'
-
-# @app.callback(
-#     [Output('id-model','options'),
-#      Output('id-model','value')],
-#      [Input('League-Players','value'),
-#      Input('id-league','value')]
-# )
-# def update_model_list(selected_league,selected_player):
-#     if selected_player is not None and selected_league is not None:
-#         if selected_league=='ESPN':
-#             df=model_eval_pred_df[model_eval_pred_df['league']=='espn',:].copy()
-#             # player_df=df[df['slug']==selected_player].copy()
-#             # player_models=player_df[['model_type']].unique().tolist()
-#             # model_default=player_models[0]
-#         elif selected_league=='Yahoo':
-#             df=model_eval_pred_df[model_eval_pred_df['league']=='yahoo',:].copy()
-#             # player_df=df[df['slug']==selected_player].copy()
-#             # player_models=player_df[['model_type']].unique().tolist()
-#             # model_default=player_models[0]
-#         else:
-#             df=pd.DataFrame()
-#             # player_models = []
-#             # model_default = None
-#         if not df.empty:
-#             player_df=df[df['slug']==selected_player].copy()
-#             player_models=player_df['model_type'].unique().tolist()
-#             model_default=player_models[0] if player_models else None
-#             return [{'label':model,'value':model} for model in player_models], model_default
-#     return [], None
-
-@app.callback(
-    Output('model-output', 'children'),
-    [Input('id-model', 'value')]
-)
-def update_player_model_picked_comment(selected_value):
-    if selected_value is not None:
-        return f'You have selected {selected_value}'
-    else:
-        return 'Please select a value'
-
-
-# # model_eval_pred_df
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# @app.callback(
-#     Output('League-Players','options'),
-#     Output('League-Players','value'),
-#     Input('League','value')
-# )
-
-# def update_dropdown2(selected_value):
-#     if selected_value=='ESPN':
-#         options = [{'label':row['name'],'val':row['slug']} for idx,row in my_live_espn_df.iterrows()]
-#         default_val = my_live_espn_df.iloc[0,1]
-#     elif selected_value=='Yahoo':
-#         options = [{'label':row['name'],'val':row['slug']} for idx,row in my_live_yahoo_df.iterrows()]
-#         default_val = my_live_yahoo_df.iloc[0,1]
-#     else:
-#         options=[]
-#         default_val=None
-#     return options,default_val
-
-# @app.callback(
-#     Output('output','children'),
-#     [Input('League-Players','value')]
-# )
-
-# def update_output(selected_value):
-#     if selected_value is not None:
-#         return f'You have selected {selected_value}'
-#     else:
-#         return 'Please select a value'
-
-
 
