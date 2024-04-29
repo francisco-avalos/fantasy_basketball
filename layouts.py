@@ -366,6 +366,7 @@ model_eval_query='''
 SELECT *
 FROM basketball.model_evaluation
 WHERE slug = 'wagnemo01'
+;
 '''
 
 
@@ -2090,10 +2091,10 @@ page3 = html.Div([
                 id='id-preds-table',
                 data=model_eval_pred_df_copy.to_dict('records'),
                 columns=[{'name':i,'id':i} for i in model_eval_pred_df_copy.columns],
-                style_cell=dict(textAlign='left'),
+                style_cell=dict(textAlign='center'),
                 style_header=dict(backgroundColor='paleturquoise'),
                 style_table={'overflowX':'auto','width':'100%'}
-            )
+            ) #imhere
 
             # dash_table.DataTable(
             #     id='my-table',

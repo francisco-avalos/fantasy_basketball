@@ -1396,63 +1396,6 @@ def boxplot_by_player_weekday_class(metric='points',leagueid='ESPN'):
     return fig
 
 
-
-def predictions_table(leagueid='espn',player_slug='brownja02',model_type=None):
-    if leagueid=='Yahoo':
-        leagueid='yahoo'
-    elif leagueid=='ESPN':
-        leagueid='espn'
-
-    dups=model_eval_pred_df[model_eval_pred_df.duplicated()]
-
-    model_eval_pred_df_copy=model_eval_pred_df.copy()
-    if not dups.empty:
-        model_eval_pred_df_copy.drop_duplicates(inplace=True)
-
-    df_pred=model_eval_pred_df_copy[
-                            (model_eval_pred_df_copy['slug']==player_slug) & 
-                            (model_eval_pred_df_copy['league']==leagueid)
-                        ].copy()
-    df_pred.reset_index(drop=True,inplace=True)
-
-    df_pred=df_pred[df_pred['model_type']==model_type]
-    table_data = pd.DataFrame({'day':df_pred['day'],'prediction':df_pred['predictions']})
-
-    # try - 1    
-    # fig = px.table(table)
-    
-    # try - 2
-    # fig=go.Figure(data=[go.Table(
-    #     header=dict(values=['Day','Prediction']),
-    #     cells=dict(values=[table['day'],table['prediction']])
-    #     )])
-    # fig.show()
-    
-    #try - 3
-    # table=dcc.DataTable(
-    #     id='id-preds-table',
-    #     columns=[{'name':col,'id':col} for col in table_data.columns],
-    #     data=table_data.to_dict('records')
-    # )
-
-    #try - 4
-    table = dash_table.DataTable(
-        # id='id-preds-table',
-        data=table_data.to_dict('records'),
-        columns=[{'name':i,'id':i} for i in table_data.columns]
-    )
-    return table
-
-# dash_table.DataTable(
-#     id='id-pred-table',
-#     data=inj_df.to_dict('records'),
-#     columns=[{"name": i, "id": i} for i in inj_df.columns],
-#     style_cell=dict(textAlign='left'),
-#     style_header=dict(backgroundColor="paleturquoise"),
-#     style_table={'overflowX':'auto','width':'100%'},
-# )
-
-
 ####################################################################################################
 # 001 - CURRENT TEAM PERFORMANCE
 ####################################################################################################
@@ -1586,72 +1529,11 @@ def update_preds_table(leagueid,player_slug,model_type):
     df_pred.reset_index(drop=True,inplace=True)
 
     df_pred=df_pred[df_pred['model_type']==model_type]
+    df_pred['predictions']=df_pred['predictions'].astype(float).round(1)
+
     df_pred=df_pred[['day','predictions']]
 
     data=df_pred.to_dict('records')
     columns=[{"name":i,"id":i} for i in df_pred.columns]
 
     return data, columns
-
-    # pred_table=predictions_table(leagueid,player_slug,model_type)
-    # return pred_table
-
-
-
-    # if selected_value=='ESPN':
-    #     data=players_at_risk.to_dict('records')
-    #     columns=[{"name":i,"id":i} for i in players_at_risk.columns]
-    # elif selected_value=='Yahoo':
-    #     data=current_players_yh_at_risk_df.to_dict('records')
-    #     columns=[{"name":i,"id":i} for i in current_players_yh_at_risk_df.columns]
-    # return data,columns
-
-
-    # dups=model_eval_pred_df[model_eval_pred_df.duplicated()]
-
-    # model_eval_pred_df_copy=model_eval_pred_df.copy()
-    # if not dups.empty:
-    #     model_eval_pred_df_copy.drop_duplicates(inplace=True)
-
-
-
-    # df_pred=df_pred[df_pred['model_type']==model_type]
-    # table_data = pd.DataFrame({'day':df_pred['day'],'prediction':df_pred['predictions']})
-
-    # # try - 1    
-    # # fig = px.table(table)
-    
-    # # try - 2
-    # # fig=go.Figure(data=[go.Table(
-    # #     header=dict(values=['Day','Prediction']),
-    # #     cells=dict(values=[table['day'],table['prediction']])
-    # #     )])
-    # # fig.show()
-    
-    # #try - 3
-    # # table=dcc.DataTable(
-    # #     id='id-preds-table',
-    # #     columns=[{'name':col,'id':col} for col in table_data.columns],
-    # #     data=table_data.to_dict('records')
-    # # )
-
-    # #try - 4
-    # table = dash_table.DataTable(
-    #     # id='id-preds-table',
-    #     data=table_data.to_dict('records'),
-    #     columns=[{'name':i,'id':i} for i in table_data.columns]
-    # )
-    # return table
-
-
-
-
-
-
-
-
-
-
-
-
-
