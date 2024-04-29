@@ -521,3 +521,71 @@
 --   PRIMARY KEY (`league`, `slug`,`model_type`,`evaluation_metric`)
 -- );
 
+
+
+
+
+
+DROP PROCEDURE IF EXISTS basketball.player_app_display;
+DELIMITER $$
+CREATE PROCEDURE basketball.player_app_display()
+BEGIN 
+	DROP TEMPORARY TABLE IF EXISTS basketball.temp_player_info;
+	CREATE TEMPORARY TABLE basketball.temp_player_info
+	SELECT DISTINCT X.*
+	FROM
+		(
+			SELECT 
+				LEP.name,
+				BRP.BBRefID AS slug,
+                'espn' AS league
+			FROM basketball.live_espn_players LEP
+			JOIN basketball.basketball_references_players BRP ON LEP.name = BRP.BBRefName
+			UNION ALL
+			SELECT 
+				LYP.name,
+				BRP.BBRefID AS slug,
+                'yahoo' AS league
+			FROM basketball.live_yahoo_players LYP
+			JOIN basketball.basketball_references_players BRP ON LYP.name = BRP.BBRefName
+		) X
+	;
+	DROP TABLE IF EXISTS basketball.player_historical_web_app_display;
+	CREATE TABLE basketball.player_historical_web_app_display
+	(
+	  `date` date NOT NULL,
+	  `slug` varchar(50) NOT NULL,
+      `name` varchar(150) NOT NULL,
+	  `team` varchar(100) NOT NULL DEFAULT '',
+	  `opponent` varchar(100) NOT NULL DEFAULT '',
+	  `points` int DEFAULT 0,
+	  `league` varchar(5) NOT NULL,
+	  PRIMARY KEY (date,slug,league)
+	);
+    SET @slug := (SELECT MIN(slug) AS slug FROM basketball.temp_player_info LIMIT 1);
+    SET @league := (SELECT league FROM basketball.temp_player_info WHERE slug = @slug LIMIT 1);
+    WHILE @slug IS NOT NULL DO
+		REPLACE INTO basketball.player_historical_web_app_display
+		SELECT 
+			HPD.date,
+			HPD.slug,
+            HPD.name,
+			REPLACE(REPLACE(HPD.team,'Team.',''),'_',' ') AS team,
+			REPLACE(REPLACE(HPD.opponent,'Team.',''),'_',' ') AS opponent,
+			HPD.points,
+			@league AS league
+		FROM basketball.historical_player_data HPD
+		WHERE HPD.slug = @slug
+		ORDER BY date DESC
+		;
+        
+        DELETE FROM basketball.temp_player_info WHERE slug = @slug AND league = @league;
+        SET @slug := (SELECT MIN(slug) AS slug FROM basketball.temp_player_info LIMIT 1);
+        SET @league := (SELECT league FROM basketball.temp_player_info WHERE slug = @slug LIMIT 1);
+	END WHILE;
+END 
+$$
+DELIMITER ;
+
+CALL basketball.player_app_display();
+
