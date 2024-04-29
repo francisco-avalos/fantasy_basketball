@@ -296,4 +296,9 @@ def execute_query_and_fetch_df(query, connection):
     return pd.DataFrame(result, columns=cursor.column_names)
 
 
-
+def execute_query_and_fetch_player_df(query, connection,p=None):
+	with connection.cursor() as cursor:
+		formatted_query=query.format(p=p)
+		cursor.execute(formatted_query)
+		result = cursor.fetchall()
+	return pd.DataFrame(result, columns=cursor.column_names)
