@@ -9,14 +9,22 @@ import pandas as pd
 import datetime as dt
 from dash_create import app
 import plotly.express as px
+import plotly.graph_objects as go
 
+import logging
 
 import random
 
 # ESPN 
 from espn_api.basketball import League
 
-from my_functions import clean_string, remove_name_suffixes,execute_query_and_fetch_df
+from my_functions import clean_string, remove_name_suffixes,execute_query_and_fetch_df,execute_query_and_fetch_player_df
+
+
+from dash import dash_table
+# import dash
+# import dash_core_components as dcc
+# import dash_html_components as html
 
 
 
@@ -238,7 +246,7 @@ ORDER BY exp_return_date ASC;
 '''
 
 p = ''
-my_espn_players_sched_query=f'''
+my_espn_players_sched_query='''
 SELECT
     name,
     team,
@@ -251,7 +259,7 @@ WHERE MTS.name LIKE CONCAT("%", "{p}","%")
 GROUP BY MTS.name, TSCHED.start_time;
 '''
 
-my_yahoo_players_sched_query=f'''
+my_yahoo_players_sched_query='''
 SELECT
     name,
     team,
@@ -265,42 +273,61 @@ WHERE MTS.name LIKE CONCAT("%", "{p}","%")
 GROUP BY MTS.name, TSCHED.start_time;
 '''
 
-historicals_query=f'''
-SELECT
-    DATE(SUBDATE(TSCHED.start_time,INTERVAL 8 HOUR)) AS start_time_pst,
-    REPLACE(REPLACE(TSCHED.away_team,'Team.',''),'_',' ') AS away_team,
-    REPLACE(REPLACE(TSCHED.home_team,'Team.',''),'_',' ') AS home_team,
-    TSCHED.away_team_score,
-    TSCHED.home_team_score,
-    CASE
-        WHEN TSCHED.away_team = HPD.team AND (TSCHED.away_team_score - TSCHED.home_team_score) > 0 THEN 'WIN'
-        WHEN TSCHED.home_team = HPD.team AND (TSCHED.away_team_score - TSCHED.home_team_score) > 0 THEN 'WIN'
-        WHEN TSCHED.away_team = HPD.team AND (TSCHED.away_team_score - TSCHED.home_team_score) < 0 THEN 'LOST'
-        WHEN TSCHED.home_team = HPD.team AND (TSCHED.away_team_score - TSCHED.home_team_score) < 0 THEN 'LOST'
-    END AS players_team_game_outcome,
-    HPD.slug,
-    REPLACE(REPLACE(HPD.team,'Team.',''),'_',' ') AS team,
-    REPLACE(HPD.location,'Location.','') AS location,
-    REPLACE(REPLACE(HPD.opponent,'Team.',''),'_',' ') AS opponent,
-    HPD.points,
-    REPLACE(REPLACE(CT.current_team,'Team.',''),'_',' ') AS players_current_team,
-    IF(REPLACE(REPLACE(CT.current_team,'Team.',''),'_',' ') = REPLACE(REPLACE(TSCHED.away_team,'Team.',''),'_',' '), REPLACE(REPLACE(TSCHED.home_team,'Team.',''),'_',' '),REPLACE(REPLACE(TSCHED.away_team,'Team.',''),'_',' ')) AS opponent_team
-FROM basketball.high_level_nba_team_schedules TSCHED
-LEFT JOIN basketball.historical_player_data HPD ON (HPD.team = TSCHED.away_team OR HPD.team = TSCHED.home_team)
-    AND DATE(SUBDATE(TSCHED.start_time, INTERVAL 8 HOUR)) = HPD.date
-    AND HPD.slug = 'wagnemo01'
-LEFT JOIN (SELECT SUBSTRING_INDEX(GROUP_CONCAT(DISTINCT team ORDER BY DATE DESC SEPARATOR '; '), '; ',1) AS current_team FROM basketball.historical_player_data WHERE slug = 'wagnemo01') CT ON 1=1
-WHERE TSCHED.away_team IN (SELECT
-                        SUBSTRING_INDEX(GROUP_CONCAT(DISTINCT team ORDER BY DATE DESC SEPARATOR '; '), '; ',1) AS current_team
-                    FROM basketball.historical_player_data
-                    WHERE slug = 'wagnemo01')
-    OR TSCHED.home_team IN (SELECT 
-                        SUBSTRING_INDEX(GROUP_CONCAT(DISTINCT team ORDER BY DATE DESC SEPARATOR '; '), '; ',1) AS current_team
-                    FROM basketball.historical_player_data 
-                    WHERE slug = 'wagnemo01')
-ORDER BY TSCHED.start_time DESC
+historicals_query='''
+SELECT 
+    HWAD.date,
+    HWAD.slug,
+    HWAD.name,
+    HWAD.team,
+    HWAD.opponent,
+    HWAD.points,
+    HWAD.league
+FROM basketball.player_historical_web_app_display HWAD
 ;
 '''
+
+
+# SELECT
+#     DATE(SUBDATE(TSCHED.start_time,INTERVAL 8 HOUR)) AS start_time_pst,
+#     REPLACE(REPLACE(TSCHED.away_team,'Team.',''),'_',' ') AS away_team,
+#     REPLACE(REPLACE(TSCHED.home_team,'Team.',''),'_',' ') AS home_team,
+#     TSCHED.away_team_score,
+#     TSCHED.home_team_score,
+#     CASE
+#         WHEN TSCHED.away_team = HPD.team AND (TSCHED.away_team_score - TSCHED.home_team_score) > 0 THEN 'WIN'
+#         WHEN TSCHED.home_team = HPD.team AND (TSCHED.away_team_score - TSCHED.home_team_score) > 0 THEN 'WIN'
+#         WHEN TSCHED.away_team = HPD.team AND (TSCHED.away_team_score - TSCHED.home_team_score) < 0 THEN 'LOST'
+#         WHEN TSCHED.home_team = HPD.team AND (TSCHED.away_team_score - TSCHED.home_team_score) < 0 THEN 'LOST'
+#     END AS players_team_game_outcome,
+#     HPD.slug,
+#     REPLACE(REPLACE(HPD.team,'Team.',''),'_',' ') AS team,
+#     REPLACE(HPD.location,'Location.','') AS location,
+#     REPLACE(REPLACE(HPD.opponent,'Team.',''),'_',' ') AS opponent,
+#     HPD.points,
+#     REPLACE(REPLACE(CT.current_team,'Team.',''),'_',' ') AS players_current_team,
+#     IF(REPLACE(REPLACE(CT.current_team,'Team.',''),'_',' ') = REPLACE(REPLACE(TSCHED.away_team,'Team.',''),'_',' '), REPLACE(REPLACE(TSCHED.home_team,'Team.',''),'_',' '),REPLACE(REPLACE(TSCHED.away_team,'Team.',''),'_',' ')) AS opponent_team,
+#     CASE
+#         WHEN ESPN.name IS NOT NULL THEN 'espn'
+#         WHEN Yahoo.name IS NOT NULL THEN 'yahoo'
+#     END AS league
+# FROM basketball.high_level_nba_team_schedules TSCHED
+# LEFT JOIN basketball.historical_player_data HPD ON (HPD.team = TSCHED.away_team OR HPD.team = TSCHED.home_team)
+#     AND DATE(SUBDATE(TSCHED.start_time, INTERVAL 8 HOUR)) = HPD.date
+#     AND HPD.slug = '{p}'
+# LEFT JOIN (SELECT SUBSTRING_INDEX(GROUP_CONCAT(DISTINCT team ORDER BY DATE DESC SEPARATOR '; '), '; ',1) AS current_team FROM basketball.historical_player_data WHERE slug = '{p}') CT ON 1=1
+# LEFT JOIN basketball.live_espn_players ESPN ON HPD.name = ESPN.name
+# LEFT JOIN basketball.live_yahoo_players Yahoo ON HPD.name = Yahoo.name
+# WHERE TSCHED.away_team IN (SELECT
+#                         SUBSTRING_INDEX(GROUP_CONCAT(DISTINCT team ORDER BY DATE DESC SEPARATOR '; '), '; ',1) AS current_team
+#                     FROM basketball.historical_player_data
+#                     WHERE slug = '{p}')
+#     OR TSCHED.home_team IN (SELECT 
+#                         SUBSTRING_INDEX(GROUP_CONCAT(DISTINCT team ORDER BY DATE DESC SEPARATOR '; '), '; ',1) AS current_team
+#                     FROM basketball.historical_player_data
+#                     WHERE slug = '{p}')
+# ORDER BY TSCHED.start_time DESC
+# ;
+
 
 predictions_query='''
 SELECT *
@@ -321,7 +348,7 @@ SELECT
     LEP.name,
     BRP.BBRefID AS slug
 FROM basketball.live_espn_players LEP
-JOIN basketball.basketball_references_players BRP ON LEP.name = BBRefName
+JOIN basketball.basketball_references_players BRP ON LEP.name = BRP.BBRefName
 ;
 '''
 
@@ -330,18 +357,27 @@ SELECT
     LYP.name,
     BRP.BBRefID AS slug
 FROM basketball.live_yahoo_players LYP
-JOIN basketball.basketball_references_players BRP ON LYP.name = BBRefName
+JOIN basketball.basketball_references_players BRP ON LYP.name = BRP.BBRefName
 ;
 '''
 
 
-model_eval_pred_query=f'''
-SELECT *
+model_eval_pred_query='''
+SELECT 
+    ME.league,
+    ME.slug,
+    ME.model_type,
+    ME.champion_model,
+    P.day,
+    P.p,
+    P.d,
+    P.q,
+    P.predictions
 FROM basketball.model_evaluation ME
 LEFT JOIN basketball.predictions P ON ME.slug = P.slug
     AND P.league = ME.league
     AND P.model_type = ME.model_type
-WHERE ME.slug = 'wagnemo01'
+WHERE ME.slug = '{p}'
 ;
 '''
 ## 
@@ -387,7 +423,11 @@ with connection_pool.get_connection() as connection:
         players_at_risk.columns=['Name']
         players_at_risk_df = pd.DataFrame(players_at_risk, columns=['Name'])
 
-        df_for_agg = pd.concat([execute_query_and_fetch_df(my_espn_players_sched_query, connection) for p in current_players])
+        df_for_agg_list=[]
+        for p in current_players:
+            df_for_agg_list.append(execute_query_and_fetch_player_df(query=my_espn_players_sched_query,connection=connection,p=p))
+        df_for_agg=pd.concat(df_for_agg_list, ignore_index=True)
+        # df_for_agg = pd.concat([execute_query_and_fetch_player_df(my_espn_players_sched_query, connection,p=p) for p in current_players])
 
         current_players_yh=live_yahoo_players_df.name.tolist()
         current_players_yh=clean_string(current_players_yh).split(',')
@@ -397,12 +437,38 @@ with connection_pool.get_connection() as connection:
         current_players_yh_at_risk_df=pd.DataFrame(current_players_yh)
         current_players_yh_at_risk_df.columns=['Name']
 
-        df_yh_for_agg = pd.concat([execute_query_and_fetch_df(my_yahoo_players_sched_query, connection) for p in current_players_yh])
+        df_yh_for_agg_list=[]
+        for p in current_players_yh:
+            df_yh_for_agg_list.append(execute_query_and_fetch_player_df(query=my_yahoo_players_sched_query,connection=connection,p=p))
+        df_yh_for_agg=pd.concat(df_yh_for_agg_list,ignore_index=True)
+        # df_yh_for_agg = pd.concat([execute_query_and_fetch_player_df(my_yahoo_players_sched_query, connection,p=p) for p in current_players_yh])
 
+        # historicals_df=execute_query_and_fetch_df(historicals_query,connection)
+        current_espn_slugs=my_live_espn_df['slug'].values.tolist()
+        current_yahoo_slugs=my_live_yahoo_df['slug'].values.tolist()
+        unique_current_players=set(current_espn_slugs + current_yahoo_slugs)
+        unique_current_players=list(unique_current_players)
+
+        # attempt - 1
+        # historicals_df_list=[]
+        # for p in unique_current_players:
+        #     historicals_df_list.append(execute_query_and_fetch_player_df(query=historicals_query,connection=connection,p=p))
+        # historicals_df=pd.concat(historicals_df_list,ignore_index=True)
+
+        # attempt - 2
+        # historicals_df = pd.concat([execute_query_and_fetch_player_df(historicals_query, connection,p=p) for p in unique_current_players])
+
+        # attempt - 3
         historicals_df=execute_query_and_fetch_df(historicals_query,connection)
+
         predictions_df=execute_query_and_fetch_df(predictions_query,connection)
         model_eval_df=execute_query_and_fetch_df(model_eval_query,connection)
-        model_eval_pred_df=execute_query_and_fetch_df(model_eval_pred_query,connection)
+
+        model_eval_pred_df_list=[]
+        for p in unique_current_players:
+            model_eval_pred_df_list.append(execute_query_and_fetch_player_df(query=model_eval_pred_query,connection=connection,p=p))
+        model_eval_pred_df=pd.concat(model_eval_pred_df_list,ignore_index=True)
+        # model_eval_pred_df=pd.concat([execute_query_and_fetch_player_df(model_eval_pred_query,connection,p=p) for p in unique_current_players])
 
 
 # if connection.is_connected():
@@ -448,13 +514,10 @@ fa_yahoo_df['minutes_played']=fa_yahoo_df['seconds_played']/60
 
 
 
-points_mean=historicals_df[~historicals_df.points.isna()]['points'].mean()
-nan_rows=historicals_df.index[historicals_df.points.isna()][1:]
-historicals_df.loc[nan_rows,'points']=points_mean
 
 
-sorted_idx=historicals_df.sort_values(by='start_time_pst',ascending=False).index
-sorted_values=historicals_df.sort_values(by='start_time_pst',ascending=True)['points'].values
+
+
 
 ####################################################################################################
 # 000 - FREE AGENT SCREEN TOOL
@@ -1044,21 +1107,74 @@ def line_plot(metric='points',leagueid='ESPN'):
 # )
 
 
-def line_plot_preds():
 
-    line_plot=px.line(historicals_df,
-        x=sorted_idx,
-        y=sorted_values
+# points_mean=historicals_df[~historicals_df.points.isna()]['points'].mean()
+# nan_rows=historicals_df.index[historicals_df.points.isna()][1:]
+# historicals_df.loc[nan_rows,'points']=points_mean
+
+# sorted_idx=historicals_df.sort_values(by='start_time_pst',ascending=False).index
+# sorted_values=historicals_df.sort_values(by='start_time_pst',ascending=True)['points'].values
+
+
+def line_plot_preds(leagueid='espn',player_slug='brownja02',model_type=None):
+    if leagueid=='Yahoo':
+        leagueid='yahoo'
+    elif leagueid=='ESPN':
+        leagueid='espn'
+    df=historicals_df[(historicals_df['slug']==player_slug) & (historicals_df['league']==leagueid)].copy()
+
+    df.reset_index(drop=True,inplace=True)
+    df.reset_index(drop=False,inplace=True) # new
+
+    points_mean=df[~df['points'].isna()]['points'].mean()
+    nan_rows=df.index[df.points.isna()][1:]
+    df.loc[nan_rows,'points']=points_mean
+
+    points_mean = df.loc[~df['points'].isna(), 'points'].mean()
+    df.loc[df['points'].isna(), 'points'] = points_mean
+
+    if df.empty:
+        logging.warning(f"DataFrame is empty. No data to plot. {historicals_df.shape}")
+        return None
+
+    # sorted_idx=df.sort_values(by='start_time_pst',ascending=False).index
+    # sorted_values=df.sort_values(by='start_time_pst',ascending=True)['points'].values
+
+    dups=model_eval_pred_df[model_eval_pred_df.duplicated()]
+
+    model_eval_pred_df_copy=model_eval_pred_df.copy()
+    if not dups.empty:
+        model_eval_pred_df_copy.drop_duplicates(inplace=True)
+
+    df_pred=model_eval_pred_df_copy[
+                            (model_eval_pred_df_copy['slug']==player_slug) & 
+                            (model_eval_pred_df_copy['league']==leagueid)
+                        ].copy()
+    df_pred.reset_index(drop=True,inplace=True)
+
+    line_plot=px.line(df,
+        x='index',
+        y='points'
     )
     line_plot.update_traces(mode='lines+markers',line_color='blue',name='Historical Points')
-    # line_plot.update_traces()
-    model_trace=px.line(
-                        x=model_eval_pred_df[model_eval_pred_df.champion_model==1]['day']+len(historicals_df),
-                        y=model_eval_pred_df[model_eval_pred_df.champion_model==1]['predictions'].values
-        )
-    model_trace.update_traces(mode='lines+markers',line_color='red',name='Model Predictions')
-    # model_trace.update_traces()
+    line_plot.update_layout(xaxis_title='Time', yaxis_title='Points', showlegend=True)
+
+
+    if model_type==None:
+        model_trace=px.line(
+                        x=df_pred[df_pred.champion_model==1]['day']+len(df),
+                        y=df_pred[df_pred.champion_model==1]['predictions'].values
+                    )
+        model_trace.update_traces(mode='lines+markers',line_color='red',name='Model Predictions')
+    elif model_type is not None:
+        model_trace=px.line(
+                        x=df_pred[df_pred['model_type']==model_type]['day']+len(df),
+                        y=df_pred[df_pred['model_type']==model_type]['predictions'].values
+                    )
+        model_trace.update_traces(mode='lines+markers',line_color='red',name='Model Predictions')
+
     line_plot.add_trace(model_trace.data[0])
+
     line_plot.update_layout(
                             title='Historical and Predictions - Points',
                             xaxis_title='Time',
@@ -1066,6 +1182,28 @@ def line_plot_preds():
         )
     line_plot.update_traces(showlegend=True)
     return line_plot
+
+## original     
+    # line_plot=px.line(historicals_df,
+    #     x=sorted_idx,
+    #     y=sorted_values
+    # )
+    # line_plot.update_traces(mode='lines+markers',line_color='blue',name='Historical Points')
+    # # line_plot.update_traces()
+    # model_trace=px.line(
+    #                     x=model_eval_pred_df[model_eval_pred_df.champion_model==1]['day']+len(historicals_df),
+    #                     y=model_eval_pred_df[model_eval_pred_df.champion_model==1]['predictions'].values
+    #     )
+    # model_trace.update_traces(mode='lines+markers',line_color='red',name='Model Predictions')
+    # # model_trace.update_traces()
+    # line_plot.add_trace(model_trace.data[0])
+    # line_plot.update_layout(
+    #                         title='Historical and Predictions - Points',
+    #                         xaxis_title='Time',
+    #                         yaxis_title='Points'
+    #     )
+    # line_plot.update_traces(showlegend=True)
+    # return line_plot
 
 def bar_plot(metric='points',leagueid='ESPN'):
 
@@ -1259,6 +1397,62 @@ def boxplot_by_player_weekday_class(metric='points',leagueid='ESPN'):
 
 
 
+def predictions_table(leagueid='espn',player_slug='brownja02',model_type=None):
+    if leagueid=='Yahoo':
+        leagueid='yahoo'
+    elif leagueid=='ESPN':
+        leagueid='espn'
+
+    dups=model_eval_pred_df[model_eval_pred_df.duplicated()]
+
+    model_eval_pred_df_copy=model_eval_pred_df.copy()
+    if not dups.empty:
+        model_eval_pred_df_copy.drop_duplicates(inplace=True)
+
+    df_pred=model_eval_pred_df_copy[
+                            (model_eval_pred_df_copy['slug']==player_slug) & 
+                            (model_eval_pred_df_copy['league']==leagueid)
+                        ].copy()
+    df_pred.reset_index(drop=True,inplace=True)
+
+    df_pred=df_pred[df_pred['model_type']==model_type]
+    table_data = pd.DataFrame({'day':df_pred['day'],'prediction':df_pred['predictions']})
+
+    # try - 1    
+    # fig = px.table(table)
+    
+    # try - 2
+    # fig=go.Figure(data=[go.Table(
+    #     header=dict(values=['Day','Prediction']),
+    #     cells=dict(values=[table['day'],table['prediction']])
+    #     )])
+    # fig.show()
+    
+    #try - 3
+    # table=dcc.DataTable(
+    #     id='id-preds-table',
+    #     columns=[{'name':col,'id':col} for col in table_data.columns],
+    #     data=table_data.to_dict('records')
+    # )
+
+    #try - 4
+    table = dash_table.DataTable(
+        # id='id-preds-table',
+        data=table_data.to_dict('records'),
+        columns=[{'name':i,'id':i} for i in table_data.columns]
+    )
+    return table
+
+# dash_table.DataTable(
+#     id='id-pred-table',
+#     data=inj_df.to_dict('records'),
+#     columns=[{"name": i, "id": i} for i in inj_df.columns],
+#     style_cell=dict(textAlign='left'),
+#     style_header=dict(backgroundColor="paleturquoise"),
+#     style_table={'overflowX':'auto','width':'100%'},
+# )
+
+
 ####################################################################################################
 # 001 - CURRENT TEAM PERFORMANCE
 ####################################################################################################
@@ -1349,4 +1543,115 @@ def update_probabilities_seach_table(searched_injury):
 
     # columns=[{"name":i,"id":i} if i != 'probabilities' else {"name":i,"id":i,"type":"numeric","format": {"specifier":'.2%'}} for i in specified_injury_search.columns],
     return specified_injury_search.to_dict('records')#, columns
+
+
+
+@app.callback(
+    Output(component_id='preds-line',component_property='figure'),
+    Input(component_id='id-league',component_property='value'),
+    Input(component_id='League-Players',component_property='value'),
+    Input(component_id='id-model',component_property='value')
+)
+
+def update_pred_plot(leagueid,player_slug,model_type):
+    fig_line_pred=line_plot_preds(leagueid,player_slug,model_type)
+    return fig_line_pred
+
+
+@app.callback(
+    Output(component_id='id-preds-table',component_property='data'),
+    Output(component_id='id-preds-table',component_property='columns'),
+    Input(component_id='id-league',component_property='value'),
+    Input(component_id='League-Players',component_property='value'),
+    Input(component_id='id-model',component_property='value')    
+)
+
+def update_preds_table(leagueid,player_slug,model_type):
+    if leagueid=='Yahoo':
+        leagueid='yahoo'
+    elif leagueid=='ESPN':
+        leagueid='espn'
+
+
+    dups=model_eval_pred_df[model_eval_pred_df.duplicated()]
+
+    model_eval_pred_df_copy=model_eval_pred_df.copy()
+    if not dups.empty:
+        model_eval_pred_df_copy.drop_duplicates(inplace=True)
+
+    df_pred=model_eval_pred_df_copy[
+                            (model_eval_pred_df_copy['slug']==player_slug) & 
+                            (model_eval_pred_df_copy['league']==leagueid)
+                        ].copy()
+    df_pred.reset_index(drop=True,inplace=True)
+
+    df_pred=df_pred[df_pred['model_type']==model_type]
+    df_pred=df_pred[['day','predictions']]
+
+    data=df_pred.to_dict('records')
+    columns=[{"name":i,"id":i} for i in df_pred.columns]
+
+    return data, columns
+
+    # pred_table=predictions_table(leagueid,player_slug,model_type)
+    # return pred_table
+
+
+
+    # if selected_value=='ESPN':
+    #     data=players_at_risk.to_dict('records')
+    #     columns=[{"name":i,"id":i} for i in players_at_risk.columns]
+    # elif selected_value=='Yahoo':
+    #     data=current_players_yh_at_risk_df.to_dict('records')
+    #     columns=[{"name":i,"id":i} for i in current_players_yh_at_risk_df.columns]
+    # return data,columns
+
+
+    # dups=model_eval_pred_df[model_eval_pred_df.duplicated()]
+
+    # model_eval_pred_df_copy=model_eval_pred_df.copy()
+    # if not dups.empty:
+    #     model_eval_pred_df_copy.drop_duplicates(inplace=True)
+
+
+
+    # df_pred=df_pred[df_pred['model_type']==model_type]
+    # table_data = pd.DataFrame({'day':df_pred['day'],'prediction':df_pred['predictions']})
+
+    # # try - 1    
+    # # fig = px.table(table)
+    
+    # # try - 2
+    # # fig=go.Figure(data=[go.Table(
+    # #     header=dict(values=['Day','Prediction']),
+    # #     cells=dict(values=[table['day'],table['prediction']])
+    # #     )])
+    # # fig.show()
+    
+    # #try - 3
+    # # table=dcc.DataTable(
+    # #     id='id-preds-table',
+    # #     columns=[{'name':col,'id':col} for col in table_data.columns],
+    # #     data=table_data.to_dict('records')
+    # # )
+
+    # #try - 4
+    # table = dash_table.DataTable(
+    #     # id='id-preds-table',
+    #     data=table_data.to_dict('records'),
+    #     columns=[{'name':i,'id':i} for i in table_data.columns]
+    # )
+    # return table
+
+
+
+
+
+
+
+
+
+
+
+
 
