@@ -102,19 +102,19 @@ filterdiv_borderstyling = {
 # 000 - IMPORT DATA
 ####################################################################################################
 
-# prod env
-sports_db_admin_host=os.environ.get('basketball_host')
-sports_db_admin_db=os.environ.get('basketball_db')
-sports_db_admin_user=os.environ.get('basketball_user')
-sports_db_admin_pw=os.environ.get('basketball_pw')
-sports_db_admin_port=os.environ.get('basketball_port')
+# # prod env
+# sports_db_admin_host=os.environ.get('basketball_host')
+# sports_db_admin_db=os.environ.get('basketball_db')
+# sports_db_admin_user=os.environ.get('basketball_user')
+# sports_db_admin_pw=os.environ.get('basketball_pw')
+# sports_db_admin_port=os.environ.get('basketball_port')
 
-# # dev env
-# sports_db_admin_host=os.environ.get('sports_db_admin_host')
-# sports_db_admin_db='basketball'
-# sports_db_admin_user=os.environ.get('sports_db_admin_user')
-# sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
-# sports_db_admin_port=os.environ.get('sports_db_admin_port')
+# dev env
+sports_db_admin_host=os.environ.get('sports_db_admin_host')
+sports_db_admin_db='basketball'
+sports_db_admin_user=os.environ.get('sports_db_admin_user')
+sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
+sports_db_admin_port=os.environ.get('sports_db_admin_port')
 
 
 dbconfig = {
@@ -848,6 +848,7 @@ myteam_df_yh['game_score']=myteam_df_yh['game_score'].astype(float)
 injury_probabilities_df=cbc.injury_probabilities()
 
 
+model_eval_pred_df_copy=model_eval_pred_df[['day','predictions']].copy()
 
 
 ####################################################################################################
@@ -895,16 +896,24 @@ def get_header():
 
 #####################
 # Nav bar
-def get_navbar(p = 'sales'):
+def get_navbar(p = 'page1'):
 
-    navbar_sales = html.Div([
+    navbar_page1 = html.Div([
 
         html.Div([], className = 'col-3'),
 
         html.Div([
             dcc.Link(
-                html.H4(children = 'Free Agent Screen Tool',
+                html.H4(children = 'Predictive Modeling',
                         style = navbarcurrentpage),
+                href='/apps/fantasy-predictions'
+                )
+        ],
+        className='col-2'),
+
+        html.Div([
+            dcc.Link(
+                html.H4(children = 'Free Agent Screening Tool', style={'color':corporate_colors['white']}),
                 href='/apps/free-agent-screening'
                 )
         ],
@@ -913,15 +922,7 @@ def get_navbar(p = 'sales'):
         html.Div([
             dcc.Link(
                 html.H4(children = 'Current Team Performance', style={'color':corporate_colors['white']}),
-                href='/apps/page2'
-                )
-        ],
-        className='col-2'),
-
-        html.Div([
-            dcc.Link(
-                html.H4(children = 'Predictive Modeling', style={'color':corporate_colors['white']}),
-                href='/apps/page3'
+                href='/apps/team-performance'
                 )
         ],
         className='col-2'),
@@ -940,7 +941,16 @@ def get_navbar(p = 'sales'):
 
         html.Div([
             dcc.Link(
-                html.H4(children = 'Free Agent Screening Tool', style={'color':corporate_colors['white']}),
+                html.H4(children = 'Predictive Modeling', style={'color':corporate_colors['white']}),
+                href='/apps/fantasy-predictions'
+                )
+        ],
+        className='col-2'),
+
+        html.Div([
+            dcc.Link(
+                html.H4(children = 'Free Agent Screening Tool',
+                        style = navbarcurrentpage),
                 href='/apps/free-agent-screening'
                 )
         ],
@@ -948,17 +958,8 @@ def get_navbar(p = 'sales'):
 
         html.Div([
             dcc.Link(
-                html.H4(children = 'Current Team Performance',
-                        style = navbarcurrentpage),
-                href='/apps/page2'
-                )
-        ],
-        className='col-2'),
-
-        html.Div([
-            dcc.Link(
-                html.H4(children = 'Predictive Modeling', style={'color':corporate_colors['white']}),
-                href='/apps/page3'
+                html.H4(children = 'Current Team Performance', style={'color':corporate_colors['white']}),
+                href='/apps/team-performance'
                 )
         ],
         className='col-2'),
@@ -977,6 +978,14 @@ def get_navbar(p = 'sales'):
 
         html.Div([
             dcc.Link(
+                html.H4(children = 'Predictive Modeling', style={'color':corporate_colors['white']}),
+                href='/apps/fantasy-predictions'
+                )
+        ],
+        className='col-2'),
+
+        html.Div([
+            dcc.Link(
                 html.H4(children = 'Free Agent Screening Tool', style={'color':corporate_colors['white']}),
                 href='/apps/free-agent-screening'
                 )
@@ -985,17 +994,9 @@ def get_navbar(p = 'sales'):
 
         html.Div([
             dcc.Link(
-                html.H4(children = 'Current Team Performance', style={'color':corporate_colors['white']}),
-                href='/apps/page2'
-                )
-        ],
-        className='col-2'),
-
-        html.Div([
-            dcc.Link(
-                html.H4(children = 'Predictive Modeling',
+                html.H4(children = 'Current Team Performance',
                         style = navbarcurrentpage), 
-                href='/apps/page3'
+                href='/apps/team-performance'
                 )
         ],
         className='col-2'),
@@ -1008,8 +1009,8 @@ def get_navbar(p = 'sales'):
             'box-shadow': '2px 5px 5px 1px rgba(255, 101, 131, .5)'}
     )
 
-    if p == 'sales':
-        return navbar_sales
+    if p == 'page1':
+        return navbar_page1
     elif p == 'page2':
         return navbar_page2
     else:
@@ -1048,72 +1049,13 @@ table_title_font_color={
 
 
 ####################################################################################################
-# 001 - SALES
+# 001 - page1
 ####################################################################################################
 
 
-# this is my original html code below
-# sales = layout=html.Div(children=[html.H1(children='Free Agent Analysis Helper Tool',
-#                                         style={'textAlign':'center'}),
-#                               html.Div(children='Analysis tool to screen potential star players',
-#                                         style={'textAlign':'center', 'color':'red'}), 
-#                              dcc.Graph(figure=player_stats(), id='line_plot',config=config),
-#                               'How many days back?\n',
-#                               dcc.Input(id='my_input', value=7, type='integer'),
-#                               'Focus Field\n',
-#                              html.Div(dcc.Dropdown(id='dropdown',
-#                                          options=[{'label':'Made Field Goals','value':'made_field_goals'},
-#                                                   {'label':'Made 3p Field Goals','value':'made_three_point_field_goals'},
-#                                                   {'label':'Made Free Throws','value':'made_free_throws'},
-#                                                   {'label':'Total Rebounds','value':'total_rebounds'},
-#                                                   {'label':'Offensive Rebounds','value':'offensive_rebounds'},
-#                                                   {'label':'Defensive Rebounds','value':'defensive_rebounds'},
-#                                                   {'label':'Assists','value':'assists'},
-#                                                   {'label':'Steals','value':'steals'},
-#                                                   {'label':'Blocks','value':'blocks'},
-#                                                   {'label':'Turnovers','value':'turnovers'},
-#                                                   {'label':'Personal Fouls','value':'personal_fouls'},
-#                                                   {'label':'Points','value':'points_scored'},
-#                                                   {'label':'Minutes Played','value':'minutes_played'}],
-#                                          value='points_scored')),
-
-#                               'Calculation type',
-#                               dcc.Dropdown(id='calculation', 
-#                                           options=[{'label':'Total', 'value':'sum'},
-#                                                    {'label':'Average(non-weighted))', 'value':'mean'},
-#                                                    {'label':'Weighted Average', 'value':'weights'},
-#                                                    {'label':'Standard Deviation', 'value':'std'}],
-#                                           value='weights'),
-#                               'Fields to display',
-#                              dcc.Checklist(id='displayed_fields', 
-#                                            options=['made_field_goals', 'made_three_point_field_goals',
-#                                                     'made_free_throws','total_rebounds', 'offensive_rebounds', 
-#                                                     'defensive_rebounds', 'assists','steals', 'blocks', 
-#                                                     'turnovers', 'personal_fouls', 'points_scored', 'minutes_played'],
-#                                           value=['made_field_goals', 'made_three_point_field_goals',
-#                                                     'made_free_throws','total_rebounds', 'offensive_rebounds', 
-#                                                     'defensive_rebounds','assists','steals', 'blocks', 
-#                                                     'turnovers', 'points_scored']),
-#                               'Number of players',
-#                              dcc.Input(id='top_n', value=5, type='integer'),
-#                              'historicals options',
-#                              dcc.Dropdown(id='history_id',
-#                                             options=[{'label':'history-only','value':'ho'},
-#                                                     {'label':'history + current season ','value':'hcs'},
-#                                                     {'label':'current season only','value':'cso'}],
-#                                             value='cso'),
-#                              'League',
-#                              dcc.Dropdown(id='league_id',
-#                                             options=[{'label':'ESPN', 'value':'espn'},
-#                                                     {'label':'Yahoo','value':'yahoo'}],
-#                                             value='yahoo'),
-#                              'player_checklist',
-#                              dcc.Checklist(id='player_list', options=[name for name in fa_df['name'].unique()], value=[name for name in fa_df['name'].unique()], 
-#                                 style={'height':10000,'width':100}, inline=True)
-#                              ])
 
 
-sales = html.Div([
+page2 = html.Div([
 
     #####################
     #Row 1 : Header
@@ -1121,7 +1063,7 @@ sales = html.Div([
 
     #####################
     #Row 2 : Nav bar
-    get_navbar('sales'),
+    get_navbar('page2'),
 
     #####################
     #Row 3 : Filters
@@ -1153,7 +1095,7 @@ sales = html.Div([
                                         style = {'font-size': '12px','display': 'inline-block', 'border-radius' : '2px', 'border' : '1px solid #ccc', 'color': '#333', 'border-spacing' : '0', 'border-collapse' :'separate'}
                                 )
                             # dcc.DatePickerRange(
-                            #     id='date-picker-sales',
+                            #     id='date-picker-page1',
                             #     start_date = min_dt_str,
                             #     end_date = max_dt_str,
                             #     min_date_allowed = min_dt,
@@ -1460,7 +1402,7 @@ sales = html.Div([
 
         html.Div([ # External 10-column
 
-            # html.H2(children = "Sales Performances",
+            # html.H2(children = "page1 Performances",
             #         style = {'color' : corporate_colors['white']}),
 
             # html.Div([ # Internal row - RECAPS
@@ -1515,14 +1457,14 @@ sales = html.Div([
                 # # Chart Column
                 # html.Div([
                 #     dcc.Graph(
-                #         id='sales-count-month')
+                #         id='page1-count-month')
                 # ],
                 # className = 'col-4'),
 
                 # # Chart Column
                 # html.Div([
                 #     dcc.Graph(
-                #         id='sales-weekly-heatmap')
+                #         id='page1-weekly-heatmap')
                 # ],
                 # className = 'col-4')
 
@@ -1534,21 +1476,21 @@ sales = html.Div([
             #     # Chart Column
             #     html.Div([
             #         dcc.Graph(
-            #             id='sales-count-country')
+            #             id='page1-count-country')
             #     ],
             #     className = 'col-4'),
 
             #     # Chart Column
             #     html.Div([
             #         dcc.Graph(
-            #             id='sales-bubble-county')
+            #             id='page1-bubble-county')
             #     ],
             #     className = 'col-4'),
 
             #     # Chart Column
             #     html.Div([
             #         dcc.Graph(
-            #             id='sales-count-city')
+            #             id='page1-count-city')
             #     ],
             #     className = 'col-4')
 
@@ -1577,7 +1519,7 @@ sales = html.Div([
 # 002 - Current Team Performance
 ####################################################################################################
 
-page2 = html.Div([
+page3 = html.Div([
 
     #####################
     #Row 1 : Header
@@ -1585,7 +1527,7 @@ page2 = html.Div([
 
     #####################
     #Row 2 : Nav bar
-    get_navbar('page2'),
+    get_navbar('page3'),
 
     #####################
     #Row 3 : Filters
@@ -1762,14 +1704,14 @@ page2 = html.Div([
                 # # Chart Column
                 # html.Div([
                 #     dcc.Graph(
-                #         id='sales-bubble-county')
+                #         id='page1-bubble-county')
                 # ],
                 # className = 'col-4'),
 
                 # # Chart Column
                 # html.Div([
                 #     dcc.Graph(
-                #         id='sales-count-city')
+                #         id='page1-count-city')
                 # ],
                 # className = 'col-4')
 
@@ -1788,14 +1730,14 @@ page2 = html.Div([
                 # # Chart Column
                 # html.Div([
                 #     dcc.Graph(
-                #         id='sales-bubble-county')
+                #         id='page1-bubble-county')
                 # ],
                 # className = 'col-4'),
 
                 # # Chart Column
                 # html.Div([
                 #     dcc.Graph(
-                #         id='sales-count-city')
+                #         id='page1-count-city')
                 # ],
                 # className = 'col-4')
 
@@ -1813,14 +1755,14 @@ page2 = html.Div([
                 # # Chart Column
                 # html.Div([
                 #     dcc.Graph(
-                #         id='sales-bubble-county')
+                #         id='page1-bubble-county')
                 # ],
                 # className = 'col-4'),
 
                 # # Chart Column
                 # html.Div([
                 #     dcc.Graph(
-                #         id='sales-count-city')
+                #         id='page1-count-city')
                 # ],
                 # className = 'col-4')
 
@@ -1838,14 +1780,14 @@ page2 = html.Div([
                 # # Chart Column
                 # html.Div([
                 #     dcc.Graph(
-                #         id='sales-bubble-county')
+                #         id='page1-bubble-county')
                 # ],
                 # className = 'col-4'),
 
                 # # Chart Column
                 # html.Div([
                 #     dcc.Graph(
-                #         id='sales-count-city')
+                #         id='page1-count-city')
                 # ],
                 # className = 'col-4')
 
@@ -1920,14 +1862,14 @@ page2 = html.Div([
                 # # Chart Column
                 # html.Div([
                 #     dcc.Graph(
-                #         id='sales-bubble-county')
+                #         id='page1-bubble-county')
                 # ],
                 # className = 'col-4'),
 
                 # # Chart Column
                 # html.Div([
                 #     dcc.Graph(
-                #         id='sales-count-city')
+                #         id='page1-count-city')
                 # ],
                 # className = 'col-4')
 
@@ -1957,9 +1899,9 @@ page2 = html.Div([
 ####################################################################################################
 
 
-model_eval_pred_df_copy=model_eval_pred_df[['day','predictions']].copy()
 
-page3 = html.Div([
+
+page1 = html.Div([
 
     #####################
     #Row 1 : Header
@@ -1967,7 +1909,7 @@ page3 = html.Div([
 
     #####################
     #Row 2 : Nav bar
-    get_navbar('page3'),
+    get_navbar('page1'),
 
     #####################
     #Row 3 : Filters
