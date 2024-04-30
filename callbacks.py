@@ -21,12 +21,6 @@ from espn_api.basketball import League
 from my_functions import clean_string, remove_name_suffixes,execute_query_and_fetch_df,execute_query_and_fetch_player_df
 
 
-from dash import dash_table
-# import dash
-# import dash_core_components as dcc
-# import dash_html_components as html
-
-
 
 ####################################################################################################
 # 000 - IMPORT DATA FROM DB - FREE AGENT SCREEN TOOL
@@ -1537,3 +1531,101 @@ def update_preds_table(leagueid,player_slug,model_type):
     columns=[{"name":i,"id":i} for i in df_pred.columns]
 
     return data, columns
+
+
+
+
+
+
+### NEW
+
+@app.callback(
+    [Output('League-Players', 'options'),
+     Output('League-Players', 'value')],
+    [Input('id-league', 'value')]
+)
+def update_player_list(selected_value):
+    if selected_value == 'ESPN':
+        options = [{'label': row['name'], 'value': row['slug']} for idx, row in my_live_espn_df.iterrows()]
+        default_val = my_live_espn_df.iloc[0, 1] if not my_live_espn_df.empty else None
+    elif selected_value == 'Yahoo':
+        options = [{'label': row['name'], 'value': row['slug']} for idx, row in my_live_yahoo_df.iterrows()]
+        default_val = my_live_yahoo_df.iloc[0, 1] if not my_live_yahoo_df.empty else None
+    else:
+        options = []
+        default_val = None
+    return options, default_val
+
+@app.callback(
+    Output('output', 'children'),
+    [Input('League-Players', 'value')]
+)
+def update_player_picked_comment(selected_value):
+    if selected_value is not None:
+        return f'You have selected {selected_value}'
+    else:
+        return 'Please select a value'
+
+@app.callback(
+    [Output('id-model', 'options'),
+     Output('id-model', 'value')],
+    [Input('League-Players', 'value'),
+     Input('id-league', 'value')]
+)
+def update_model_list(selected_player, selected_league):
+    if selected_player is not None and selected_league is not None:
+        if selected_league == 'ESPN':
+            df = model_eval_pred_df[model_eval_pred_df['league'] == 'espn'].copy()
+        elif selected_league == 'Yahoo':
+            df = model_eval_pred_df[model_eval_pred_df['league'] == 'yahoo'].copy()
+        else:
+            df = pd.DataFrame()  # Empty dataframe if selected_league is neither ESPN nor Yahoo
+
+        if not df.empty:
+            player_df = df[df['slug'] == selected_player].copy()
+            player_models = player_df['model_type'].unique().tolist()
+            model_default = player_models[0] if player_models else None
+            return [{'label': model, 'value': model} for model in player_models], model_default
+
+    # Return empty options and default value if no valid data found or when any of the inputs are None
+    return [], None
+### NEW
+
+
+@app.callback(
+    Output('model-output', 'children'),
+    Input('id-model', 'value')
+)
+def update_model_picked_comment(selected_value):
+    if selected_value is not None:
+        if selected_value == 'ARIMA':
+            return 'Autoregressive Integrated Moving Average'
+        elif selected_value == 'ARMA':
+            return 'Autoregressive Moving Average'
+        elif selected_value == 'DBL_EXP':
+            return 'Double Exponential Smoothing'
+        elif selected_value == 'SGL_EXP':
+            return 'Single Exponential Smoothing'
+        elif selected_value == 'LINEAR':
+            return 'Simple Linear'
+        elif selected_value == 'LSTM':
+            return 'Long Short-Term Memory'
+        elif selected_value == 'NEURAL_NETWORK':
+            return 'Neural Network'
+        elif selected_value == 'REPEAT':
+            return 'Repeat'
+        elif selected_value == 'LAST':
+            return 'Last'
+        # return f'You have selected {selected_value}'
+    else:
+        return 'Please select a value'
+
+
+
+
+
+
+
+
+
+

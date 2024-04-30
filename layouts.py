@@ -7,11 +7,14 @@ import datetime as dt
 from dash import html
 from dash import dcc, html, Input, Output, dash_table
 import plotly.express as px
+import plotly.graph_objects as go
 from dash_create import app
 
-from callbacks import line_plot, bar_plot, heatmap, heatmap_weights, boxplot_by_player, boxplot_by_player_weekday_class, injury_probabilities, line_plot_preds #,predictions_table
-from callbacks import execute_query_and_fetch_df, execute_query_and_fetch_player_df
-from my_functions import clean_string, remove_name_suffixes
+# from callbacks import line_plot, bar_plot, heatmap, heatmap_weights, boxplot_by_player, boxplot_by_player_weekday_class, injury_probabilities, line_plot_preds #,predictions_table
+# from callbacks import execute_query_and_fetch_df, execute_query_and_fetch_player_df
+import callbacks as cbc
+import my_functions as mf
+# from my_functions import clean_string, remove_name_suffixes
 
 # ESPN 
 from espn_api.basketball import League
@@ -129,17 +132,17 @@ connection_pool = pooling.MySQLConnectionPool(
 )
 
 
-leagueid=os.environ.get('leagueid')
-espn_s2=os.environ.get('espn_s2')
-swid=os.environ.get('swid')
+# leagueid=os.environ.get('leagueid')
+# espn_s2=os.environ.get('espn_s2')
+# swid=os.environ.get('swid')
 
-league_config={
-    "league_id":leagueid,
-    "year":2024,
-    "espn_s2":espn_s2,
-    "swid":swid,
-    "debug":False
-}
+# league_config={
+#     "league_id":leagueid,
+#     "year":2024,
+#     "espn_s2":espn_s2,
+#     "swid":swid,
+#     "debug":False
+# }
 
 # league=League(**league_config)
 
@@ -419,25 +422,25 @@ my_safe_players=['Jayson Tatum', 'Kyrie Irving','Jaylen Brown']
 
 with connection_pool.get_connection() as connection:
     if connection.is_connected():
-        fa_espn_df = execute_query_and_fetch_df(espn_query, connection)
-        fa_yahoo_df = execute_query_and_fetch_df(yahoo_query, connection)
+        fa_espn_df = mf.execute_query_and_fetch_df(espn_query, connection)
+        fa_yahoo_df = mf.execute_query_and_fetch_df(yahoo_query, connection)
         
-        myteam_df = execute_query_and_fetch_df(my_espn_team_qry, connection)
+        myteam_df = mf.execute_query_and_fetch_df(my_espn_team_qry, connection)
         myteam_df['total_rebounds']=myteam_df['offensive_rebounds']+myteam_df['defensive_rebounds']
         myteam_df['minutes_played']=myteam_df['seconds_played']/60
 
-        myteam_df_yh = execute_query_and_fetch_df(my_yahoo_team_qry, connection)
+        myteam_df_yh = mf.execute_query_and_fetch_df(my_yahoo_team_qry, connection)
         myteam_df_yh['total_rebounds']=myteam_df_yh['offensive_rebounds']+myteam_df_yh['defensive_rebounds']
         myteam_df_yh['minutes_played']=myteam_df_yh['seconds_played']/60
 
-        live_yahoo_players_df = execute_query_and_fetch_df(my_live_yahoo_qry, connection)
-        inj_df = execute_query_and_fetch_df(my_injured_espn_team_qry, connection)
-        inj_df_yf = execute_query_and_fetch_df(my_injured_yahoo_team_qry, connection)
+        live_yahoo_players_df = mf.execute_query_and_fetch_df(my_live_yahoo_qry, connection)
+        inj_df = mf.execute_query_and_fetch_df(my_injured_espn_team_qry, connection)
+        inj_df_yf = mf.execute_query_and_fetch_df(my_injured_yahoo_team_qry, connection)
 
         #### NEW SECTION
 
-        my_live_espn_df=execute_query_and_fetch_df(my_live_espn_qry,connection)
-        my_live_yahoo_df=execute_query_and_fetch_df(my_live_yahoo_qry,connection)
+        my_live_espn_df=mf.execute_query_and_fetch_df(my_live_espn_qry,connection)
+        my_live_yahoo_df=mf.execute_query_and_fetch_df(my_live_yahoo_qry,connection)
         #### NEW SECTION
 
         ####################### REWRITE SECTION
@@ -454,7 +457,7 @@ with connection_pool.get_connection() as connection:
 
         df_for_agg_list=[]
         for p in current_players:
-            df_for_agg_list.append(execute_query_and_fetch_player_df(query=my_espn_players_sched_query,connection=connection,p=p))
+            df_for_agg_list.append(mf.execute_query_and_fetch_player_df(query=my_espn_players_sched_query,connection=connection,p=p))
         df_for_agg=pd.concat(df_for_agg_list, ignore_index=True)
         # df_for_agg = pd.concat([execute_query_and_fetch_df(my_espn_players_sched_query, connection) for p in current_players])
 
@@ -462,8 +465,8 @@ with connection_pool.get_connection() as connection:
         ##
         current_players_yh=live_yahoo_players_df.name.tolist()
 
-        current_players_yh=clean_string(current_players_yh).split(',')
-        current_players_yh=[remove_name_suffixes(x) for x in current_players_yh]
+        current_players_yh=mf.clean_string(current_players_yh).split(',')
+        current_players_yh=[mf.remove_name_suffixes(x) for x in current_players_yh]
         current_players_yh=[x.replace("'","") for x in current_players_yh]
         current_players_yh=[x.replace("'","").strip() for x in current_players_yh]
 
@@ -472,7 +475,7 @@ with connection_pool.get_connection() as connection:
 
         df_yh_for_agg_list=[]
         for p in current_players_yh:
-            df_yh_for_agg_list.append(execute_query_and_fetch_player_df(query=my_yahoo_players_sched_query,connection=connection,p=p))
+            df_yh_for_agg_list.append(mf.execute_query_and_fetch_player_df(query=my_yahoo_players_sched_query,connection=connection,p=p))
         df_yh_for_agg=pd.concat(df_yh_for_agg_list,ignore_index=True)
         # df_yh_for_agg = pd.concat([execute_query_and_fetch_df(my_yahoo_players_sched_query, connection) for p in current_players_yh])
         ####################### REWRITE SECTION
@@ -495,12 +498,12 @@ with connection_pool.get_connection() as connection:
         # attempt - 3
         # historicals_df=execute_query_and_fetch_df(historicals_query,connection)
 
-        predictions_df=execute_query_and_fetch_df(predictions_query,connection)
-        model_eval_df=execute_query_and_fetch_df(model_eval_query,connection)
+        predictions_df=mf.execute_query_and_fetch_df(predictions_query,connection)
+        model_eval_df=mf.execute_query_and_fetch_df(model_eval_query,connection)
 
         model_eval_pred_df_list=[]
         for p in unique_current_players:
-            model_eval_pred_df_list.append(execute_query_and_fetch_player_df(query=model_eval_pred_query,connection=connection,p=p))
+            model_eval_pred_df_list.append(mf.execute_query_and_fetch_player_df(query=model_eval_pred_query,connection=connection,p=p))
         model_eval_pred_df=pd.concat(model_eval_pred_df_list,ignore_index=True)
         # model_eval_pred_df=execute_query_and_fetch_df(model_eval_pred_query,connection)
 
@@ -571,10 +574,14 @@ short_df = output.iloc[:,0:len(output)]
 def player_stats():
     fig=px.imshow(short_df, 
         text_auto=True)
+    # fig=go.Figure(data=go.Heatmap(short_df))
+
     fig.update_xaxes(side='top')
     fig.layout.height=750
-    fig.layout.width=750
+    fig.layout.width=900
+
     return fig
+
 
 
 
@@ -838,7 +845,7 @@ myteam_df_yh['game_score']=myteam_df_yh['game_score'].astype(float)
 
 
 
-injury_probabilities_df=injury_probabilities()
+injury_probabilities_df=cbc.injury_probabilities()
 
 
 
@@ -1139,7 +1146,7 @@ sales = html.Div([
                             children='How many days back?',
                             style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
                         ),
-                        html.Div(['Functional for current season only',
+                        html.Div(['(Functional for current season only)',
                             dcc.Input(id='my_input',
                                         value=200,
                                         type='number',
@@ -1180,7 +1187,7 @@ sales = html.Div([
                             style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
                         ),
                         #Date range picker
-                        html.Div(['(Chosen field must be checked ON in \'Fields to Display\'): ',
+                        html.Div(['(Picked field must be checked ON in \"Fields to Display\"): ',
                             dcc.Dropdown(id='dropdown',
                                 options=[{'label':'Made Field Goals','value':'made_field_goals'},
                                 {'label':'Made 3p Field Goals','value':'made_three_point_field_goals'},
@@ -1226,7 +1233,7 @@ sales = html.Div([
                         html.Div([#'Calculation Type: ',
                             dcc.Dropdown(id='calculation',
                                 options=[{'label':'Total', 'value':'sum'},
-                                {'label':'Average(non-weighted))', 'value':'mean'},
+                                {'label':'Average(non-weighted)', 'value':'mean'},
                                 {'label':'Weighted Average', 'value':'weights'},
                                 {'label':'Standard Deviation', 'value':'std'}],
                                 value='weights')
@@ -1323,9 +1330,9 @@ sales = html.Div([
                         #Date range picker
                         html.Div([#'Historical Options: ',
                             dcc.Dropdown(id='history_id',
-                                options=[{'label':'history-only','value':'ho'},
-                                {'label':'history + current season ','value':'hcs'},
-                                {'label':'current season only','value':'cso'}],
+                                options=[{'label':'History only','value':'ho'},
+                                {'label':'History + current season ','value':'hcs'},
+                                {'label':'Current season only','value':'cso'}],
                                 value='cso')
                             # dcc.Input(id='my_input',
                             #             value=7,
@@ -1492,13 +1499,18 @@ sales = html.Div([
 
             html.Div([ # Internal row
 
+
+                ###### OG 
                 # Chart Column
                 html.Div([
                     dcc.Graph(id='player_stats',
                                 figure=player_stats(),
-                                config=config),
-                ],
+                                config=config)
+                ], #imhere
+                # style={'margin': 'auto','height': '100vh', 'text-align': 'center'},
                 className = 'col-2'),
+                ###### OG 
+
 
                 # # Chart Column
                 # html.Div([
@@ -1725,13 +1737,13 @@ page2 = html.Div([
 
                 # min-weight focus field prod heatmap
                 html.Div([
-                    dcc.Graph(id='heat-map', figure=heatmap(), config=config),
+                    dcc.Graph(id='heat-map', figure=cbc.heatmap(), config=config),
                 ],
                 className = 'col-6'),
                 
                 # min-weights
                 html.Div([
-                    dcc.Graph(id='heat-map-weights', figure=heatmap_weights(), config=config)
+                    dcc.Graph(id='heat-map-weights', figure=cbc.heatmap_weights(), config=config)
                 ],
                 className = 'col-6'),
 
@@ -1743,7 +1755,7 @@ page2 = html.Div([
 
                 # Chart Column
                 html.Div([
-                    dcc.Graph(id='line_plot', figure=line_plot(), config=config)
+                    dcc.Graph(id='line_plot', figure=cbc.line_plot(), config=config)
                 ],
                 className = 'col-4'),
 
@@ -1769,7 +1781,7 @@ page2 = html.Div([
 
                 # Chart Column
                 html.Div([
-                    dcc.Graph(id='bar-plot', figure=bar_plot(), config=config)
+                    dcc.Graph(id='bar-plot', figure=cbc.bar_plot(), config=config)
                 ],
                 className = 'col-4'),
 
@@ -1794,7 +1806,7 @@ page2 = html.Div([
 
                 # Chart Column
                 html.Div([
-                    dcc.Graph(id='box-plot', figure=boxplot_by_player(), config=config)
+                    dcc.Graph(id='box-plot', figure=cbc.boxplot_by_player(), config=config)
                 ],
                 className = 'col-12'),
 
@@ -1819,7 +1831,7 @@ page2 = html.Div([
 
                 # Chart Column
                 html.Div([
-                    dcc.Graph(id='box-plot-x-week-class', figure=boxplot_by_player_weekday_class(), config=config)
+                    dcc.Graph(id='box-plot-x-week-class', figure=cbc.boxplot_by_player_weekday_class(), config=config)
                 ],
                 className = 'col-12'),
 
@@ -2076,7 +2088,7 @@ page3 = html.Div([
         html.Div([
             html.Div([ # Internal row 1
                 html.Div([
-                    dcc.Graph(id='preds-line',figure=line_plot_preds(),config=config)
+                    dcc.Graph(id='preds-line',figure=cbc.line_plot_preds(),config=config)
                 ])
             ]),
 
@@ -2087,113 +2099,32 @@ page3 = html.Div([
         html.Div([
             html.H5("Predictions Table",
                 style={'color': corporate_colors['white']}),
-            dash_table.DataTable(
-                id='id-preds-table',
-                data=model_eval_pred_df_copy.to_dict('records'),
-                columns=[{'name':i,'id':i} for i in model_eval_pred_df_copy.columns],
-                style_cell=dict(textAlign='center'),
-                style_header=dict(backgroundColor='paleturquoise'),
-                style_table={'overflowX':'auto','width':'100%'}
-            ) #imhere
-
-            # dash_table.DataTable(
-            #     id='my-table',
-            #     data=aggregate_yh.to_dict('records'),
-            #     columns=[{"name": i, "id": i} for i in aggregate_yh.columns],
-            #     style_cell=dict(textAlign='left'),
-            #     style_header=dict(backgroundColor="paleturquoise"),
-            #     style_table={'overflowX':'auto','width':'100%'},
-            # )
-
+            html.Div([
+                dash_table.DataTable(
+                    id='id-preds-table',
+                    data=model_eval_pred_df_copy.to_dict('records'),
+                    columns=[{'name':i,'id':i} for i in model_eval_pred_df_copy.columns],
+                    style_cell=dict(textAlign='center'),
+                    style_header=dict(backgroundColor='paleturquoise'),
+                    style_table={'overflowX':'auto','width':'100%'}
+                ),
+            ],className='col-6'),
+            html.Div([
+                dash_table.DataTable(
+                    id='id-preds-table-copy',
+                    data=model_eval_pred_df_copy.to_dict('records'),
+                    columns=[{'name':i,'id':i} for i in model_eval_pred_df_copy.columns],
+                    style_cell=dict(textAlign='center'),
+                    style_header=dict(backgroundColor='paleturquoise'),
+                    style_table={'overflowX':'auto','width':'100%'}
+                )
+            ],className='col-6')
 
         ],
         className='row'),
-    ])
+    ],className='container')
 
 ])
 
 
-
-### NEW
-
-@app.callback(
-    [Output('League-Players', 'options'),
-     Output('League-Players', 'value')],
-    [Input('id-league', 'value')]
-)
-def update_player_list(selected_value):
-    if selected_value == 'ESPN':
-        options = [{'label': row['name'], 'value': row['slug']} for idx, row in my_live_espn_df.iterrows()]
-        default_val = my_live_espn_df.iloc[0, 1] if not my_live_espn_df.empty else None
-    elif selected_value == 'Yahoo':
-        options = [{'label': row['name'], 'value': row['slug']} for idx, row in my_live_yahoo_df.iterrows()]
-        default_val = my_live_yahoo_df.iloc[0, 1] if not my_live_yahoo_df.empty else None
-    else:
-        options = []
-        default_val = None
-    return options, default_val
-
-@app.callback(
-    Output('output', 'children'),
-    [Input('League-Players', 'value')]
-)
-def update_player_picked_comment(selected_value):
-    if selected_value is not None:
-        return f'You have selected {selected_value}'
-    else:
-        return 'Please select a value'
-
-@app.callback(
-    [Output('id-model', 'options'),
-     Output('id-model', 'value')],
-    [Input('League-Players', 'value'),
-     Input('id-league', 'value')]
-)
-def update_model_list(selected_player, selected_league):
-    if selected_player is not None and selected_league is not None:
-        if selected_league == 'ESPN':
-            df = model_eval_pred_df[model_eval_pred_df['league'] == 'espn'].copy()
-        elif selected_league == 'Yahoo':
-            df = model_eval_pred_df[model_eval_pred_df['league'] == 'yahoo'].copy()
-        else:
-            df = pd.DataFrame()  # Empty dataframe if selected_league is neither ESPN nor Yahoo
-
-        if not df.empty:
-            player_df = df[df['slug'] == selected_player].copy()
-            player_models = player_df['model_type'].unique().tolist()
-            model_default = player_models[0] if player_models else None
-            return [{'label': model, 'value': model} for model in player_models], model_default
-
-    # Return empty options and default value if no valid data found or when any of the inputs are None
-    return [], None
-### NEW
-
-
-@app.callback(
-    Output('model-output', 'children'),
-    Input('id-model', 'value')
-)
-def update_model_picked_comment(selected_value):
-    if selected_value is not None:
-        if selected_value == 'ARIMA':
-            return 'Autoregressive Integrated Moving Average'
-        elif selected_value == 'ARMA':
-            return 'Autoregressive Moving Average'
-        elif selected_value == 'DBL_EXP':
-            return 'Double Exponential Smoothing'
-        elif selected_value == 'SGL_EXP':
-            return 'Single Exponential Smoothing'
-        elif selected_value == 'LINEAR':
-            return 'Simple Linear'
-        elif selected_value == 'LSTM':
-            return 'Long Short-Term Memory'
-        elif selected_value == 'NEURAL_NETWORK':
-            return 'Neural Network'
-        elif selected_value == 'REPEAT':
-            return 'Repeat'
-        elif selected_value == 'LAST':
-            return 'Last'
-        # return f'You have selected {selected_value}'
-    else:
-        return 'Please select a value'
 
