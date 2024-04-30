@@ -1049,11 +1049,181 @@ table_title_font_color={
 
 
 ####################################################################################################
-# 001 - page1
+# 001 - page1 (forecasting)
 ####################################################################################################
 
 
+page1 = html.Div([
 
+    #####################
+    #Row 1 : Header
+    get_header(),
+
+    #####################
+    #Row 2 : Nav bar
+    get_navbar('page1'),
+
+    #####################
+    #Row 3 : Filters
+    html.Div([ # External row
+
+        html.Div([ # External 12-column
+
+            html.Div([ # Internal row
+
+                ######################################################################################## 
+
+                #Filter pt 1
+                html.Div([
+
+                    html.Div([
+                        html.H5(
+                            children='League:',
+                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
+                        ),
+                        #Date range picker
+                        html.Div([#'Focus Field: ',
+                            dcc.Dropdown(id='id-league',
+                                    options=[{'label':'ESPN','value':'ESPN'},
+                                              {'label':'Yahoo','value':'Yahoo'}],
+                                              value='ESPN'
+                                ),
+                        ], style = {'margin-top' : '5px'}
+                        )
+
+                    ],
+                    style = {'margin-top' : '10px',
+                            'margin-bottom' : '5px',
+                            'text-align' : 'left',
+                            'paddingLeft': 5})
+
+                ],
+                className = 'col-4'), # Filter part 1
+
+                ########################################################################################
+
+                # Filter pt 2
+                html.Div([
+                    html.Div([
+                        html.H5(
+                            children='Team Players:',
+                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
+                        ),
+                        html.Div([
+                            dcc.Dropdown(
+                                id='League-Players'
+                            ),
+                            html.Div(id='output'),
+                        ], style = {'margin-top' : '5px'}
+                        ),
+                    ],
+                    style = {'margin-top' : '10px',
+                            'margin-bottom' : '5px',
+                            'text-align' : 'left',
+                            'paddingLeft': 5})
+                ],
+                className = 'col-4'), #Filter pt 2
+
+                ########################################################################################
+
+
+                # Filter pt 3
+                html.Div([
+                    html.Div([
+                        html.H5(
+                            children='Model:',
+                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
+                        ),
+                        html.Div([
+                            dcc.Dropdown(
+                                id='id-model'
+                            ),
+                            html.Div(id='model-output'),
+                        ], style = {'margin-top' : '5px'}
+                        ),
+                    ],
+                    style = {'margin-top' : '10px',
+                            'margin-bottom' : '5px',
+                            'text-align' : 'left',
+                            'paddingLeft': 5})
+                ],
+                className = 'col-4'), #Filter pt 3
+
+
+                ########################################################################################          
+
+                html.Div([
+                ],
+                className = 'col-2') # Blank 2 columns
+
+
+            ],
+            className = 'row') # Internal row
+
+        ],
+        className = 'col-12',
+        style = filterdiv_borderstyling) # External 12-column
+
+    ],
+    className = 'row sticky-top'), # External row
+
+    #####################
+    #Row 4
+    get_emptyrow(),
+
+    #####################
+    #Row 5 : Charts
+    html.Div([ # External row
+        
+        html.Div([
+        ],
+        className = 'col-1'), # Blank 1 column
+
+        html.Div([
+            html.Div([ # Internal row 1
+                html.Div([
+                    dcc.Graph(id='preds-line',figure=cbc.line_plot_preds(),config=config)
+                ])
+            ]),
+
+        ],
+        className = 'row'),
+
+        # Injured Players table and title
+        html.Div([
+            html.H5("Predictions Table",
+                style={'color': corporate_colors['white']}),
+            html.Div([
+                dash_table.DataTable(
+                    id='id-preds-table',
+                    data=model_eval_pred_df_copy.to_dict('records'),
+                    columns=[{'name':i,'id':i} for i in model_eval_pred_df_copy.columns],
+                    style_cell=dict(textAlign='center'),
+                    style_header=dict(backgroundColor='paleturquoise'),
+                    style_table={'overflowX':'auto','width':'100%'}
+                ),
+            ],className='col-6'),
+            html.Div([
+                dash_table.DataTable(
+                    id='id-preds-table-copy',
+                    data=model_eval_pred_df_copy.to_dict('records'),
+                    columns=[{'name':i,'id':i} for i in model_eval_pred_df_copy.columns],
+                    style_cell=dict(textAlign='center'),
+                    style_header=dict(backgroundColor='paleturquoise'),
+                    style_table={'overflowX':'auto','width':'100%'}
+                )
+            ],className='col-6')
+
+        ],
+        className='row'),
+    ],className='container')
+
+])
+
+
+####################################################################################################
+# 002 - page2 (free agent screening tool)
+####################################################################################################
 
 page2 = html.Div([
 
@@ -1515,8 +1685,10 @@ page2 = html.Div([
 
 
 
+
+
 ####################################################################################################
-# 002 - Current Team Performance
+# 003 - page3 (current team performance)
 ####################################################################################################
 
 page3 = html.Div([
@@ -1894,179 +2066,6 @@ page3 = html.Div([
 
 
 
-####################################################################################################
-# 003 - Predictive Modeling
-####################################################################################################
-
-
-
-
-page1 = html.Div([
-
-    #####################
-    #Row 1 : Header
-    get_header(),
-
-    #####################
-    #Row 2 : Nav bar
-    get_navbar('page1'),
-
-    #####################
-    #Row 3 : Filters
-    html.Div([ # External row
-
-        html.Div([ # External 12-column
-
-            html.Div([ # Internal row
-
-                ######################################################################################## 
-
-                #Filter pt 1
-                html.Div([
-
-                    html.Div([
-                        html.H5(
-                            children='League:',
-                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
-                        ),
-                        #Date range picker
-                        html.Div([#'Focus Field: ',
-                            dcc.Dropdown(id='id-league',
-                                    options=[{'label':'ESPN','value':'ESPN'},
-                                              {'label':'Yahoo','value':'Yahoo'}],
-                                              value='ESPN'
-                                ),
-                        ], style = {'margin-top' : '5px'}
-                        )
-
-                    ],
-                    style = {'margin-top' : '10px',
-                            'margin-bottom' : '5px',
-                            'text-align' : 'left',
-                            'paddingLeft': 5})
-
-                ],
-                className = 'col-4'), # Filter part 1
-
-                ########################################################################################
-
-                # Filter pt 2
-                html.Div([
-                    html.Div([
-                        html.H5(
-                            children='Team Players:',
-                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
-                        ),
-                        html.Div([
-                            dcc.Dropdown(
-                                id='League-Players'
-                            ),
-                            html.Div(id='output'),
-                        ], style = {'margin-top' : '5px'}
-                        ),
-                    ],
-                    style = {'margin-top' : '10px',
-                            'margin-bottom' : '5px',
-                            'text-align' : 'left',
-                            'paddingLeft': 5})
-                ],
-                className = 'col-4'), #Filter pt 2
-
-                ########################################################################################
-
-
-                # Filter pt 3
-                html.Div([
-                    html.Div([
-                        html.H5(
-                            children='Model:',
-                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
-                        ),
-                        html.Div([
-                            dcc.Dropdown(
-                                id='id-model'
-                            ),
-                            html.Div(id='model-output'),
-                        ], style = {'margin-top' : '5px'}
-                        ),
-                    ],
-                    style = {'margin-top' : '10px',
-                            'margin-bottom' : '5px',
-                            'text-align' : 'left',
-                            'paddingLeft': 5})
-                ],
-                className = 'col-4'), #Filter pt 3
-
-
-                ########################################################################################          
-
-                html.Div([
-                ],
-                className = 'col-2') # Blank 2 columns
-
-
-            ],
-            className = 'row') # Internal row
-
-        ],
-        className = 'col-12',
-        style = filterdiv_borderstyling) # External 12-column
-
-    ],
-    className = 'row sticky-top'), # External row
-
-    #####################
-    #Row 4
-    get_emptyrow(),
-
-    #####################
-    #Row 5 : Charts
-    html.Div([ # External row
-        
-        html.Div([
-        ],
-        className = 'col-1'), # Blank 1 column
-
-        html.Div([
-            html.Div([ # Internal row 1
-                html.Div([
-                    dcc.Graph(id='preds-line',figure=cbc.line_plot_preds(),config=config)
-                ])
-            ]),
-
-        ],
-        className = 'row'),
-
-        # Injured Players table and title
-        html.Div([
-            html.H5("Predictions Table",
-                style={'color': corporate_colors['white']}),
-            html.Div([
-                dash_table.DataTable(
-                    id='id-preds-table',
-                    data=model_eval_pred_df_copy.to_dict('records'),
-                    columns=[{'name':i,'id':i} for i in model_eval_pred_df_copy.columns],
-                    style_cell=dict(textAlign='center'),
-                    style_header=dict(backgroundColor='paleturquoise'),
-                    style_table={'overflowX':'auto','width':'100%'}
-                ),
-            ],className='col-6'),
-            html.Div([
-                dash_table.DataTable(
-                    id='id-preds-table-copy',
-                    data=model_eval_pred_df_copy.to_dict('records'),
-                    columns=[{'name':i,'id':i} for i in model_eval_pred_df_copy.columns],
-                    style_cell=dict(textAlign='center'),
-                    style_header=dict(backgroundColor='paleturquoise'),
-                    style_table={'overflowX':'auto','width':'100%'}
-                )
-            ],className='col-6')
-
-        ],
-        className='row'),
-    ],className='container')
-
-])
 
 
 
