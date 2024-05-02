@@ -271,11 +271,13 @@ def prepare_predictions_table(
 	df.insert(0,'league',league)
 	df.insert(1,'slug',bid)
 	df.insert(2,'model_type',model_type)
+	# day pushed here
 	df.insert(4,'p',p)
 	df.insert(5,'d',d)
 	df.insert(6,'q',q)
 	df.insert(7,'alpha',alpha)
 	df.insert(8,'beta',beta)
+	# predictions pushed here
 	df.insert(10,'confidence_interval_lower_bound',ci_lower_bound)
 	df.insert(11,'confidence_interval_upper_bound',ci_upper_bound)
 	return df

@@ -229,11 +229,89 @@ for league,info in data_structure.items():
 		combined_df['League']=league
 		combined_df['slug']=bbrefid
 		combined_df['evaluation_metric']='MAE'
-		combined_df.loc[combined_df.index[0],'final_model']=1
+
+		# combined_df.loc[combined_df.index[0],'final_model']=1
 
 		reordered_columns=['League','slug','Model','evaluation_metric','MAE','final_model']
 		combined_df=combined_df.reindex(columns=reordered_columns)
 		combined_df.columns=['league','slug','model_type','evaluation_metric','evaluation_metric_value','champion_model']
+
+		n=0.8
+		player_points=player_data[['points']]
+		train=player_points[:int(n*len(player_points))]
+		test=player_points[int(n*len(player_points)):]
+
+		### REPEAT
+		p,d,q,alpha,beta,conf_lower_bound,conf_upper_bound=0,0,0,0.0,0.0,0.0,0.0
+		is_stats_model_type='REPEAT'
+		num_rows=5
+		next_games_predictions=pd.DataFrame({'day': range(1,num_rows+1)})
+		next_games_predictions['predictions']=player_points.points.tail().values.tolist() # was player_data
+		print(f'BEFORE - {next_games_predictions}')
+
+		kwargs['df'],kwargs['league'],kwargs['bid'],kwargs['model_type'],kwargs['p'],kwargs['d'],kwargs['q'], \
+			kwargs['alpha'],kwargs['beta'],kwargs['ci_lower_bound'],kwargs['ci_upper_bound'] = \
+			next_games_predictions, league, bbrefid, is_stats_model_type, p, d, q, alpha, beta, conf_lower_bound, conf_upper_bound
+		next_games_predictions=mf.prepare_predictions_table(**kwargs) #imhere
+		print(f'{bbrefid}')
+		print(player_points['points'].tail())
+		print(next_games_predictions)
+
+
+		test_rows=len(test)
+		repeat_preds=np.tile(train['points'].tail(),test_rows//len(train['points'].tail())+1)[:test_rows]
+		repeat_preds=pd.DataFrame({'pred_points_repeat':repeat_preds})
+		repeat_mae=mts.MAE(y_true=test.points.values,y_pred=repeat_preds.pred_points_repeat.values)
+
+		new_mae_row={
+			'league':league,
+			'slug':bbrefid,
+			'model_type':is_stats_model_type,
+			'evaluation_metric':'MAE',
+			'evaluation_metric_value':repeat_mae,
+			'champion_model':0
+		}
+		combined_df.loc[len(combined_df)]=new_mae_row
+
+		# connection=mysql.connect(**config)
+		if connection.is_connected():
+			cursor=connection.cursor()
+			next_games_predictions.to_csv(export_import_data_file_path,index=False)
+			cursor.execute(load_into_qry)
+			connection.commit()
+			del next_games_predictions
+			os.remove(export_import_data_file_path)
+			print(f'Finished inserting predictions for {bbrefid} - {is_stats_model_type}')
+
+
+		### LAST
+		p,d,q,alpha,beta,conf_lower_bound,conf_upper_bound=0,0,0,0.0,0.0,0.0,0.0
+		is_stats_model_type='LAST'
+		num_rows=5
+		next_games_predictions=pd.DataFrame({'day': range(1,num_rows+1)})
+		next_games_predictions['predictions']=player_data.points.tail(1).values.tolist() * len(next_games_predictions)
+		
+		kwargs['df'],kwargs['league'],kwargs['bid'],kwargs['model_type'],kwargs['p'],kwargs['d'],kwargs['q'], \
+			kwargs['alpha'],kwargs['beta'],kwargs['ci_lower_bound'],kwargs['ci_upper_bound'] = \
+			next_games_predictions, league, bbrefid, is_stats_model_type, p, d, q, alpha, beta, conf_lower_bound, conf_upper_bound
+		next_games_predictions=mf.prepare_predictions_table(**kwargs)
+
+		last_pred_values=train.tail(1).values.tolist() * len(test)
+		last_preds=[]
+		[last_preds.extend(inner_list) for inner_list in last_pred_values]
+		last_preds=pd.DataFrame({'pred_points_last':last_preds})
+		last_mae=mts.MAE(y_true=test.points.values,y_pred=last_preds.pred_points_last.values)
+		new_mae_row={
+			'league':league,
+			'slug':bbrefid,
+			'model_type':is_stats_model_type,
+			'evaluation_metric':'MAE',
+			'evaluation_metric_value':last_mae,
+			'champion_model':0
+		}
+		combined_df.loc[len(combined_df)]=new_mae_row
+		combined_df=combined_df.sort_values(by='evaluation_metric_value',ascending=True)
+		combined_df.loc[combined_df.index[0],'champion_model']=1
 
 		# connection=mysql.connect(**config)
 		if connection.is_connected():
@@ -244,6 +322,17 @@ for league,info in data_structure.items():
 			del combined_df
 			os.remove(export_import_mae_file_path)
 
+
+		if connection.is_connected():
+			cursor=connection.cursor()
+			next_games_predictions.to_csv(export_import_data_file_path,index=False)
+			cursor.execute(load_into_qry)
+			connection.commit()
+			del next_games_predictions
+			os.remove(export_import_data_file_path)
+			print(f'Finished inserting predictions for {bbrefid} - {is_stats_model_type}')
+
+		del player_points, train, test
 
 		if bbrefid_pkl_files_sorted:
 			most_recent_date=mf.date_extract(bbrefid_pkl_files_sorted[0])
