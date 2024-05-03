@@ -362,10 +362,14 @@ SELECT
     ME.slug,
     ME.model_type,
     ME.champion_model,
+    ME.evaluation_metric,
+    ME.evaluation_metric_value,
     P.day,
     P.p,
     P.d,
     P.q,
+    P.alpha,
+    P.beta,
     P.predictions
 FROM basketball.model_evaluation ME
 LEFT JOIN basketball.predictions P ON ME.slug = P.slug
@@ -507,7 +511,7 @@ fa_yahoo_df['total_rebounds']=fa_yahoo_df['offensive_rebounds']+fa_yahoo_df['def
 fa_yahoo_df['minutes_played']=fa_yahoo_df['seconds_played']/60
 
 
-
+model_eval_pred_df_table2_copy=model_eval_pred_df[['league','slug','model_type','p','d','q','alpha','beta','evaluation_metric','evaluation_metric_value']].copy()
 
 
 
@@ -1500,7 +1504,7 @@ def update_pred_plot(leagueid,player_slug,model_type):
     Output(component_id='id-preds-table',component_property='columns'),
     Input(component_id='id-league',component_property='value'),
     Input(component_id='League-Players',component_property='value'),
-    Input(component_id='id-model',component_property='value')    
+    Input(component_id='id-model',component_property='value')
 )
 
 def update_preds_table(leagueid,player_slug,model_type):
@@ -1623,7 +1627,32 @@ def update_model_picked_comment(selected_value):
 
 
 
+@app.callback(
+    Output(component_id='id-model-mae',component_property='data'),
+    Output(component_id='id-model-mae',component_property='columns'),
+    Input(component_id='id-league',component_property='value'),
+    Input(component_id='League-Players',component_property='value')
+)
 
+def update_player_models_table(leagueid,player_slug):
+    if leagueid=='Yahoo':
+        leagueid='yahoo'
+    elif leagueid=='ESPN':
+        leagueid='espn'
+    df=model_eval_pred_df_table2_copy.copy()
+    df=df[(df['league']==leagueid) &
+            (df['slug']==player_slug)
+    ]
+    cols_to_drop=['league','slug']
+    df.drop(columns=cols_to_drop,inplace=True)
+    df['evaluation_metric_value']=df['evaluation_metric_value'].astype(float).round(2)
+    df=df.groupby('model_type').first().reset_index()
+    df=df.sort_values(by='evaluation_metric_value',ascending=True)
+
+    data=df.to_dict('records')
+    columns=[{"name":i,"id":i} for i in df.columns]
+
+    return data, columns
 
 
 

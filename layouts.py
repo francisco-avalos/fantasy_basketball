@@ -315,6 +315,8 @@ SELECT
     ME.model_type,
     ME.champion_model,
     P.day,
+    ME.evaluation_metric,
+    ME.evaluation_metric_value,
     P.p,
     P.d,
     P.q,
@@ -328,6 +330,9 @@ LEFT JOIN basketball.predictions P ON ME.slug = P.slug
 ;
 '''
 ##
+
+
+
 
 
 # my_live_yahoo_qry='''
@@ -849,6 +854,8 @@ injury_probabilities_df=cbc.injury_probabilities()
 
 
 model_eval_pred_df_copy=model_eval_pred_df[['day','predictions']].copy()
+model_eval_pred_df_table2_copy=model_eval_pred_df[['league','slug','model_type','p','d','q','alpha','beta','evaluation_metric','evaluation_metric_value']].copy()
+
 
 
 ####################################################################################################
@@ -1205,9 +1212,9 @@ page1 = html.Div([
             ],className='col-6'),
             html.Div([
                 dash_table.DataTable(
-                    id='id-preds-table-copy',
-                    data=model_eval_pred_df_copy.to_dict('records'),
-                    columns=[{'name':i,'id':i} for i in model_eval_pred_df_copy.columns],
+                    id='id-model-mae',
+                    data=model_eval_pred_df_table2_copy.to_dict('records'),
+                    columns=[{'name':i,'id':i} for i in model_eval_pred_df_table2_copy.columns], # imhere
                     style_cell=dict(textAlign='center'),
                     style_header=dict(backgroundColor='paleturquoise'),
                     style_table={'overflowX':'auto','width':'100%'}
@@ -1618,7 +1625,7 @@ page2 = html.Div([
                     dcc.Graph(id='player_stats',
                                 figure=player_stats(),
                                 config=config)
-                ], #imhere
+                ], 
                 # style={'margin': 'auto','height': '100vh', 'text-align': 'center'},
                 className = 'col-2'),
                 ###### OG 
