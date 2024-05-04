@@ -102,19 +102,19 @@ filterdiv_borderstyling = {
 # 000 - IMPORT DATA
 ####################################################################################################
 
-# prod env
-sports_db_admin_host=os.environ.get('basketball_host')
-sports_db_admin_db=os.environ.get('basketball_db')
-sports_db_admin_user=os.environ.get('basketball_user')
-sports_db_admin_pw=os.environ.get('basketball_pw')
-sports_db_admin_port=os.environ.get('basketball_port')
+# # prod env
+# sports_db_admin_host=os.environ.get('basketball_host')
+# sports_db_admin_db=os.environ.get('basketball_db')
+# sports_db_admin_user=os.environ.get('basketball_user')
+# sports_db_admin_pw=os.environ.get('basketball_pw')
+# sports_db_admin_port=os.environ.get('basketball_port')
 
-# # dev env
-# sports_db_admin_host=os.environ.get('sports_db_admin_host')
-# sports_db_admin_db='basketball'
-# sports_db_admin_user=os.environ.get('sports_db_admin_user')
-# sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
-# sports_db_admin_port=os.environ.get('sports_db_admin_port')
+# dev env
+sports_db_admin_host=os.environ.get('sports_db_admin_host')
+sports_db_admin_db='basketball'
+sports_db_admin_user=os.environ.get('sports_db_admin_user')
+sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
+sports_db_admin_port=os.environ.get('sports_db_admin_port')
 
 
 dbconfig = {
@@ -329,6 +329,28 @@ LEFT JOIN basketball.predictions P ON ME.slug = P.slug
     AND P.model_type = ME.model_type
 ;
 '''
+
+
+next_5_games_opps_qry='''
+SELECT
+    date,
+    @day := @day +1 AS day,
+    slug,
+    team,
+    opponent,
+    location,
+    CASE
+        WHEN SUBSTRING_INDEX(location,'.',-1) = 'HOME' THEN REPLACE(opponent,'Team.','')
+        WHEN SUBSTRING_INDEX(location,'.',-1) = 'AWAY' THEN CONCAT('@',REPLACE(opponent,'Team.',''))
+    END AS opponent_location,
+    points
+FROM basketball.historical_player_data, (SELECT @day := 0) AS init
+WHERE slug = '{p}'
+    AND date > '2024-04-04'
+LIMIT 5
+;
+'''
+
 ##
 
 
@@ -363,19 +385,19 @@ ORDER BY exp_return_date ASC;
 
 
 
-predictions_query='''
-SELECT *
-FROM basketball.predictions
-WHERE slug = 'wagnemo01'
-;
-'''
+# predictions_query='''
+# SELECT *
+# FROM basketball.predictions
+# WHERE slug = 'wagnemo01'
+# ;
+# '''
 
-model_eval_query='''
-SELECT *
-FROM basketball.model_evaluation
-WHERE slug = 'wagnemo01'
-;
-'''
+# model_eval_query='''
+# SELECT *
+# FROM basketball.model_evaluation
+# WHERE slug = 'wagnemo01'
+# ;
+# '''
 
 
 p = ''
@@ -503,14 +525,22 @@ with connection_pool.get_connection() as connection:
         # attempt - 3
         # historicals_df=execute_query_and_fetch_df(historicals_query,connection)
 
-        predictions_df=mf.execute_query_and_fetch_df(predictions_query,connection)
-        model_eval_df=mf.execute_query_and_fetch_df(model_eval_query,connection)
+        # predictions_df=mf.execute_query_and_fetch_df(predictions_query,connection)
+        # model_eval_df=mf.execute_query_and_fetch_df(model_eval_query,connection)
 
         model_eval_pred_df_list=[]
         for p in unique_current_players:
             model_eval_pred_df_list.append(mf.execute_query_and_fetch_player_df(query=model_eval_pred_query,connection=connection,p=p))
         model_eval_pred_df=pd.concat(model_eval_pred_df_list,ignore_index=True)
         # model_eval_pred_df=execute_query_and_fetch_df(model_eval_pred_query,connection)
+
+        next_5_list=[]
+        for p in unique_current_players:
+            next_5_list.append(mf.execute_query_and_fetch_player_df(query=next_5_games_opps_qry,connection=connection,p=p))
+        next_5_players_df=pd.concat(next_5_list,ignore_index=True)
+
+
+
 
 # if connection.is_connected():
 #     cursor=connection.cursor()
@@ -853,7 +883,17 @@ myteam_df_yh['game_score']=myteam_df_yh['game_score'].astype(float)
 injury_probabilities_df=cbc.injury_probabilities()
 
 
+
+
+
 model_eval_pred_df_copy=model_eval_pred_df[['day','predictions']].copy()
+# imhere
+# model_eval_pred_df
+# next_5_players_df
+merged_table_1=pd.merge(model_eval_pred_df,next_5_players_df,on=['slug','day'],how='inner')
+merged_table_1=merged_table_1[['day','opponent_location','predictions','league','slug','model_type']]
+
+
 model_eval_pred_df_table2_copy=model_eval_pred_df[['league','slug','model_type','p','d','q','alpha','beta','evaluation_metric','evaluation_metric_value']].copy()
 
 
@@ -1200,25 +1240,26 @@ page1 = html.Div([
         html.Div([
             html.H5("Predictions Table",
                 style={'color': corporate_colors['white']}),
-            html.Div([
-                dash_table.DataTable(
-                    id='id-preds-table',
-                    data=model_eval_pred_df_copy.to_dict('records'),
-                    columns=[{'name':i,'id':i} for i in model_eval_pred_df_copy.columns],
-                    style_cell=dict(textAlign='center'),
-                    style_header=dict(backgroundColor='paleturquoise'),
-                    style_table={'overflowX':'auto','width':'100%'}
-                ),
+            html.Div([ cbc.create_data_table(df=merged_table_1,table_id='id-preds-table',columns=merged_table_1.columns)
+                # merged_table_1
+                # dash_table.DataTable(
+                #     id='id-preds-table',
+                #     data=model_eval_pred_df_copy.to_dict('records'),
+                #     columns=[{'name':i,'id':i} for i in model_eval_pred_df_copy.columns],
+                #     style_cell=dict(textAlign='center'),
+                #     style_header=dict(backgroundColor='paleturquoise'),
+                #     style_table={'overflowX':'auto','width':'100%'}
+                # ),
             ],className='col-6'),
-            html.Div([
-                dash_table.DataTable(
-                    id='id-model-mae',
-                    data=model_eval_pred_df_table2_copy.to_dict('records'),
-                    columns=[{'name':i,'id':i} for i in model_eval_pred_df_table2_copy.columns], # imhere
-                    style_cell=dict(textAlign='center'),
-                    style_header=dict(backgroundColor='paleturquoise'),
-                    style_table={'overflowX':'auto','width':'100%'}
-                )
+            html.Div([ cbc.create_data_table(df=model_eval_pred_df_table2_copy,table_id='id-model-mae',columns=model_eval_pred_df_table2_copy.columns)
+                # dash_table.DataTable(
+                #     id='id-model-mae',
+                #     data=model_eval_pred_df_table2_copy.to_dict('records'),
+                #     columns=[{'name':i,'id':i} for i in model_eval_pred_df_table2_copy.columns], # imhere
+                #     style_cell=dict(textAlign='center'),
+                #     style_header=dict(backgroundColor='paleturquoise'),
+                #     style_table={'overflowX':'auto','width':'100%'}
+                # )
             ],className='col-6')
 
         ],

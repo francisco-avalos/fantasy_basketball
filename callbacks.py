@@ -20,6 +20,7 @@ from espn_api.basketball import League
 
 from my_functions import clean_string, remove_name_suffixes,execute_query_and_fetch_df,execute_query_and_fetch_player_df
 
+from dash import dash_table
 
 
 ####################################################################################################
@@ -27,20 +28,20 @@ from my_functions import clean_string, remove_name_suffixes,execute_query_and_fe
 ####################################################################################################
 
 
-# prod env 
-sports_db_admin_host=os.environ.get('basketball_host')
-sports_db_admin_db=os.environ.get('basketball_db')
-sports_db_admin_user=os.environ.get('basketball_user')
-sports_db_admin_pw=os.environ.get('basketball_pw')
-sports_db_admin_port=os.environ.get('basketball_port')
+# # prod env 
+# sports_db_admin_host=os.environ.get('basketball_host')
+# sports_db_admin_db=os.environ.get('basketball_db')
+# sports_db_admin_user=os.environ.get('basketball_user')
+# sports_db_admin_pw=os.environ.get('basketball_pw')
+# sports_db_admin_port=os.environ.get('basketball_port')
 
 
-# # dev env
-# sports_db_admin_host=os.environ.get('sports_db_admin_host')
-# sports_db_admin_db='basketball'
-# sports_db_admin_user=os.environ.get('sports_db_admin_user')
-# sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
-# sports_db_admin_port=os.environ.get('sports_db_admin_port')
+# dev env
+sports_db_admin_host=os.environ.get('sports_db_admin_host')
+sports_db_admin_db='basketball'
+sports_db_admin_user=os.environ.get('sports_db_admin_user')
+sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
+sports_db_admin_port=os.environ.get('sports_db_admin_port')
 
 
 
@@ -323,18 +324,18 @@ FROM basketball.player_historical_web_app_display HWAD
 # ;
 
 
-predictions_query='''
-SELECT *
-FROM basketball.predictions
-WHERE slug = 'wagnemo01'
-;
-'''
+# predictions_query='''
+# SELECT *
+# FROM basketball.predictions
+# WHERE slug = 'wagnemo01'
+# ;
+# '''
 
-model_eval_query='''
-SELECT *
-FROM basketball.model_evaluation
-WHERE slug = 'wagnemo01'
-'''
+# model_eval_query='''
+# SELECT *
+# FROM basketball.model_evaluation
+# WHERE slug = 'wagnemo01'
+# '''
 
 ## 
 my_live_espn_qry='''
@@ -378,6 +379,29 @@ LEFT JOIN basketball.predictions P ON ME.slug = P.slug
 WHERE ME.slug = '{p}'
 ;
 '''
+
+next_5_games_opps_qry='''
+SELECT
+    date,
+    @day := @day +1 AS day,
+    slug,
+    team,
+    opponent,
+    location,
+    CASE
+        WHEN SUBSTRING_INDEX(location,'.',-1) = 'HOME' THEN REPLACE(opponent,'Team.','')
+        WHEN SUBSTRING_INDEX(location,'.',-1) = 'AWAY' THEN CONCAT('@',REPLACE(opponent,'Team.',''))
+    END AS opponent_location,
+    points
+FROM basketball.historical_player_data, (SELECT @day := 0) AS init
+WHERE slug = '{p}'
+    AND date > '2024-04-04'
+LIMIT 5
+;
+'''
+#'brownja02'
+
+
 ## 
 
 
@@ -459,8 +483,8 @@ with connection_pool.get_connection() as connection:
         # attempt - 3
         historicals_df=execute_query_and_fetch_df(historicals_query,connection)
 
-        predictions_df=execute_query_and_fetch_df(predictions_query,connection)
-        model_eval_df=execute_query_and_fetch_df(model_eval_query,connection)
+        # predictions_df=execute_query_and_fetch_df(predictions_query,connection)
+        # model_eval_df=execute_query_and_fetch_df(model_eval_query,connection)
 
         model_eval_pred_df_list=[]
         for p in unique_current_players:
@@ -468,6 +492,14 @@ with connection_pool.get_connection() as connection:
         model_eval_pred_df=pd.concat(model_eval_pred_df_list,ignore_index=True)
         # model_eval_pred_df=pd.concat([execute_query_and_fetch_player_df(model_eval_pred_query,connection,p=p) for p in unique_current_players])
 
+        next_5_list=[]
+        for p in unique_current_players:
+            next_5_list.append(execute_query_and_fetch_player_df(query=next_5_games_opps_qry,connection=connection,p=p))
+        next_5_players_df=pd.concat(next_5_list,ignore_index=True)
+
+
+merged_table_1=pd.merge(model_eval_pred_df,next_5_players_df,on=['slug','day'],how='inner')
+merged_table_1=merged_table_1[['day','opponent_location','predictions','league','slug','model_type']]
 
 # if connection.is_connected():
 #     cursor=connection.cursor()
@@ -514,6 +546,16 @@ fa_yahoo_df['minutes_played']=fa_yahoo_df['seconds_played']/60
 model_eval_pred_df_table2_copy=model_eval_pred_df[['league','slug','model_type','p','d','q','alpha','beta','evaluation_metric','evaluation_metric_value']].copy()
 
 
+
+def create_data_table(df,table_id,columns):
+    return dash_table.DataTable(
+            id=table_id,
+            data=df.to_dict('records'),
+            columns=[{'name':col,'id':col} for col in columns],
+            style_cell=dict(textAlign='center'),
+            style_header=dict(backgroundColor='paleturquoise'),
+            style_table={'overflowX':'auto','width':'100%'}
+        )
 
 
 
@@ -1514,9 +1556,11 @@ def update_preds_table(leagueid,player_slug,model_type):
         leagueid='espn'
 
 
-    dups=model_eval_pred_df[model_eval_pred_df.duplicated()]
+    # dups=model_eval_pred_df[model_eval_pred_df.duplicated()]
+    dups=merged_table_1[merged_table_1.duplicated()]
 
-    model_eval_pred_df_copy=model_eval_pred_df.copy()
+    # model_eval_pred_df_copy=model_eval_pred_df.copy()
+    model_eval_pred_df_copy=merged_table_1.copy()
     if not dups.empty:
         model_eval_pred_df_copy.drop_duplicates(inplace=True)
 
@@ -1529,7 +1573,7 @@ def update_preds_table(leagueid,player_slug,model_type):
     df_pred=df_pred[df_pred['model_type']==model_type]
     df_pred['predictions']=df_pred['predictions'].astype(float).round(1)
 
-    df_pred=df_pred[['day','predictions']]
+    df_pred=df_pred[['day','opponent_location','predictions']]
 
     data=df_pred.to_dict('records')
     columns=[{"name":i,"id":i} for i in df_pred.columns]
