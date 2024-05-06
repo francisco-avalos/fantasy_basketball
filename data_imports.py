@@ -3,30 +3,24 @@ import os
 import mysql.connector as mysql
 from mysql.connector import pooling
 import pandas as pd
-# import datetime as dt
-# from dash import dcc, html, Input, Output, dash_table
-# import plotly.express as px
-# import plotly.graph_objects as go
-# from dash_create import app
-
 
 import my_functions as mf
 
 
-# # prod env 
-# sports_db_admin_host=os.environ.get('basketball_host')
-# sports_db_admin_db=os.environ.get('basketball_db')
-# sports_db_admin_user=os.environ.get('basketball_user')
-# sports_db_admin_pw=os.environ.get('basketball_pw')
-# sports_db_admin_port=os.environ.get('basketball_port')
+# prod env 
+sports_db_admin_host=os.environ.get('basketball_host')
+sports_db_admin_db=os.environ.get('basketball_db')
+sports_db_admin_user=os.environ.get('basketball_user')
+sports_db_admin_pw=os.environ.get('basketball_pw')
+sports_db_admin_port=os.environ.get('basketball_port')
 
 
-# dev env
-sports_db_admin_host=os.environ.get('sports_db_admin_host')
-sports_db_admin_db='basketball'
-sports_db_admin_user=os.environ.get('sports_db_admin_user')
-sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
-sports_db_admin_port=os.environ.get('sports_db_admin_port')
+# # dev env
+# sports_db_admin_host=os.environ.get('sports_db_admin_host')
+# sports_db_admin_db='basketball'
+# sports_db_admin_user=os.environ.get('sports_db_admin_user')
+# sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
+# sports_db_admin_port=os.environ.get('sports_db_admin_port')
 
 dbconfig = {
     "host":sports_db_admin_host,
