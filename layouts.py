@@ -4,20 +4,16 @@ import mysql.connector as mysql
 from mysql.connector import pooling
 import pandas as pd
 import datetime as dt
-from dash import html
 from dash import dcc, html, Input, Output, dash_table
 import plotly.express as px
 import plotly.graph_objects as go
 from dash_create import app
+from concurrent.futures import ThreadPoolExecutor
 
-# from callbacks import line_plot, bar_plot, heatmap, heatmap_weights, boxplot_by_player, boxplot_by_player_weekday_class, injury_probabilities, line_plot_preds #,predictions_table
-# from callbacks import execute_query_and_fetch_df, execute_query_and_fetch_player_df
 import callbacks as cbc
 import my_functions as mf
-# from my_functions import clean_string, remove_name_suffixes
 
-# ESPN 
-from espn_api.basketball import League
+from data_imports import optimize_code, add_new_fields
 
 
 ####################################################################################################
@@ -102,465 +98,36 @@ filterdiv_borderstyling = {
 # 000 - IMPORT DATA
 ####################################################################################################
 
-# prod env
-sports_db_admin_host=os.environ.get('basketball_host')
-sports_db_admin_db=os.environ.get('basketball_db')
-sports_db_admin_user=os.environ.get('basketball_user')
-sports_db_admin_pw=os.environ.get('basketball_pw')
-sports_db_admin_port=os.environ.get('basketball_port')
 
-# # dev env
-# sports_db_admin_host=os.environ.get('sports_db_admin_host')
-# sports_db_admin_db='basketball'
-# sports_db_admin_user=os.environ.get('sports_db_admin_user')
-# sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
-# sports_db_admin_port=os.environ.get('sports_db_admin_port')
+dfs = optimize_code()
 
+fa_espn_df = dfs['fa_espn_df']
+fa_yahoo_df = dfs['fa_yahoo_df']
+myteam_df = dfs['myteam_df']
+myteam_df_yh = dfs['myteam_df_yh']
+live_yahoo_players_df = dfs['live_yahoo_players_df']
+inj_df = dfs['inj_df']
+inj_df_yf = dfs['inj_df_yf']
 
-dbconfig = {
-    "host":sports_db_admin_host,
-    "database":sports_db_admin_db,
-    "user":sports_db_admin_user,
-    "password":sports_db_admin_pw,
-    "port":sports_db_admin_port
-}
+my_live_espn_df = dfs['my_live_espn_df']
+my_live_yahoo_df = dfs['my_live_yahoo_df']
 
-connection_pool = pooling.MySQLConnectionPool(
-    pool_name="sports_db_pool",
-    pool_size=5,
-    **dbconfig
-)
+current_players = dfs['current_players']
+players_at_risk_df = dfs['players_at_risk_df']
+players_at_risk = dfs['players_at_risk']
 
+current_players_yh_at_risk_df = dfs['current_players_yh_at_risk_df']
+df_for_agg = dfs['df_for_agg']
+df_yh_for_agg = dfs['df_yh_for_agg']
 
-# leagueid=os.environ.get('leagueid')
-# espn_s2=os.environ.get('espn_s2')
-# swid=os.environ.get('swid')
+model_eval_pred_df = dfs['model_eval_pred_df']
+next_5_players_df = dfs['next_5_players_df']
 
-# league_config={
-#     "league_id":leagueid,
-#     "year":2024,
-#     "espn_s2":espn_s2,
-#     "swid":swid,
-#     "debug":False
-# }
 
-# league=League(**league_config)
 
 
-# connection=mysql.connect(host=sports_db_admin_host,
-#                         database=sports_db_admin_db,
-#                         user=sports_db_admin_user,
-#                         password=sports_db_admin_pw,
-#                         port=sports_db_admin_port)
 
 
-
-
-espn_query='''
-SELECT 
-    'history_plus_current' AS all_history,
-    A.*
-FROM 
-    (
-        SELECT  
-            'current_season_only' AS current_season_vs_historicals,
-            ESPN_FA.name,
-            ESPN_FA.date,
-            ESPN_FA.team,
-            ESPN_FA.location,
-            ESPN_FA.opponent,
-            ESPN_FA.outcome,
-            ESPN_FA.seconds_played,
-            ESPN_FA.made_field_goals,
-            ESPN_FA.attempted_field_goals,
-            ESPN_FA.made_three_point_field_goals,
-            ESPN_FA.attempted_three_point_field_goals,
-            ESPN_FA.made_free_throws,
-            ESPN_FA.attempted_free_throws,
-            ESPN_FA.offensive_rebounds,
-            ESPN_FA.defensive_rebounds,
-            ESPN_FA.assists,
-            ESPN_FA.steals,
-            ESPN_FA.blocks,
-            ESPN_FA.turnovers,
-            ESPN_FA.personal_fouls,
-            ESPN_FA.points_scored,
-            ESPN_FA.game_score
-        FROM basketball.live_free_agents ESPN_FA
-        UNION ALL
-        SELECT 
-            'historicals_only' AS current_season_vs_historicals,
-            BBREF.name,
-            BBREF.date,
-            BBREF.team,
-            BBREF.location,
-            BBREF.opponent,
-            BBREF.outcome,
-            BBREF.seconds_played,
-            BBREF.made_field_goals,
-            BBREF.attempted_field_goals,
-            BBREF.made_three_point_field_goals,
-            BBREF.attempted_three_point_field_goals,
-            BBREF.made_free_throws,
-            BBREF.attempted_free_throws,
-            BBREF.offensive_rebounds,
-            BBREF.defensive_rebounds,
-            BBREF.assists,
-            BBREF.steals,
-            BBREF.blocks,
-            BBREF.turnovers,
-            BBREF.personal_fouls,
-            BBREF.points AS points_scored,
-            BBREF.game_score
-        FROM basketball.historical_player_data BBREF
-        WHERE BBREF.slug IN (SELECT DISTINCT name_code FROM basketball.live_free_agents)
-            AND BBREF.date NOT BETWEEN LAST_DAY(DATE_FORMAT(BBREF.date, '%Y-04-%d')) AND LAST_DAY(DATE_FORMAT(BBREF.date, '%Y-09-%d'))
-            AND BBREF.date < '2023-10-24'
-    ) A
-;
-'''
-
-yahoo_query='''
-SELECT 
-    CASE
-        WHEN BBREF.date BETWEEN '2023-10-24' AND '2024-04-14' THEN 'current_season_only'
-        WHEN BBREF.date < '2023-10-24' THEN 'historicals_only'
-    END current_season_vs_historicals,
-    'history_plus_current' AS all_history,
-    YP.name,
-    BBREF.date,
-    BBREF.team,
-    BBREF.location,
-    BBREF.opponent,
-    BBREF.outcome,
-    BBREF.seconds_played,
-    BBREF.made_field_goals,
-    BBREF.attempted_field_goals,
-    BBREF.made_three_point_field_goals,
-    BBREF.attempted_three_point_field_goals,
-    BBREF.made_free_throws,
-    BBREF.attempted_free_throws,
-    BBREF.offensive_rebounds,
-    BBREF.defensive_rebounds,
-    BBREF.assists,
-    BBREF.steals,
-    BBREF.blocks,
-    BBREF.turnovers,
-    BBREF.personal_fouls,
-    BBREF.points AS points_scored,
-    BBREF.game_score
-FROM basketball.live_free_agents_yahoo YP
-JOIN basketball.master_names_list_temp MNL ON SUBSTRING_INDEX(YP.name, ' ',1) = MNL.first_name
-    AND (CASE WHEN LENGTH(YP.name)-LENGTH(REPLACE(YP.name, ' ', ''))+1 > 2 THEN SUBSTRING_INDEX(SUBSTRING_INDEX(YP.name, ' ',-2), ' ', 1) ELSE SUBSTRING_INDEX(YP.name, ' ',-1) END) = MNL.last_name
-    AND (CASE WHEN LENGTH(YP.name)-LENGTH(REPLACE(YP.name, ' ', ''))+1 > 2 THEN SUBSTRING_INDEX(SUBSTRING_INDEX(YP.name, ' ',-2), ' ', -1) ELSE '' END) = MNL.suffix
-JOIN basketball.historical_player_data BBREF ON MNL.bbrefid = BBREF.slug
-WHERE BBREF.date NOT BETWEEN LAST_DAY(DATE_FORMAT(BBREF.date, '%Y-04-%d')) AND LAST_DAY(DATE_FORMAT(BBREF.date, '%Y-09-%d'))
-;
-'''
-
-
-my_espn_team_qry='''
-SELECT 
-    MTS.*, 
-    DATE_FORMAT(MTS.date, '%W') AS day_of_week,
-    CASE
-        WHEN DATE_FORMAT(MTS.date, '%W') IN ('Saturday', 'Sunday') THEN 'week_end'
-        ELSE 'week_day'
-    END AS day_of_week_class,
-    C.week_starting_monday, 
-    C.week_ending_sunday 
-FROM basketball.my_team_stats MTS 
-JOIN basketball.calendar C ON MTS.date=C.day;
-'''
-
-my_yahoo_team_qry='''
-SELECT 
-    MTS.*, 
-    DATE_FORMAT(MTS.date, '%W') AS day_of_week,
-    CASE
-        WHEN DATE_FORMAT(MTS.date, '%W') IN ('Saturday', 'Sunday') THEN 'week_end'
-        ELSE 'week_day'
-    END AS day_of_week_class,
-    C.week_starting_monday, 
-    C.week_ending_sunday 
-FROM basketball.my_team_stats_yahoo MTS
-JOIN basketball.calendar C ON MTS.date=C.day
-WHERE name IN (SELECT DISTINCT name FROM basketball.live_yahoo_players);
-'''
-
-
-##
-my_live_espn_qry='''
-SELECT 
-    LEP.name,
-    BRP.BBRefID AS slug
-FROM basketball.live_espn_players LEP
-JOIN basketball.basketball_references_players BRP ON LEP.name = BBRefName
-;
-'''
-
-my_live_yahoo_qry='''
-SELECT 
-    LYP.name,
-    BRP.BBRefID AS slug
-FROM basketball.live_yahoo_players LYP
-JOIN basketball.basketball_references_players BRP ON LYP.name = BBRefName
-;
-'''
-
-model_eval_pred_query=f'''
-SELECT 
-    ME.league,
-    ME.slug,
-    ME.model_type,
-    ME.champion_model,
-    P.day,
-    ME.evaluation_metric,
-    ME.evaluation_metric_value,
-    P.p,
-    P.d,
-    P.q,
-    P.alpha,
-    P.beta,
-    P.predictions
-FROM basketball.model_evaluation ME
-LEFT JOIN basketball.predictions P ON ME.slug = P.slug
-    AND P.league = ME.league
-    AND P.model_type = ME.model_type
-;
-'''
-
-
-next_5_games_opps_qry='''
-SELECT
-    date,
-    @day := @day +1 AS day,
-    slug,
-    team,
-    opponent,
-    location,
-    CASE
-        WHEN SUBSTRING_INDEX(location,'.',-1) = 'HOME' THEN REPLACE(opponent,'Team.','')
-        WHEN SUBSTRING_INDEX(location,'.',-1) = 'AWAY' THEN CONCAT('@',REPLACE(opponent,'Team.',''))
-    END AS opponent_location,
-    points
-FROM basketball.historical_player_data, (SELECT @day := 0) AS init
-WHERE slug = '{p}'
-    AND date > '2024-04-04'
-LIMIT 5
-;
-'''
-
-##
-
-
-
-
-
-# my_live_yahoo_qry='''
-# SELECT * 
-# FROM basketball.live_yahoo_players
-# ;
-# '''
-
-my_injured_espn_team_qry='''
-SELECT 
-    name,
-    injury,
-    news_date,
-    exp_return_date 
-FROM basketball.injured_player_news 
-ORDER BY exp_return_date ASC;
-'''
-
-my_injured_yahoo_team_qry='''
-SELECT 
-    name,
-    injury,
-    news_date,
-    exp_return_date 
-FROM basketball.injured_player_news_yh 
-ORDER BY exp_return_date ASC;
-'''
-
-
-
-# predictions_query='''
-# SELECT *
-# FROM basketball.predictions
-# WHERE slug = 'wagnemo01'
-# ;
-# '''
-
-# model_eval_query='''
-# SELECT *
-# FROM basketball.model_evaluation
-# WHERE slug = 'wagnemo01'
-# ;
-# '''
-
-
-p = ''
-my_espn_players_sched_query='''
-SELECT
-    name,
-    team,
-    TSCHED.*
-FROM basketball.my_team_stats MTS
-JOIN basketball.high_level_nba_team_schedules TSCHED ON MTS.team = TSCHED.away_team OR MTS.team = TSCHED.home_team
-JOIN basketball.calendar CAL ON DATE(SUBDATE(CAST(TSCHED.start_time AS DATETIME), INTERVAL 8 HOUR)) = CAL.day
-WHERE MTS.name LIKE CONCAT("%", "{p}","%")
-    AND CURDATE() BETWEEN CAL.week_starting_monday AND CAL.week_ending_sunday
-GROUP BY MTS.name, TSCHED.start_time;
-'''
-
-my_yahoo_players_sched_query='''
-SELECT
-    name,
-    team,
-    TSCHED.*
-FROM basketball.my_team_stats_yahoo MTS
-JOIN basketball.high_level_nba_team_schedules TSCHED ON MTS.team = TSCHED.away_team OR MTS.team = TSCHED.home_team
-JOIN basketball.calendar CAL ON DATE(SUBDATE(CAST(TSCHED.start_time AS DATETIME), INTERVAL 8 HOUR)) = CAL.day
-WHERE MTS.name LIKE CONCAT("%", "{p}","%")
-    AND CURDATE() BETWEEN CAL.week_starting_monday AND CAL.week_ending_sunday
-    AND name IN (SELECT DISTINCT name FROM basketball.live_yahoo_players)
-GROUP BY MTS.name, TSCHED.start_time;
-'''
-
-# historicals_query='''
-# SELECT 
-#     HWAD.date,
-#     HWAD.slug,
-#     HWAD.name,
-#     HWAD.team,
-#     HWAD.opponent,
-#     HWAD.points,
-#     HWAD.league
-# FROM basketball.player_historical_web_app_display HWAD
-# ;
-# '''
-
-
-
-my_safe_players=['Jayson Tatum', 'Kyrie Irving','Jaylen Brown']
-
-
-
-with connection_pool.get_connection() as connection:
-    if connection.is_connected():
-        fa_espn_df = mf.execute_query_and_fetch_df(espn_query, connection)
-        fa_yahoo_df = mf.execute_query_and_fetch_df(yahoo_query, connection)
-        
-        myteam_df = mf.execute_query_and_fetch_df(my_espn_team_qry, connection)
-        myteam_df['total_rebounds']=myteam_df['offensive_rebounds']+myteam_df['defensive_rebounds']
-        myteam_df['minutes_played']=myteam_df['seconds_played']/60
-
-        myteam_df_yh = mf.execute_query_and_fetch_df(my_yahoo_team_qry, connection)
-        myteam_df_yh['total_rebounds']=myteam_df_yh['offensive_rebounds']+myteam_df_yh['defensive_rebounds']
-        myteam_df_yh['minutes_played']=myteam_df_yh['seconds_played']/60
-
-        live_yahoo_players_df = mf.execute_query_and_fetch_df(my_live_yahoo_qry, connection)
-        inj_df = mf.execute_query_and_fetch_df(my_injured_espn_team_qry, connection)
-        inj_df_yf = mf.execute_query_and_fetch_df(my_injured_yahoo_team_qry, connection)
-
-        #### NEW SECTION
-
-        my_live_espn_df=mf.execute_query_and_fetch_df(my_live_espn_qry,connection)
-        my_live_yahoo_df=mf.execute_query_and_fetch_df(my_live_yahoo_qry,connection)
-        #### NEW SECTION
-
-        ####################### REWRITE SECTION
-        # myteam=league.teams[10] #come back
-        # current_players=clean_string(myteam.roster).split(',')
-        # current_players=[remove_name_suffixes(x) for x in current_players]
-        # current_players=[x.strip(' ') for x in current_players]
-        current_players=my_live_espn_df['name'].values.tolist()
-        
-        players_at_risk=list(set(current_players)-set(my_safe_players))
-        players_at_risk=pd.DataFrame(players_at_risk)
-        players_at_risk.columns=['Name']
-        players_at_risk_df = pd.DataFrame(players_at_risk, columns=['Name'])
-
-        df_for_agg_list=[]
-        for p in current_players:
-            df_for_agg_list.append(mf.execute_query_and_fetch_player_df(query=my_espn_players_sched_query,connection=connection,p=p))
-        df_for_agg=pd.concat(df_for_agg_list, ignore_index=True)
-        # df_for_agg = pd.concat([execute_query_and_fetch_df(my_espn_players_sched_query, connection) for p in current_players])
-
-        # df_yh_for_agg = pd.concat([fetch_players_sched_query(my_yahoo_players_sched_query, connection, p) for p in current_players_yh])
-        ##
-        current_players_yh=live_yahoo_players_df.name.tolist()
-
-        current_players_yh=mf.clean_string(current_players_yh).split(',')
-        current_players_yh=[mf.remove_name_suffixes(x) for x in current_players_yh]
-        current_players_yh=[x.replace("'","") for x in current_players_yh]
-        current_players_yh=[x.replace("'","").strip() for x in current_players_yh]
-
-        current_players_yh_at_risk_df=pd.DataFrame(current_players_yh)
-        current_players_yh_at_risk_df.columns=['Name']
-
-        df_yh_for_agg_list=[]
-        for p in current_players_yh:
-            df_yh_for_agg_list.append(mf.execute_query_and_fetch_player_df(query=my_yahoo_players_sched_query,connection=connection,p=p))
-        df_yh_for_agg=pd.concat(df_yh_for_agg_list,ignore_index=True)
-        # df_yh_for_agg = pd.concat([execute_query_and_fetch_df(my_yahoo_players_sched_query, connection) for p in current_players_yh])
-        ####################### REWRITE SECTION
-
-        current_espn_slugs=my_live_espn_df['slug'].values.tolist()
-        current_yahoo_slugs=my_live_yahoo_df['slug'].values.tolist()
-        unique_current_players=set(current_espn_slugs + current_yahoo_slugs)
-        unique_current_players=list(unique_current_players)
-
-        # attempt - 1
-        # historicals_df_list=[]
-        # for p in unique_current_players:
-        #     historicals_df_list.append(execute_query_and_fetch_player_df(query=historicals_query,connection=connection,p=p))
-        # historicals_df=pd.concat(historicals_df_list,ignore_index=True)
-        # historicals_df=pd.concat([execute_query_and_fetch_df(historicals_query,connection) for p in unique_current_players])
-
-        # attempt - 2
-        # historicals_df=execute_query_and_fetch_df(historicals_query,connection)
-
-        # attempt - 3
-        # historicals_df=execute_query_and_fetch_df(historicals_query,connection)
-
-        # predictions_df=mf.execute_query_and_fetch_df(predictions_query,connection)
-        # model_eval_df=mf.execute_query_and_fetch_df(model_eval_query,connection)
-
-        model_eval_pred_df_list=[]
-        for p in unique_current_players:
-            model_eval_pred_df_list.append(mf.execute_query_and_fetch_player_df(query=model_eval_pred_query,connection=connection,p=p))
-        model_eval_pred_df=pd.concat(model_eval_pred_df_list,ignore_index=True)
-        # model_eval_pred_df=execute_query_and_fetch_df(model_eval_pred_query,connection)
-
-        next_5_list=[]
-        for p in unique_current_players:
-            next_5_list.append(mf.execute_query_and_fetch_player_df(query=next_5_games_opps_qry,connection=connection,p=p))
-        next_5_players_df=pd.concat(next_5_list,ignore_index=True)
-
-
-
-
-# if connection.is_connected():
-#     cursor=connection.cursor()
-
-#     cursor.execute(espn_query)
-#     fa_espn_df=cursor.fetchall()
-#     fa_espn_df=pd.DataFrame(fa_espn_df,columns=cursor.column_names)
-
-
-#     cursor.execute(yahoo_query)
-#     fa_yahoo_df=cursor.fetchall()
-#     fa_yahoo_df=pd.DataFrame(fa_yahoo_df,columns=cursor.column_names)
-
-
-# if(connection.is_connected()):
-#     cursor.close()
-#     connection.close()
-#     print('MySQL connection is closed')
-# else:
-#     print('MySQL already closed')
 
 
 # pd.set_option('display.max_columns', None)
@@ -568,12 +135,15 @@ with connection_pool.get_connection() as connection:
 
 
 fa_df=fa_espn_df[fa_espn_df['current_season_vs_historicals']=='current_season_only'].copy()
-fa_df['total_rebounds']=fa_df['offensive_rebounds']+fa_df['defensive_rebounds']
-fa_df['minutes_played']=fa_df['seconds_played']/60
+fa_df=add_new_fields(fa_df)
+# fa_df['total_rebounds']=fa_df['offensive_rebounds']+fa_df['defensive_rebounds']
+# fa_df['minutes_played']=fa_df['seconds_played']/60
 
 
-fa_yahoo_df['total_rebounds']=fa_yahoo_df['offensive_rebounds']+fa_yahoo_df['defensive_rebounds']
-fa_yahoo_df['minutes_played']=fa_yahoo_df['seconds_played']/60
+
+fa_yahoo_df=add_new_fields(fa_yahoo_df)
+# fa_yahoo_df['total_rebounds']=fa_yahoo_df['offensive_rebounds']+fa_yahoo_df['defensive_rebounds']
+# fa_yahoo_df['minutes_played']=fa_yahoo_df['seconds_played']/60
 
 
 
@@ -622,202 +192,6 @@ def player_stats():
 
 
 
-# my team performance data
-
-
-
-# connection=mysql.connect(host=sports_db_admin_host,
-#                         database=sports_db_admin_db,
-#                         user=sports_db_admin_user,
-#                         password=sports_db_admin_pw,
-#                         port=sports_db_admin_port)
-
-# if connection.is_connected():
-#     cursor=connection.cursor()
-#     cursor.execute("""
-#                     SELECT 
-#                         MTS.*, 
-#                         DATE_FORMAT(MTS.date, '%W') AS day_of_week,
-#                         CASE
-#                             WHEN DATE_FORMAT(MTS.date, '%W') IN ('Saturday', 'Sunday') THEN 'week_end'
-#                             ELSE 'week_day'
-#                         END AS day_of_week_class,
-#                         C.week_starting_monday, 
-#                         C.week_ending_sunday 
-#                     FROM basketball.my_team_stats MTS 
-#                     JOIN basketball.calendar C ON MTS.date=C.day;
-#                     """)
-#     myteam_df=cursor.fetchall()
-#     myteam_df=pd.DataFrame(myteam_df, columns=cursor.column_names)
-
-#     cursor.execute("""
-#                     SELECT 
-#                         MTS.*, 
-#                         DATE_FORMAT(MTS.date, '%W') AS day_of_week,
-#                         CASE
-#                             WHEN DATE_FORMAT(MTS.date, '%W') IN ('Saturday', 'Sunday') THEN 'week_end'
-#                             ELSE 'week_day'
-#                         END AS day_of_week_class,
-#                         C.week_starting_monday, 
-#                         C.week_ending_sunday 
-#                     FROM basketball.my_team_stats_yahoo MTS
-#                     JOIN basketball.calendar C ON MTS.date=C.day
-#                     WHERE name IN (SELECT DISTINCT name FROM basketball.live_yahoo_players);
-#                     """)
-#     myteam_df_yh=cursor.fetchall()
-#     myteam_df_yh=pd.DataFrame(myteam_df_yh, columns=cursor.column_names)
-
-#     cursor.execute("""SELECT * FROM basketball.live_yahoo_players""")
-#     live_yahoo_players_df=cursor.fetchall()
-#     live_yahoo_players_df=pd.DataFrame(live_yahoo_players_df, columns=cursor.column_names)
-
-
-# if connection.is_connected():
-#     cursor=connection.cursor()
-#     cursor.execute("""SELECT name,injury,news_date,exp_return_date FROM basketball.injured_player_news ORDER BY exp_return_date ASC;""")
-#     inj_df=cursor.fetchall()
-#     inj_df=pd.DataFrame(inj_df, columns=cursor.column_names)
-
-#     cursor.execute("""SELECT name,injury,news_date,exp_return_date FROM basketball.injured_player_news_yh ORDER BY exp_return_date ASC;""")
-#     inj_df_yf=cursor.fetchall()
-#     inj_df_yf=pd.DataFrame(inj_df_yf, columns=cursor.column_names)
-
-
-# if(connection.is_connected()):
-#     cursor.close()
-#     connection.close()
-#     print('MySQL connection is closed')
-# else:
-#     print('MySQL already closed')
-
-
-# myteam_df['total_rebounds']=myteam_df['offensive_rebounds']+myteam_df['defensive_rebounds']
-# myteam_df['minutes_played']=myteam_df['seconds_played']/60
-
-# myteam_df_yh['total_rebounds']=myteam_df_yh['offensive_rebounds']+myteam_df_yh['defensive_rebounds']
-# myteam_df_yh['minutes_played']=myteam_df_yh['seconds_played']/60
-
-
-
-# my_safe_players=['Jayson Tatum', 'Kyrie Irving','Jaylen Brown'
-# ]
-
-
-
-# myteam=league.teams[10]
-# current_players=clean_string(myteam.roster).split(',')
-# current_players=[remove_name_suffixes(x) for x in current_players]
-# current_players=[x.strip(' ') for x in current_players]
-
-
-# players_at_risk=list(set(current_players)-set(my_safe_players))
-# players_at_risk=pd.DataFrame(players_at_risk)
-# players_at_risk.columns=['Name']
-
-
-
-# # tm=lg.to_team('428.l.18598.t.4')
-# # my_tm=pd.DataFrame(tm.roster(4))
-# # current_players_yh=my_tm.name.tolist()
-
-# current_players_yh=live_yahoo_players_df.name.tolist()
-
-# current_players_yh=clean_string(current_players_yh).split(',')
-# current_players_yh=[remove_name_suffixes(x) for x in current_players_yh]
-# current_players_yh=[x.replace("'","") for x in current_players_yh]
-# current_players_yh=[x.replace("'","").strip() for x in current_players_yh]
-
-# current_players_yh_at_risk_df=pd.DataFrame(current_players_yh)
-# current_players_yh_at_risk_df.columns=['Name']
-
-
-
-# I picked up bruce brown on November 30 at 10pm, 
-# so don't add his scores to my team performance for that day
-# same with T.J. McConnell for dec 2
-# same with Tim Hardaway for dec 3
-# myteam_df=myteam_df.drop(235)
-# myteam_df=myteam_df.drop(249)
-# myteam_df=myteam_df.drop(255)
-
-# myteam_df=myteam_df.drop(381) # shake milton
-# myteam_df=myteam_df.drop(402) # duane washington
-# myteam_df=myteam_df.drop(409) # duane washington
-# myteam_df=myteam_df.drop(394) # quentin grimes
-# myteam_df=myteam_df.drop(401) # moritz wagner
-# myteam_df=myteam_df.drop(408) # moritz wagner
-# myteam_df=myteam_df.drop(405) # patty mills
-
-# myteam_df=myteam_df.drop(414) # immanuel quickley
-# myteam_df=myteam_df.drop(443) # Alec burks
-# print(myteam_df.tail(15))
-
-# myteam_df=myteam_df.drop(414)
-# myteam_df=myteam_df.drop(426)
-
-# print(myteam_df[myteam_df['name']=='Immanuel Quickley'])
-# print(myteam_df.tail(50))
-
-
-
-
-# connection=mysql.connect(host=sports_db_admin_host,
-#                         database=sports_db_admin_db,
-#                         user=sports_db_admin_user,
-#                         password=sports_db_admin_pw,
-#                         port=sports_db_admin_port)
-
-
-
-# myteam=league.teams[11]
-# my_players=clean_string(myteam.roster).split(',')
-# my_players=[x.strip() for x in my_players]
-
-
-
-# df_for_agg=pd.DataFrame()
-# df_yh_for_agg=pd.DataFrame()
-# if connection.is_connected():
-#     for p in current_players:
-#         cursor=connection.cursor()
-#         p=remove_name_suffixes(p)
-#         p=p.strip()
-#         qry=f"""
-#             SELECT
-#                 name,
-#                 team,
-#                 TSCHED.*
-#             FROM basketball.my_team_stats MTS
-#             JOIN basketball.high_level_nba_team_schedules TSCHED ON MTS.team = TSCHED.away_team OR MTS.team = TSCHED.home_team
-#             JOIN basketball.calendar CAL ON DATE(SUBDATE(CAST(TSCHED.start_time AS DATETIME), INTERVAL 8 HOUR)) = CAL.day
-#             WHERE MTS.name LIKE CONCAT("%", "{p}","%")
-#                 AND CURDATE() BETWEEN CAL.week_starting_monday AND CAL.week_ending_sunday
-#             GROUP BY MTS.name, TSCHED.start_time;"""
-#         cursor.execute(qry)
-#         myteam_df1=cursor.fetchall()
-#         myteam_df1=pd.DataFrame(myteam_df1, columns=cursor.column_names)
-#         df_for_agg=pd.concat([df_for_agg, myteam_df1])
-#     for p in current_players_yh:
-#         cursor=connection.cursor()
-#         p=remove_name_suffixes(p)
-#         p=p.strip()
-#         qry=f"""
-#             SELECT
-#                 name,
-#                 team,
-#                 TSCHED.*
-#             FROM basketball.my_team_stats_yahoo MTS
-#             JOIN basketball.high_level_nba_team_schedules TSCHED ON MTS.team = TSCHED.away_team OR MTS.team = TSCHED.home_team
-#             JOIN basketball.calendar CAL ON DATE(SUBDATE(CAST(TSCHED.start_time AS DATETIME), INTERVAL 8 HOUR)) = CAL.day
-#             WHERE MTS.name LIKE CONCAT("%", "{p}","%")
-#                 AND CURDATE() BETWEEN CAL.week_starting_monday AND CAL.week_ending_sunday
-#             GROUP BY MTS.name, TSCHED.start_time;"""
-#         cursor.execute(qry)
-#         my_team_df1_yh=cursor.fetchall()
-#         my_team_df1_yh=pd.DataFrame(my_team_df1_yh,columns=cursor.column_names)
-#         df_yh_for_agg=pd.concat([df_yh_for_agg,my_team_df1_yh])
-
-
 
 aggregate=df_for_agg.groupby(['name']).start_time.nunique()
 aggregate=aggregate.reset_index()
@@ -830,14 +204,6 @@ aggregate_yh.columns=['name', 'games_this_week']
 aggregate_yh=aggregate_yh.sort_values(['games_this_week', 'name'], ascending=False)
 
 del df_for_agg, df_yh_for_agg
-
-# if(connection.is_connected()):
-#     cursor.close()
-#     connection.close()
-#     print('MySQL connection is closed')
-# else:
-#     print('MySQL already closed')
-
 
 
 myteam_df['seconds_played']=myteam_df['seconds_played'].astype(float)
@@ -887,9 +253,6 @@ injury_probabilities_df=cbc.injury_probabilities()
 
 
 model_eval_pred_df_copy=model_eval_pred_df[['day','predictions']].copy()
-# imhere
-# model_eval_pred_df
-# next_5_players_df
 merged_table_1=pd.merge(model_eval_pred_df,next_5_players_df,on=['slug','day'],how='inner')
 merged_table_1=merged_table_1[['day','opponent_location','predictions','league','slug','model_type']]
 
