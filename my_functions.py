@@ -304,3 +304,10 @@ def execute_query_and_fetch_player_df(query, connection,p=None):
 		cursor.execute(formatted_query)
 		result = cursor.fetchall()
 	return pd.DataFrame(result, columns=cursor.column_names)
+
+
+
+def convert_fields_to_float(df:pd.DataFrame,fields:list)->pd.DataFrame:
+	for field in fields:
+		df[field]=df[field].astype(float)
+	return df

@@ -206,44 +206,14 @@ aggregate_yh=aggregate_yh.sort_values(['games_this_week', 'name'], ascending=Fal
 del df_for_agg, df_yh_for_agg
 
 
-myteam_df['seconds_played']=myteam_df['seconds_played'].astype(float)
-myteam_df['made_field_goals']=myteam_df['made_field_goals'].astype(float)
-myteam_df['attempted_field_goals']=myteam_df['attempted_field_goals'].astype(float)
-myteam_df['made_three_point_field_goals']=myteam_df['made_three_point_field_goals'].astype(float)
-myteam_df['attempted_three_point_field_goals']=myteam_df['attempted_three_point_field_goals'].astype(float)
-myteam_df['made_free_throws']=myteam_df['made_free_throws'].astype(float)
-myteam_df['attempted_free_throws']=myteam_df['attempted_free_throws'].astype(float)
-myteam_df['offensive_rebounds']=myteam_df['offensive_rebounds'].astype(float)
-myteam_df['defensive_rebounds']=myteam_df['defensive_rebounds'].astype(float)
-myteam_df['assists']=myteam_df['assists'].astype(float)
-myteam_df['steals']=myteam_df['steals'].astype(float)
-myteam_df['blocks']=myteam_df['blocks'].astype(float)
-myteam_df['turnovers']=myteam_df['turnovers'].astype(float)
-myteam_df['personal_fouls']=myteam_df['personal_fouls'].astype(float)
-myteam_df['points']=myteam_df['points'].astype(float)
-myteam_df['total_rebounds']=myteam_df['total_rebounds'].astype(float)
-myteam_df['game_score']=myteam_df['game_score'].astype(float)
-
-
-
-myteam_df_yh['seconds_played']=myteam_df_yh['seconds_played'].astype(float)
-myteam_df_yh['made_field_goals']=myteam_df_yh['made_field_goals'].astype(float)
-myteam_df_yh['attempted_field_goals']=myteam_df_yh['attempted_field_goals'].astype(float)
-myteam_df_yh['made_three_point_field_goals']=myteam_df_yh['made_three_point_field_goals'].astype(float)
-myteam_df_yh['attempted_three_point_field_goals']=myteam_df_yh['attempted_three_point_field_goals'].astype(float)
-myteam_df_yh['made_free_throws']=myteam_df_yh['made_free_throws'].astype(float)
-myteam_df_yh['attempted_free_throws']=myteam_df_yh['attempted_free_throws'].astype(float)
-myteam_df_yh['offensive_rebounds']=myteam_df_yh['offensive_rebounds'].astype(float)
-myteam_df_yh['defensive_rebounds']=myteam_df_yh['defensive_rebounds'].astype(float)
-myteam_df_yh['assists']=myteam_df_yh['assists'].astype(float)
-myteam_df_yh['steals']=myteam_df_yh['steals'].astype(float)
-myteam_df_yh['blocks']=myteam_df_yh['blocks'].astype(float)
-myteam_df_yh['turnovers']=myteam_df_yh['turnovers'].astype(float)
-myteam_df_yh['personal_fouls']=myteam_df_yh['personal_fouls'].astype(float)
-myteam_df_yh['points']=myteam_df_yh['points'].astype(float)
-myteam_df_yh['total_rebounds']=myteam_df_yh['total_rebounds'].astype(float)
-myteam_df_yh['game_score']=myteam_df_yh['game_score'].astype(float)
-
+convert_to_float_fields=['seconds_played','made_field_goals',
+                        'attempted_field_goals','made_three_point_field_goals',
+                        'attempted_three_point_field_goals','made_free_throws',
+                        'attempted_free_throws','offensive_rebounds',
+                        'defensive_rebounds','assists','steals','blocks',
+                        'turnovers','personal_fouls','points','total_rebounds','game_score']
+myteam_df=mf.convert_fields_to_float(df=myteam_df,fields=convert_to_float_fields)
+myteam_df_yh=mf.convert_fields_to_float(df=myteam_df_yh,fields=convert_to_float_fields)
 
 
 injury_probabilities_df=cbc.injury_probabilities()

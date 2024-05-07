@@ -1,11 +1,16 @@
 
 import os
-import mysql.connector as mysql
-from mysql.connector import pooling
 import pandas as pd
-
 import my_functions as mf
 
+import mysql.connector as mysql
+from mysql.connector import pooling
+
+
+
+####################################################################################################
+# 000 - CREDENTIALS 
+####################################################################################################
 
 # prod env 
 sports_db_admin_host=os.environ.get('basketball_host')
@@ -22,19 +27,10 @@ sports_db_admin_port=os.environ.get('basketball_port')
 # sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
 # sports_db_admin_port=os.environ.get('sports_db_admin_port')
 
-dbconfig = {
-    "host":sports_db_admin_host,
-    "database":sports_db_admin_db,
-    "user":sports_db_admin_user,
-    "password":sports_db_admin_pw,
-    "port":sports_db_admin_port
-}
 
-connection_pool = pooling.MySQLConnectionPool(
-    pool_name="sports_db_pool",
-    pool_size=5,
-    **dbconfig
-)
+####################################################################################################
+# 000 - QUERIES
+####################################################################################################
 
 
 espn_query='''
@@ -98,8 +94,7 @@ FROM
             AND BBREF.date NOT BETWEEN LAST_DAY(DATE_FORMAT(BBREF.date, '%Y-04-%d')) AND LAST_DAY(DATE_FORMAT(BBREF.date, '%Y-09-%d'))
             AND BBREF.date < '2023-10-24'
     ) A
-;
-'''
+;'''
 
 yahoo_query='''
 SELECT 
@@ -136,8 +131,7 @@ JOIN basketball.master_names_list_temp MNL ON SUBSTRING_INDEX(YP.name, ' ',1) = 
     AND (CASE WHEN LENGTH(YP.name)-LENGTH(REPLACE(YP.name, ' ', ''))+1 > 2 THEN SUBSTRING_INDEX(SUBSTRING_INDEX(YP.name, ' ',-2), ' ', -1) ELSE '' END) = MNL.suffix
 JOIN basketball.historical_player_data BBREF ON MNL.bbrefid = BBREF.slug
 WHERE BBREF.date NOT BETWEEN LAST_DAY(DATE_FORMAT(BBREF.date, '%Y-04-%d')) AND LAST_DAY(DATE_FORMAT(BBREF.date, '%Y-09-%d'))
-;
-'''
+;'''
 
 
 my_espn_team_qry='''
@@ -177,8 +171,7 @@ SELECT
     BRP.BBRefID AS slug
 FROM basketball.live_espn_players LEP
 JOIN basketball.basketball_references_players BRP ON LEP.name = BBRefName
-;
-'''
+;'''
 
 my_live_yahoo_qry='''
 SELECT 
@@ -186,8 +179,7 @@ SELECT
     BRP.BBRefID AS slug
 FROM basketball.live_yahoo_players LYP
 JOIN basketball.basketball_references_players BRP ON LYP.name = BBRefName
-;
-'''
+;'''
 
 
 model_eval_pred_query=f'''
@@ -209,8 +201,7 @@ FROM basketball.model_evaluation ME
 LEFT JOIN basketball.predictions P ON ME.slug = P.slug
     AND P.league = ME.league
     AND P.model_type = ME.model_type
-;
-'''
+;'''
 
 
 next_5_games_opps_qry='''
@@ -232,11 +223,6 @@ WHERE slug = '{p}'
 LIMIT 5
 ;
 '''
-
-##
-
-
-
 
 
 
@@ -261,21 +247,6 @@ FROM basketball.injured_player_news_yh
 ORDER BY exp_return_date ASC;
 '''
 
-
-
-# predictions_query='''
-# SELECT *
-# FROM basketball.predictions
-# WHERE slug = 'wagnemo01'
-# ;
-# '''
-
-# model_eval_query='''
-# SELECT *
-# FROM basketball.model_evaluation
-# WHERE slug = 'wagnemo01'
-# ;
-# '''
 
 
 p = ''
@@ -321,9 +292,15 @@ SELECT
     HWAD.points,
     HWAD.league
 FROM basketball.player_historical_web_app_display HWAD
-;
-'''
+;'''
 
+
+
+
+
+####################################################################################################
+# 000 - DEFINE AND DB CONNECT
+####################################################################################################
 
 
 my_safe_players=['Jayson Tatum', 'Kyrie Irving','Jaylen Brown']
@@ -344,6 +321,22 @@ def new_fetch_players_df(query,connection,players):
     for p in players:
         df_list.append(mf.execute_query_and_fetch_player_df(query=query,connection=connection,p=p))
     return pd.concat(df_list,ignore_index=True)
+
+
+
+dbconfig = {
+    "host":sports_db_admin_host,
+    "database":sports_db_admin_db,
+    "user":sports_db_admin_user,
+    "password":sports_db_admin_pw,
+    "port":sports_db_admin_port
+}
+
+connection_pool = pooling.MySQLConnectionPool(
+    pool_name="sports_db_pool",
+    pool_size=5,
+    **dbconfig
+)
 
 
 def optimize_code():
