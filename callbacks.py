@@ -19,6 +19,8 @@ from my_functions import clean_string, remove_name_suffixes,execute_query_and_fe
 from dash import dash_table
 
 from data_imports import optimize_code,add_new_fields
+from config import get_creds
+from mysql.connector import pooling
 
 
 ####################################################################################################
@@ -28,7 +30,17 @@ from data_imports import optimize_code,add_new_fields
 ## NEEDED
 # injury_probabilities_df = execute_query_and_fetch_df(inj_prob_qry, connection)
 
-dfs = optimize_code()
+
+dbconfig = get_creds()
+connection_pool = pooling.MySQLConnectionPool(
+    pool_name="sports_db_pool",
+    pool_size=5,
+    **dbconfig
+)
+
+with connection_pool.get_connection() as connection:
+    dfs = optimize_code(connection=connection)
+
 
 fa_espn_df = dfs['fa_espn_df']
 fa_yahoo_df = dfs['fa_yahoo_df']
@@ -42,7 +54,6 @@ my_live_espn_df = dfs['my_live_espn_df']
 my_live_yahoo_df = dfs['my_live_yahoo_df']
 
 current_players = dfs['current_players']
-players_at_risk_df = dfs['players_at_risk_df']
 players_at_risk = dfs['players_at_risk']
 
 current_players_yh_at_risk_df = dfs['current_players_yh_at_risk_df']

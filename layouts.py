@@ -14,6 +14,8 @@ import callbacks as cbc
 import my_functions as mf
 
 from data_imports import optimize_code, add_new_fields
+from config import get_creds
+from mysql.connector import pooling
 
 
 ####################################################################################################
@@ -99,24 +101,23 @@ filterdiv_borderstyling = {
 ####################################################################################################
 
 
-dfs = optimize_code()
+dbconfig = get_creds()
+connection_pool = pooling.MySQLConnectionPool(
+    pool_name="sports_db_pool",
+    pool_size=5,
+    **dbconfig
+)
+
+with connection_pool.get_connection() as connection:
+    dfs = optimize_code(connection=connection)
 
 fa_espn_df = dfs['fa_espn_df']
 fa_yahoo_df = dfs['fa_yahoo_df']
 myteam_df = dfs['myteam_df']
 myteam_df_yh = dfs['myteam_df_yh']
-live_yahoo_players_df = dfs['live_yahoo_players_df']
 inj_df = dfs['inj_df']
-inj_df_yf = dfs['inj_df_yf']
-
-my_live_espn_df = dfs['my_live_espn_df']
-my_live_yahoo_df = dfs['my_live_yahoo_df']
-
-current_players = dfs['current_players']
-players_at_risk_df = dfs['players_at_risk_df']
 players_at_risk = dfs['players_at_risk']
 
-current_players_yh_at_risk_df = dfs['current_players_yh_at_risk_df']
 df_for_agg = dfs['df_for_agg']
 df_yh_for_agg = dfs['df_yh_for_agg']
 
@@ -136,15 +137,8 @@ next_5_players_df = dfs['next_5_players_df']
 
 fa_df=fa_espn_df[fa_espn_df['current_season_vs_historicals']=='current_season_only'].copy()
 fa_df=add_new_fields(fa_df)
-# fa_df['total_rebounds']=fa_df['offensive_rebounds']+fa_df['defensive_rebounds']
-# fa_df['minutes_played']=fa_df['seconds_played']/60
-
-
 
 fa_yahoo_df=add_new_fields(fa_yahoo_df)
-# fa_yahoo_df['total_rebounds']=fa_yahoo_df['offensive_rebounds']+fa_yahoo_df['defensive_rebounds']
-# fa_yahoo_df['minutes_played']=fa_yahoo_df['seconds_played']/60
-
 
 
 ######
