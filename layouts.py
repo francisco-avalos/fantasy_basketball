@@ -104,12 +104,21 @@ filterdiv_borderstyling = {
 dbconfig = get_creds()
 connection_pool = pooling.MySQLConnectionPool(
     pool_name="sports_db_pool",
-    pool_size=5,
+    pool_size=10,
     **dbconfig
 )
 
-with connection_pool.get_connection() as connection:
-    dfs = optimize_code(connection=connection)
+def get_connection_from_pool():
+    return connection_pool.get_connection()
+def close_connection(connection):
+    if connection.is_connected():
+        connection.close()
+connection=get_connection_from_pool()
+try:
+    dfs=optimize_code(connection)
+finally:
+    close_connection(connection)
+
 
 fa_espn_df = dfs['fa_espn_df']
 fa_yahoo_df = dfs['fa_yahoo_df']

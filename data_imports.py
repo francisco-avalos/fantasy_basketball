@@ -3,8 +3,8 @@ import os
 import pandas as pd
 import my_functions as mf
 
-import mysql.connector as mysql
-from mysql.connector import pooling
+# import mysql.connector as mysql
+# from mysql.connector import pooling
 
 
 
@@ -363,5 +363,4 @@ def optimize_code(connection):
 
         historicals_df=mf.execute_query_and_fetch_df(historicals_query,connection)
         dfs['historicals_df']=historicals_df
-
     return dfs
