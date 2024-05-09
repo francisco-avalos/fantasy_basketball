@@ -1,6 +1,6 @@
 
-import os
-import dash
+# import os
+# import dash
 from dash.dependencies import Input, Output
 
 import mysql.connector as mysql
@@ -12,7 +12,7 @@ from dash_create import app
 import plotly.express as px
 import plotly.graph_objects as go
 
-import logging
+# import logging
 import random
 from my_functions import clean_string, remove_name_suffixes,execute_query_and_fetch_df,execute_query_and_fetch_player_df,convert_fields_to_float
 
@@ -406,9 +406,9 @@ def line_plot_preds(leagueid='espn',player_slug='brownja02',model_type=None):
     points_mean = df.loc[~df['points'].isna(), 'points'].mean()
     df.loc[df['points'].isna(), 'points'] = points_mean
 
-    if df.empty:
-        logging.warning(f"DataFrame is empty. No data to plot. {historicals_df.shape}")
-        return None
+    # if df.empty:
+    #     logging.warning(f"DataFrame is empty. No data to plot. {historicals_df.shape}")
+    #     return None
 
     # sorted_idx=df.sort_values(by='start_time_pst',ascending=False).index
     # sorted_values=df.sort_values(by='start_time_pst',ascending=True)['points'].values
