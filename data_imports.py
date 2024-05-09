@@ -275,6 +275,8 @@ SELECT
     HWAD.points,
     HWAD.league
 FROM basketball.player_historical_web_app_display HWAD
+WHERE slug = "{p}"
+    AND date >= SUBDATE(CURDATE(), INTERVAL 4 MONTH)
 ;'''
 
 
@@ -361,6 +363,7 @@ def optimize_code(connection):
         injury_probabilities_df = mf.execute_query_and_fetch_df(inj_prob_qry, connection)
         dfs['injury_probabilities_df']=injury_probabilities_df
 
-        historicals_df=mf.execute_query_and_fetch_df(historicals_query,connection)
+        # historicals_df=mf.execute_query_and_fetch_df(historicals_query,connection)
+        historicals_df=new_fetch_players_df(query=historicals_query,connection=connection,players=unique_current_players)
         dfs['historicals_df']=historicals_df
     return dfs
