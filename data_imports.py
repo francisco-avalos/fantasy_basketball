@@ -275,8 +275,8 @@ SELECT
     HWAD.points,
     HWAD.league
 FROM basketball.player_historical_web_app_display HWAD
+JOIN (SELECT MAX(date) AS max_date FROM basketball.player_historical_web_app_display HWAD WHERE slug = "{p}") A ON HWAD.date >= SUBDATE(A.max_date,INTERVAL 1 MONTH)
 WHERE slug = "{p}"
-    AND date >= SUBDATE(CURDATE(), INTERVAL 4 MONTH)
 ;'''
 
 
