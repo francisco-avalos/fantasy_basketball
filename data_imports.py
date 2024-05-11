@@ -76,6 +76,7 @@ FROM
         WHERE BBREF.slug IN (SELECT DISTINCT name_code FROM basketball.live_free_agents)
             AND BBREF.date NOT BETWEEN LAST_DAY(DATE_FORMAT(BBREF.date, '%Y-04-%d')) AND LAST_DAY(DATE_FORMAT(BBREF.date, '%Y-09-%d'))
             AND BBREF.date < '2023-10-24'
+            AND BBREF.date <= '2024-04-04'
     ) A
 ;'''
 
@@ -114,6 +115,7 @@ JOIN basketball.master_names_list_temp MNL ON SUBSTRING_INDEX(YP.name, ' ',1) = 
     AND (CASE WHEN LENGTH(YP.name)-LENGTH(REPLACE(YP.name, ' ', ''))+1 > 2 THEN SUBSTRING_INDEX(SUBSTRING_INDEX(YP.name, ' ',-2), ' ', -1) ELSE '' END) = MNL.suffix
 JOIN basketball.historical_player_data BBREF ON MNL.bbrefid = BBREF.slug
 WHERE BBREF.date NOT BETWEEN LAST_DAY(DATE_FORMAT(BBREF.date, '%Y-04-%d')) AND LAST_DAY(DATE_FORMAT(BBREF.date, '%Y-09-%d'))
+    AND BBREF.date <= '2024-04-04'
 ;'''
 
 

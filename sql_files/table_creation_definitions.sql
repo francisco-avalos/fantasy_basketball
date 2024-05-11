@@ -621,6 +621,3 @@ CALL basketball.player_app_display();
 
 
 
-
-
--- SELECT * FROM basketball.myteam_next_5_games;
