@@ -32,8 +32,8 @@ from mysql.connector import pooling
 
 
 dbconfig = get_creds()
-if isinstance(dbconfig,dict):
-    print(f"{dbconfig} is dictionary")
+# if isinstance(dbconfig,dict):
+#     print(f"{dbconfig} is dictionary")
 
 connection_pool = pooling.MySQLConnectionPool(
     pool_name="sports_db_pool",
@@ -41,34 +41,41 @@ connection_pool = pooling.MySQLConnectionPool(
     **dbconfig
 )
 
-def get_connection_from_pool():
-    return connection_pool.get_connection()
-def close_connection(connection):
-    if connection.is_connected():
-        connection.close()
-connection=get_connection_from_pool()
-try:
-    dfs=optimize_code(connection)
-finally:
-    close_connection(connection)
+# def get_connection_from_pool():
+#     return connection_pool.get_connection()
+# def close_connection(connection):
+#     if connection.is_connected():
+#         connection.close()
+# connection=get_connection_from_pool()
+# try:
+#     dfs=optimize_code(connection)
+# finally:
+#     close_connection(connection)
+
+with connection_pool.get_connection() as connection:
+    try:
+        if connection.is_connected():
+            dfs=optimize_code(connection=connection)
+    finally:
+        print(None)
 
 fa_espn_df = dfs['fa_espn_df']
 fa_yahoo_df = dfs['fa_yahoo_df']
 myteam_df = dfs['myteam_df']
 myteam_df_yh = dfs['myteam_df_yh']
 live_yahoo_players_df = dfs['live_yahoo_players_df']
-inj_df = dfs['inj_df']
-inj_df_yf = dfs['inj_df_yf']
+# inj_df = dfs['inj_df']
+# inj_df_yf = dfs['inj_df_yf']
 
 my_live_espn_df = dfs['my_live_espn_df']
 my_live_yahoo_df = dfs['my_live_yahoo_df']
 
 current_players = dfs['current_players']
-players_at_risk = dfs['players_at_risk']
+# players_at_risk = dfs['players_at_risk']
 
-current_players_yh_at_risk_df = dfs['current_players_yh_at_risk_df']
-df_for_agg = dfs['df_for_agg']
-df_yh_for_agg = dfs['df_yh_for_agg']
+# current_players_yh_at_risk_df = dfs['current_players_yh_at_risk_df']
+# df_for_agg = dfs['df_for_agg']
+# df_yh_for_agg = dfs['df_yh_for_agg']
 
 model_eval_pred_df = dfs['model_eval_pred_df']
 next_5_players_df = dfs['next_5_players_df']
@@ -269,9 +276,9 @@ my_safe_players=['Jayson Tatum', 'Kyrie Irving','Jaylen Brown']
 current_players=my_live_espn_df['name'].values.tolist()
 
 
-players_at_risk=list(set(current_players)-set(my_safe_players))
-players_at_risk=pd.DataFrame(players_at_risk)
-players_at_risk.columns=['Name']
+# players_at_risk=list(set(current_players)-set(my_safe_players))
+# players_at_risk=pd.DataFrame(players_at_risk)
+# players_at_risk.columns=['Name']
 
 
 
@@ -282,22 +289,22 @@ current_players_yh=[remove_name_suffixes(x) for x in current_players_yh]
 current_players_yh=[x.replace("'","") for x in current_players_yh]
 current_players_yh=[x.replace("'","").strip() for x in current_players_yh]
 
-current_players_yh_at_risk_df=pd.DataFrame(current_players_yh)
-current_players_yh_at_risk_df.columns=['Name']
+# current_players_yh_at_risk_df=pd.DataFrame(current_players_yh)
+# current_players_yh_at_risk_df.columns=['Name']
 
 
 
-aggregate=df_for_agg.groupby(['name']).start_time.nunique()
-aggregate=aggregate.reset_index()
-aggregate.columns=['name', 'games_this_week']
-aggregate=aggregate.sort_values(['games_this_week', 'name'], ascending=False)
+# aggregate=df_for_agg.groupby(['name']).start_time.nunique()
+# aggregate=aggregate.reset_index()
+# aggregate.columns=['name', 'games_this_week']
+# aggregate=aggregate.sort_values(['games_this_week', 'name'], ascending=False)
 
-aggregate_yh=df_yh_for_agg.groupby(['name']).start_time.nunique()
-aggregate_yh=aggregate_yh.reset_index()
-aggregate_yh.columns=['name', 'games_this_week']
-aggregate_yh=aggregate_yh.sort_values(['games_this_week', 'name'], ascending=False)
+# aggregate_yh=df_yh_for_agg.groupby(['name']).start_time.nunique()
+# aggregate_yh=aggregate_yh.reset_index()
+# aggregate_yh.columns=['name', 'games_this_week']
+# aggregate_yh=aggregate_yh.sort_values(['games_this_week', 'name'], ascending=False)
 
-del df_for_agg, df_yh_for_agg
+# del df_for_agg, df_yh_for_agg
 
 
 
@@ -680,50 +687,50 @@ def update_plots(metric_value,league_id):
     fig_box_x_week=boxplot_by_player_weekday_class(metric_value,league_id)
     return fig_line, fig_bar, fig_heat, fig_heat_wgts, fig_box, fig_box_x_week
 
-@app.callback(
-    Output('my-table','data'),
-    Output('my-table','columns'),
-    Input('id-league','value')
-)
+# @app.callback(
+#     Output('my-table','data'),
+#     Output('my-table','columns'),
+#     Input('id-league','value')
+# )
 
-def update_table(selected_value):
-    if selected_value == 'ESPN':
-        data = aggregate.to_dict('records')
-        columns = [{"name": i, "id": i} for i in aggregate.columns]
-    elif selected_value == 'Yahoo':
-        data = aggregate_yh.to_dict('records')
-        columns = [{"name": i, "id": i} for i in aggregate_yh.columns]
-    return data,columns
+# def update_table(selected_value):
+#     if selected_value == 'ESPN':
+#         data = aggregate.to_dict('records')
+#         columns = [{"name": i, "id": i} for i in aggregate.columns]
+#     elif selected_value == 'Yahoo':
+#         data = aggregate_yh.to_dict('records')
+#         columns = [{"name": i, "id": i} for i in aggregate_yh.columns]
+#     return data,columns
 
-@app.callback(
-    Output('id-injured','data'),
-    Output('id-injured','columns'),
-    Input('id-league','value')
-)
+# @app.callback(
+#     Output('id-injured','data'),
+#     Output('id-injured','columns'),
+#     Input('id-league','value')
+# )
 
-def update_injured_table(selected_value):
-    if selected_value=='ESPN':
-        data=inj_df.to_dict('records')
-        columns=[{"name":i,"id":i} for i in inj_df.columns]
-    elif selected_value=='Yahoo':
-        data=inj_df_yf.to_dict('records')
-        columns=[{"name":i,"id":i} for i in inj_df_yf.columns]
-    return data,columns
+# def update_injured_table(selected_value):
+#     if selected_value=='ESPN':
+#         data=inj_df.to_dict('records')
+#         columns=[{"name":i,"id":i} for i in inj_df.columns]
+#     elif selected_value=='Yahoo':
+#         data=inj_df_yf.to_dict('records')
+#         columns=[{"name":i,"id":i} for i in inj_df_yf.columns]
+#     return data,columns
 
-@app.callback(
-    Output('id-my-team','data'),
-    Output('id-my-team','columns'),
-    Input('id-league','value')
-)
+# @app.callback(
+#     Output('id-my-team','data'),
+#     Output('id-my-team','columns'),
+#     Input('id-league','value')
+# )
 
-def update_at_risk_table(selected_value):
-    if selected_value=='ESPN':
-        data=players_at_risk.to_dict('records')
-        columns=[{"name":i,"id":i} for i in players_at_risk.columns]
-    elif selected_value=='Yahoo':
-        data=current_players_yh_at_risk_df.to_dict('records')
-        columns=[{"name":i,"id":i} for i in current_players_yh_at_risk_df.columns]
-    return data,columns
+# def update_at_risk_table(selected_value):
+#     if selected_value=='ESPN':
+#         data=players_at_risk.to_dict('records')
+#         columns=[{"name":i,"id":i} for i in players_at_risk.columns]
+#     elif selected_value=='Yahoo':
+#         data=current_players_yh_at_risk_df.to_dict('records')
+#         columns=[{"name":i,"id":i} for i in current_players_yh_at_risk_df.columns]
+#     return data,columns
 
 
 @app.callback(

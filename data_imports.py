@@ -275,10 +275,11 @@ SELECT
     HWAD.points,
     HWAD.league
 FROM basketball.player_historical_web_app_display HWAD
-JOIN (SELECT MAX(date) AS max_date FROM basketball.player_historical_web_app_display HWAD WHERE slug = "{p}") A ON HWAD.date >= SUBDATE(A.max_date,INTERVAL 1 MONTH)
-WHERE slug = "{p}"
 ;'''
 
+
+# JOIN (SELECT MAX(date) AS max_date FROM basketball.player_historical_web_app_display HWAD WHERE slug = "{p}") A ON HWAD.date >= SUBDATE(A.max_date,INTERVAL 1 MONTH)
+# WHERE slug = "{p}"
 
 
 
@@ -326,11 +327,11 @@ def optimize_code(connection):
         dfs['myteam_df_yh']=myteam_df_yh
 
         live_yahoo_players_df=mf.execute_query_and_fetch_df(my_live_yahoo_qry,connection)
-        inj_df=mf.execute_query_and_fetch_df(my_injured_espn_team_qry,connection)
-        inj_df_yf=mf.execute_query_and_fetch_df(my_injured_yahoo_team_qry,connection)
+        # inj_df=mf.execute_query_and_fetch_df(my_injured_espn_team_qry,connection)
+        # inj_df_yf=mf.execute_query_and_fetch_df(my_injured_yahoo_team_qry,connection)
         dfs['live_yahoo_players_df']=live_yahoo_players_df
-        dfs['inj_df']=inj_df
-        dfs['inj_df_yf']=inj_df_yf
+        # dfs['inj_df']=inj_df
+        # dfs['inj_df_yf']=inj_df_yf
 
         my_live_espn_df=mf.execute_query_and_fetch_df(my_live_espn_qry,connection)
         my_live_yahoo_df=mf.execute_query_and_fetch_df(my_live_yahoo_qry,connection)
@@ -338,21 +339,21 @@ def optimize_code(connection):
         dfs['my_live_yahoo_df']=my_live_yahoo_df
 
         current_players=my_live_espn_df['name'].values.tolist()
-        players_at_risk=list(set(current_players)-set(my_safe_players))
-        players_at_risk_spec=pd.DataFrame({'Name':players_at_risk},index=None)
-        # players_at_risk_df=pd.DataFrame({'Name':players_at_risk},index=None)
-        # dfs['players_at_risk_df']=players_at_risk_df
-        dfs['players_at_risk']=players_at_risk_spec
+        # players_at_risk=list(set(current_players)-set(my_safe_players))
+        # players_at_risk_spec=pd.DataFrame({'Name':players_at_risk},index=None)
+        # # players_at_risk_df=pd.DataFrame({'Name':players_at_risk},index=None)
+        # # dfs['players_at_risk_df']=players_at_risk_df
+        # dfs['players_at_risk']=players_at_risk_spec
         dfs['current_players']=current_players
 
-        current_players_yh=clean_player_names(live_yahoo_players_df['name'].tolist())
-        current_players_yh_at_risk_df=pd.DataFrame({'Name':current_players_yh})
-        dfs['current_players_yh_at_risk_df']=current_players_yh_at_risk_df
+        # current_players_yh=clean_player_names(live_yahoo_players_df['name'].tolist())
+        # current_players_yh_at_risk_df=pd.DataFrame({'Name':current_players_yh})
+        # dfs['current_players_yh_at_risk_df']=current_players_yh_at_risk_df
 
-        df_for_agg=new_fetch_players_df(query=my_espn_players_sched_query,connection=connection,players=current_players)
-        df_yh_for_agg=new_fetch_players_df(query=my_yahoo_players_sched_query,connection=connection,players=current_players_yh)
-        dfs['df_for_agg']=df_for_agg
-        dfs['df_yh_for_agg']=df_yh_for_agg
+        # df_for_agg=new_fetch_players_df(query=my_espn_players_sched_query,connection=connection,players=current_players)
+        # df_yh_for_agg=new_fetch_players_df(query=my_yahoo_players_sched_query,connection=connection,players=current_players_yh)
+        # dfs['df_for_agg']=df_for_agg
+        # dfs['df_yh_for_agg']=df_yh_for_agg
 
         unique_current_players=set(my_live_espn_df['slug'].tolist() + my_live_yahoo_df['slug'].tolist())
         model_eval_pred_df=new_fetch_players_df(query=model_eval_pred_query,connection=connection,players=unique_current_players)
@@ -363,7 +364,7 @@ def optimize_code(connection):
         injury_probabilities_df = mf.execute_query_and_fetch_df(inj_prob_qry, connection)
         dfs['injury_probabilities_df']=injury_probabilities_df
 
-        # historicals_df=mf.execute_query_and_fetch_df(historicals_query,connection)
-        historicals_df=new_fetch_players_df(query=historicals_query,connection=connection,players=unique_current_players)
+        historicals_df=mf.execute_query_and_fetch_df(historicals_query,connection)
+        # historicals_df=new_fetch_players_df(query=historicals_query,connection=connection,players=unique_current_players) # new attempt
         dfs['historicals_df']=historicals_df
     return dfs

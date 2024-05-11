@@ -1,5 +1,5 @@
 
-import os
+# import os
 import mysql.connector as mysql
 from mysql.connector import pooling
 import pandas as pd
@@ -108,27 +108,35 @@ connection_pool = pooling.MySQLConnectionPool(
     **dbconfig
 )
 
-def get_connection_from_pool():
-    return connection_pool.get_connection()
-def close_connection(connection):
-    if connection.is_connected():
-        connection.close()
-connection=get_connection_from_pool()
-try:
-    dfs=optimize_code(connection)
-finally:
-    close_connection(connection)
+# def get_connection_from_pool():
+#     return connection_pool.get_connection()
+# def close_connection(connection):
+#     if connection.is_connected():
+#         connection.close()
+# connection=get_connection_from_pool()
+# try:
+#     dfs=optimize_code(connection)
+# finally:
+#     close_connection(connection)
+
+
+with connection_pool.get_connection() as connection:
+    try:
+        if connection.is_connected():
+            dfs=optimize_code(connection=connection)
+    finally:
+        print(None)
 
 
 fa_espn_df = dfs['fa_espn_df']
-fa_yahoo_df = dfs['fa_yahoo_df']
-myteam_df = dfs['myteam_df']
-myteam_df_yh = dfs['myteam_df_yh']
-inj_df = dfs['inj_df']
-players_at_risk = dfs['players_at_risk']
+# fa_yahoo_df = dfs['fa_yahoo_df']
+# myteam_df = dfs['myteam_df']
+# myteam_df_yh = dfs['myteam_df_yh']
+# inj_df = dfs['inj_df']
+# players_at_risk = dfs['players_at_risk']
 
-df_for_agg = dfs['df_for_agg']
-df_yh_for_agg = dfs['df_yh_for_agg']
+# df_for_agg = dfs['df_for_agg']
+# df_yh_for_agg = dfs['df_yh_for_agg']
 
 model_eval_pred_df = dfs['model_eval_pred_df']
 next_5_players_df = dfs['next_5_players_df']
@@ -147,7 +155,7 @@ next_5_players_df = dfs['next_5_players_df']
 fa_df=fa_espn_df[fa_espn_df['current_season_vs_historicals']=='current_season_only'].copy()
 fa_df=add_new_fields(fa_df)
 
-fa_yahoo_df=add_new_fields(fa_yahoo_df)
+# fa_yahoo_df=add_new_fields(fa_yahoo_df)
 
 
 ######
@@ -196,27 +204,27 @@ def player_stats():
 
 
 
-aggregate=df_for_agg.groupby(['name']).start_time.nunique()
-aggregate=aggregate.reset_index()
-aggregate.columns=['name', 'games_this_week']
-aggregate=aggregate.sort_values(['games_this_week', 'name'], ascending=False)
+# aggregate=df_for_agg.groupby(['name']).start_time.nunique()
+# aggregate=aggregate.reset_index()
+# aggregate.columns=['name', 'games_this_week']
+# aggregate=aggregate.sort_values(['games_this_week', 'name'], ascending=False)
 
-aggregate_yh=df_yh_for_agg.groupby(['name']).start_time.nunique()
-aggregate_yh=aggregate_yh.reset_index()
-aggregate_yh.columns=['name', 'games_this_week']
-aggregate_yh=aggregate_yh.sort_values(['games_this_week', 'name'], ascending=False)
+# aggregate_yh=df_yh_for_agg.groupby(['name']).start_time.nunique()
+# aggregate_yh=aggregate_yh.reset_index()
+# aggregate_yh.columns=['name', 'games_this_week']
+# aggregate_yh=aggregate_yh.sort_values(['games_this_week', 'name'], ascending=False)
 
-del df_for_agg, df_yh_for_agg
+# del df_for_agg, df_yh_for_agg
 
 
-convert_to_float_fields=['seconds_played','made_field_goals',
-                        'attempted_field_goals','made_three_point_field_goals',
-                        'attempted_three_point_field_goals','made_free_throws',
-                        'attempted_free_throws','offensive_rebounds',
-                        'defensive_rebounds','assists','steals','blocks',
-                        'turnovers','personal_fouls','points','total_rebounds','game_score']
-myteam_df=mf.convert_fields_to_float(df=myteam_df,fields=convert_to_float_fields)
-myteam_df_yh=mf.convert_fields_to_float(df=myteam_df_yh,fields=convert_to_float_fields)
+# convert_to_float_fields=['seconds_played','made_field_goals',
+#                         'attempted_field_goals','made_three_point_field_goals',
+#                         'attempted_three_point_field_goals','made_free_throws',
+#                         'attempted_free_throws','offensive_rebounds',
+#                         'defensive_rebounds','assists','steals','blocks',
+#                         'turnovers','personal_fouls','points','total_rebounds','game_score']
+# myteam_df=mf.convert_fields_to_float(df=myteam_df,fields=convert_to_float_fields)
+# myteam_df_yh=mf.convert_fields_to_float(df=myteam_df_yh,fields=convert_to_float_fields)
 
 
 injury_probabilities_df=cbc.injury_probabilities()
@@ -639,6 +647,71 @@ page2 = html.Div([
 
                     html.Div([
                         html.H5(
+                            children='League:',
+                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
+                        ),
+                        #Date range picker
+                        html.Div([#'League: ',
+                            dcc.Dropdown(id='league_id',
+                                options=[{'label':'ESPN', 'value':'espn'},
+                                {'label':'Yahoo','value':'yahoo'}],
+                                value='yahoo')
+                            # dcc.Input(id='my_input',
+                            #             value=7,
+                            #             type='integer',
+                            #             style = {'font-size': '12px','display': 'inline-block', 'border-radius' : '2px', 'border' : '1px solid #ccc', 'color': '#333', 'border-spacing' : '0', 'border-collapse' :'separate'}
+                            #     )
+                        ], style = {'margin-top' : '5px'}
+                        )
+
+                    ],
+                    style = {'margin-top' : '10px',
+                            'margin-bottom' : '5px',
+                            'text-align' : 'left',
+                            'paddingLeft': 5})
+
+                ],
+                className = 'col-4'), # Filter part 1
+
+                ########################################################################################
+                #Filter pt 2
+                html.Div([
+
+                    html.Div([
+                        html.H5(
+                            children='Historical Options:',
+                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
+                        ),
+                        #Date range picker
+                        html.Div([#'Historical Options: ',
+                            dcc.Dropdown(id='history_id',
+                                options=[{'label':'History only','value':'ho'},
+                                {'label':'History + current season ','value':'hcs'},
+                                {'label':'Current season only','value':'cso'}],
+                                value='cso')
+                            # dcc.Input(id='my_input',
+                            #             value=7,
+                            #             type='integer',
+                            #             style = {'font-size': '12px','display': 'inline-block', 'border-radius' : '2px', 'border' : '1px solid #ccc', 'color': '#333', 'border-spacing' : '0', 'border-collapse' :'separate'}
+                            #     )
+                        ], style = {'margin-top' : '5px'}
+                        )
+
+                    ],
+                    style = {'margin-top' : '10px',
+                            'margin-bottom' : '5px',
+                            'text-align' : 'left',
+                            'paddingLeft': 5})
+
+                ],
+                className = 'col-4'), # Filter part 2
+                ########################################################################################
+
+                #Filter pt 3
+                html.Div([
+
+                    html.Div([
+                        html.H5(
                             children='How many days back?',
                             style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
                         ),
@@ -670,11 +743,46 @@ page2 = html.Div([
                             'paddingLeft': 5})
 
                 ],
-                className = 'col-4'), # Filter part 1
+                className = 'col-4'), # Filter part 3
 
                 ########################################################################################
 
-                #Filter pt 2
+
+                #Filter pt 4
+                html.Div([
+
+                    html.Div([
+                        html.H5(
+                            children='Calculation Type:',
+                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
+                        ),
+                        #Date range picker
+                        html.Div([#'Calculation Type: ',
+                            dcc.Dropdown(id='calculation',
+                                options=[{'label':'Total', 'value':'sum'},
+                                {'label':'Average(non-weighted)', 'value':'mean'},
+                                {'label':'Weighted Average', 'value':'weights'},
+                                {'label':'Standard Deviation', 'value':'std'}],
+                                value='weights')
+                            # dcc.Input(id='my_input',
+                            #             value=7,
+                            #             type='integer',
+                            #             style = {'font-size': '12px','display': 'inline-block', 'border-radius' : '2px', 'border' : '1px solid #ccc', 'color': '#333', 'border-spacing' : '0', 'border-collapse' :'separate'}
+                            #     )
+                        ], style = {'margin-top' : '5px'}
+                        )
+
+                    ],
+                    style = {'margin-top' : '10px',
+                            'margin-bottom' : '5px',
+                            'text-align' : 'left',
+                            'paddingLeft': 5})
+
+                ],
+                className = 'col-4'), # Filter part 4
+                ########################################################################################
+
+                #Filter pt 5
                 html.Div([
 
                     html.Div([
@@ -714,142 +822,14 @@ page2 = html.Div([
                             'paddingLeft': 5})
 
                 ],
-                className = 'col-4'), # Filter part 2
-                ########################################################################################
-
-                #Filter pt 3
-                html.Div([
-
-                    html.Div([
-                        html.H5(
-                            children='Calculation Type:',
-                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
-                        ),
-                        #Date range picker
-                        html.Div([#'Calculation Type: ',
-                            dcc.Dropdown(id='calculation',
-                                options=[{'label':'Total', 'value':'sum'},
-                                {'label':'Average(non-weighted)', 'value':'mean'},
-                                {'label':'Weighted Average', 'value':'weights'},
-                                {'label':'Standard Deviation', 'value':'std'}],
-                                value='weights')
-                            # dcc.Input(id='my_input',
-                            #             value=7,
-                            #             type='integer',
-                            #             style = {'font-size': '12px','display': 'inline-block', 'border-radius' : '2px', 'border' : '1px solid #ccc', 'color': '#333', 'border-spacing' : '0', 'border-collapse' :'separate'}
-                            #     )
-                        ], style = {'margin-top' : '5px'}
-                        )
-
-                    ],
-                    style = {'margin-top' : '10px',
-                            'margin-bottom' : '5px',
-                            'text-align' : 'left',
-                            'paddingLeft': 5})
-
-                ],
-                className = 'col-4'), # Filter part 3
-                ########################################################################################
-
-
-                #Filter pt 4
-                html.Div([
-
-                    html.Div([
-                        html.H5(
-                            children='League:',
-                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
-                        ),
-                        #Date range picker
-                        html.Div([#'League: ',
-                            dcc.Dropdown(id='league_id',
-                                options=[{'label':'ESPN', 'value':'espn'},
-                                {'label':'Yahoo','value':'yahoo'}],
-                                value='yahoo')
-                            # dcc.Input(id='my_input',
-                            #             value=7,
-                            #             type='integer',
-                            #             style = {'font-size': '12px','display': 'inline-block', 'border-radius' : '2px', 'border' : '1px solid #ccc', 'color': '#333', 'border-spacing' : '0', 'border-collapse' :'separate'}
-                            #     )
-                        ], style = {'margin-top' : '5px'}
-                        )
-
-                    ],
-                    style = {'margin-top' : '10px',
-                            'margin-bottom' : '5px',
-                            'text-align' : 'left',
-                            'paddingLeft': 5})
-
-                ],
-                className = 'col-4'), # Filter part 4
-                ########################################################################################
-
-
-                #Filter pt 5
-                html.Div([
-
-                    html.Div([
-                        html.H5(
-                            children='Number of players:',
-                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
-                        ),
-                        #Date range picker
-                        html.Div([#'Number of Players: ',
-                            dcc.Input(id='top_n', value=5, type='number')
-                            # dcc.Input(id='my_input',
-                            #             value=7,
-                            #             type='integer',
-                            #             style = {'font-size': '12px','display': 'inline-block', 'border-radius' : '2px', 'border' : '1px solid #ccc', 'color': '#333', 'border-spacing' : '0', 'border-collapse' :'separate'}
-                            #     )
-                        ], style = {'margin-top' : '5px'}
-                        )
-
-                    ],
-                    style = {'margin-top' : '10px',
-                            'margin-bottom' : '5px',
-                            'text-align' : 'left',
-                            'paddingLeft': 5})
-
-                ],
                 className = 'col-4'), # Filter part 5
+
+
                 ########################################################################################
+
 
 
                 #Filter pt 6
-                html.Div([
-
-                    html.Div([
-                        html.H5(
-                            children='Historical Options:',
-                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
-                        ),
-                        #Date range picker
-                        html.Div([#'Historical Options: ',
-                            dcc.Dropdown(id='history_id',
-                                options=[{'label':'History only','value':'ho'},
-                                {'label':'History + current season ','value':'hcs'},
-                                {'label':'Current season only','value':'cso'}],
-                                value='cso')
-                            # dcc.Input(id='my_input',
-                            #             value=7,
-                            #             type='integer',
-                            #             style = {'font-size': '12px','display': 'inline-block', 'border-radius' : '2px', 'border' : '1px solid #ccc', 'color': '#333', 'border-spacing' : '0', 'border-collapse' :'separate'}
-                            #     )
-                        ], style = {'margin-top' : '5px'}
-                        )
-
-                    ],
-                    style = {'margin-top' : '10px',
-                            'margin-bottom' : '5px',
-                            'text-align' : 'left',
-                            'paddingLeft': 5})
-
-                ],
-                className = 'col-4'), # Filter part 6
-                ########################################################################################
-
-
-                #Filter pt 7
                 html.Div([
 
                     html.Div([
@@ -888,9 +868,38 @@ page2 = html.Div([
                             'paddingLeft': 5})
 
                 ],
-                className = 'col-4'), # Filter part 7
+                className = 'col-4'), # Filter part 6
                 ########################################################################################
 
+
+                #Filter pt 7
+                html.Div([
+
+                    html.Div([
+                        html.H5(
+                            children='Number of players:',
+                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
+                        ),
+                        #Date range picker
+                        html.Div([#'Number of Players: ',
+                            dcc.Input(id='top_n', value=5, type='number')
+                            # dcc.Input(id='my_input',
+                            #             value=7,
+                            #             type='integer',
+                            #             style = {'font-size': '12px','display': 'inline-block', 'border-radius' : '2px', 'border' : '1px solid #ccc', 'color': '#333', 'border-spacing' : '0', 'border-collapse' :'separate'}
+                            #     )
+                        ], style = {'margin-top' : '5px'}
+                        )
+
+                    ],
+                    style = {'margin-top' : '10px',
+                            'margin-bottom' : '5px',
+                            'text-align' : 'left',
+                            'paddingLeft': 5})
+
+                ],
+                className = 'col-4'), # Filter part 7
+                ########################################################################################
 
                 #Filter pt 8
                 html.Div([
@@ -1105,6 +1114,35 @@ page3 = html.Div([
 
                     html.Div([
                         html.H5(
+                            children='League:',
+                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
+                        ),
+                        #Date range picker
+                        html.Div([#'Focus Field: ',
+                            dcc.Dropdown(id='id-league',
+                                    options=[{'label':'ESPN','value':'ESPN'},
+                                              {'label':'Yahoo','value':'Yahoo'}],
+                                              value='ESPN'
+                                )
+
+                        ], style = {'margin-top' : '5px'}
+                        )
+
+                    ],
+                    style = {'margin-top' : '10px',
+                            'margin-bottom' : '5px',
+                            'text-align' : 'left',
+                            'paddingLeft': 5})
+
+                ],
+                className = 'col-4'), # Filter part 1
+
+                ########################################################################################
+                #Filter pt 2
+                html.Div([
+
+                    html.Div([
+                        html.H5(
                             children='Focus Field:',
                             style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
                         ),
@@ -1136,37 +1174,8 @@ page3 = html.Div([
                             'paddingLeft': 5})
 
                 ],
-                className = 'col-4'), # Filter part 1
-
-                ########################################################################################
-
-                #Filter pt 2
-                html.Div([
-
-                    html.Div([
-                        html.H5(
-                            children='League:',
-                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
-                        ),
-                        #Date range picker
-                        html.Div([#'Focus Field: ',
-                            dcc.Dropdown(id='id-league',
-                                    options=[{'label':'ESPN','value':'ESPN'},
-                                              {'label':'Yahoo','value':'Yahoo'}],
-                                              value='ESPN'
-                                )
-
-                        ], style = {'margin-top' : '5px'}
-                        )
-
-                    ],
-                    style = {'margin-top' : '10px',
-                            'margin-bottom' : '5px',
-                            'text-align' : 'left',
-                            'paddingLeft': 5})
-
-                ],
                 className = 'col-4'), # Filter part 2
+
                 ########################################################################################                
 
 
@@ -1350,55 +1359,56 @@ page3 = html.Div([
             ],
             className = 'row'), # Internal row 5
 
-            html.Div([ # Internal row 6
+            ##### BELOW 3 TABLES DISCONTINUED
+            # html.Div([ # Internal row 6
 
-                # Players at risk table and title
-                html.Div([
-                    html.H5("Players at risk of being \n picked up if dropped",
-                        style={'color': corporate_colors['white']}),
-                    dash_table.DataTable(
-                        id='id-my-team',
-                        data=players_at_risk.to_dict('records'),
-                        columns=[{"name": i, "id": i} for i in players_at_risk.columns],
-                        style_cell=dict(textAlign='left'),
-                        style_header=dict(backgroundColor="paleturquoise"),
-                        style_table={'overflowX':'auto','width':'100%'},
-                    )
-                ],
-                className='col-md-4 col-sm-12'),
+            #     # Players at risk table and title
+            #     html.Div([
+            #         html.H5("Players at risk of being \n picked up if dropped",
+            #             style={'color': corporate_colors['white']}),
+            #         dash_table.DataTable(
+            #             id='id-my-team',
+            #             data=players_at_risk.to_dict('records'),
+            #             columns=[{"name": i, "id": i} for i in players_at_risk.columns],
+            #             style_cell=dict(textAlign='left'),
+            #             style_header=dict(backgroundColor="paleturquoise"),
+            #             style_table={'overflowX':'auto','width':'100%'},
+            #         )
+            #     ],
+            #     className='col-md-4 col-sm-12'),
 
-                # Injured Players table and title
-                html.Div([
-                    html.H5("Injured Players",
-                        style={'color': corporate_colors['white']}),
-                    dash_table.DataTable(
-                        id='id-injured',
-                        data=inj_df.to_dict('records'),
-                        columns=[{"name": i, "id": i} for i in inj_df.columns],
-                        style_cell=dict(textAlign='left'),
-                        style_header=dict(backgroundColor="paleturquoise"),
-                        style_table={'overflowX':'auto','width':'100%'},
-                    )
-                ],
-                className='col-md-4 col-sm-12'),
+            #     # Injured Players table and title
+            #     html.Div([
+            #         html.H5("Injured Players",
+            #             style={'color': corporate_colors['white']}),
+            #         dash_table.DataTable(
+            #             id='id-injured',
+            #             data=inj_df.to_dict('records'),
+            #             columns=[{"name": i, "id": i} for i in inj_df.columns],
+            #             style_cell=dict(textAlign='left'),
+            #             style_header=dict(backgroundColor="paleturquoise"),
+            #             style_table={'overflowX':'auto','width':'100%'},
+            #         )
+            #     ],
+            #     className='col-md-4 col-sm-12'),
 
-                # Expected games this week table and title
-                html.Div([
-                    html.H5("Expected games this week",
-                        style={'color': corporate_colors['white']}),
-                    dash_table.DataTable(
-                        id='my-table',
-                        data=aggregate_yh.to_dict('records'),
-                        columns=[{"name": i, "id": i} for i in aggregate_yh.columns],
-                        style_cell=dict(textAlign='left'),
-                        style_header=dict(backgroundColor="paleturquoise"),
-                        style_table={'overflowX':'auto','width':'100%'},
-                    )
-                ],
-                className='col-md-4 col-sm-12'),
+            #     # Expected games this week table and title
+            #     html.Div([
+            #         html.H5("Expected games this week",
+            #             style={'color': corporate_colors['white']}),
+            #         dash_table.DataTable(
+            #             id='my-table',
+            #             data=aggregate_yh.to_dict('records'),
+            #             columns=[{"name": i, "id": i} for i in aggregate_yh.columns],
+            #             style_cell=dict(textAlign='left'),
+            #             style_header=dict(backgroundColor="paleturquoise"),
+            #             style_table={'overflowX':'auto','width':'100%'},
+            #         )
+            #     ],
+            #     className='col-md-4 col-sm-12'),
 
-            ],
-            className='row'),  # Internal row 6
+            # ],
+            # className='row'),  # Internal row 6
 
             html.Div([ # Internal row 7
 
