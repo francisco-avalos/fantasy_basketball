@@ -37,27 +37,27 @@ dbconfig = get_creds()
 
 connection_pool = pooling.MySQLConnectionPool(
     pool_name="sports_db_pool",
-    pool_size=10,
+    pool_size=5,
     **dbconfig
 )
 
-# def get_connection_from_pool():
-#     return connection_pool.get_connection()
-# def close_connection(connection):
-#     if connection.is_connected():
-#         connection.close()
-# connection=get_connection_from_pool()
-# try:
-#     dfs=optimize_code(connection)
-# finally:
-#     close_connection(connection)
+def get_connection_from_pool():
+    return connection_pool.get_connection()
+def close_connection(connection):
+    if connection.is_connected():
+        connection.close()
+connection=get_connection_from_pool()
+try:
+    dfs=optimize_code(connection)
+finally:
+    close_connection(connection)
 
-with connection_pool.get_connection() as connection:
-    try:
-        if connection.is_connected():
-            dfs=optimize_code(connection=connection)
-    finally:
-        print(None)
+# with connection_pool.get_connection() as connection:
+#     try:
+#         if connection.is_connected():
+#             dfs=optimize_code(connection=connection)
+#     finally:
+#         print(None)
 
 fa_espn_df = dfs['fa_espn_df']
 fa_yahoo_df = dfs['fa_yahoo_df']
