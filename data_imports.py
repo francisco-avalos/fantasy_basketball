@@ -233,32 +233,32 @@ ORDER BY exp_return_date ASC;
 
 
 p = ''
-my_espn_players_sched_query='''
-SELECT
-    name,
-    team,
-    TSCHED.*
-FROM basketball.my_team_stats MTS
-JOIN basketball.high_level_nba_team_schedules TSCHED ON MTS.team = TSCHED.away_team OR MTS.team = TSCHED.home_team
-JOIN basketball.calendar CAL ON DATE(SUBDATE(CAST(TSCHED.start_time AS DATETIME), INTERVAL 8 HOUR)) = CAL.day
-WHERE MTS.name LIKE CONCAT("%", "{p}","%")
-    AND CURDATE() BETWEEN CAL.week_starting_monday AND CAL.week_ending_sunday
-GROUP BY MTS.name, TSCHED.start_time;
-'''
+# my_espn_players_sched_query='''
+# SELECT
+#     name,
+#     team,
+#     TSCHED.*
+# FROM basketball.my_team_stats MTS
+# JOIN basketball.high_level_nba_team_schedules TSCHED ON MTS.team = TSCHED.away_team OR MTS.team = TSCHED.home_team
+# JOIN basketball.calendar CAL ON DATE(SUBDATE(CAST(TSCHED.start_time AS DATETIME), INTERVAL 8 HOUR)) = CAL.day
+# WHERE MTS.name LIKE CONCAT("%", "{p}","%")
+#     AND CURDATE() BETWEEN CAL.week_starting_monday AND CAL.week_ending_sunday
+# GROUP BY MTS.name, TSCHED.start_time;
+# '''
 
-my_yahoo_players_sched_query='''
-SELECT
-    name,
-    team,
-    TSCHED.*
-FROM basketball.my_team_stats_yahoo MTS
-JOIN basketball.high_level_nba_team_schedules TSCHED ON MTS.team = TSCHED.away_team OR MTS.team = TSCHED.home_team
-JOIN basketball.calendar CAL ON DATE(SUBDATE(CAST(TSCHED.start_time AS DATETIME), INTERVAL 8 HOUR)) = CAL.day
-WHERE MTS.name LIKE CONCAT("%", "{p}","%")
-    AND CURDATE() BETWEEN CAL.week_starting_monday AND CAL.week_ending_sunday
-    AND name IN (SELECT DISTINCT name FROM basketball.live_yahoo_players)
-GROUP BY MTS.name, TSCHED.start_time;
-'''
+# my_yahoo_players_sched_query='''
+# SELECT
+#     name,
+#     team,
+#     TSCHED.*
+# FROM basketball.my_team_stats_yahoo MTS
+# JOIN basketball.high_level_nba_team_schedules TSCHED ON MTS.team = TSCHED.away_team OR MTS.team = TSCHED.home_team
+# JOIN basketball.calendar CAL ON DATE(SUBDATE(CAST(TSCHED.start_time AS DATETIME), INTERVAL 8 HOUR)) = CAL.day
+# WHERE MTS.name LIKE CONCAT("%", "{p}","%")
+#     AND CURDATE() BETWEEN CAL.week_starting_monday AND CAL.week_ending_sunday
+#     AND name IN (SELECT DISTINCT name FROM basketball.live_yahoo_players)
+# GROUP BY MTS.name, TSCHED.start_time;
+# '''
 
 inj_prob_qry="""
 SELECT *
@@ -356,7 +356,8 @@ def optimize_code(connection):
         # dfs['df_yh_for_agg']=df_yh_for_agg
 
         unique_current_players=set(my_live_espn_df['slug'].tolist() + my_live_yahoo_df['slug'].tolist())
-        model_eval_pred_df=new_fetch_players_df(query=model_eval_pred_query,connection=connection,players=unique_current_players)
+        # model_eval_pred_df=new_fetch_players_df(query=model_eval_pred_query,connection=connection,players=unique_current_players) ###HMM
+        model_eval_pred_df=mf.execute_query_and_fetch_df(query=model_eval_pred_query,connection=connection)
         next_5_players_df=new_fetch_players_df(query=next_5_games_opps_qry,connection=connection,players=unique_current_players)
         dfs['model_eval_pred_df']=model_eval_pred_df
         dfs['next_5_players_df']=next_5_players_df
@@ -377,7 +378,8 @@ def optimize_code_layouts(connection):
         my_live_espn_df=mf.execute_query_and_fetch_df(my_live_espn_qry,connection)
         my_live_yahoo_df=mf.execute_query_and_fetch_df(my_live_yahoo_qry,connection)
         unique_current_players=set(my_live_espn_df['slug'].tolist() + my_live_yahoo_df['slug'].tolist())
-        model_eval_pred_df=new_fetch_players_df(query=model_eval_pred_query,connection=connection,players=unique_current_players)        
+        # model_eval_pred_df=new_fetch_players_df(query=model_eval_pred_query,connection=connection,players=unique_current_players) ###HMMM       
+        model_eval_pred_df=mf.execute_query_and_fetch_df(query=model_eval_pred_query,connection=connection)
         next_5_players_df=new_fetch_players_df(query=next_5_games_opps_qry,connection=connection,players=unique_current_players)
         dfs['model_eval_pred_df']=model_eval_pred_df
         dfs['next_5_players_df']=next_5_players_df
