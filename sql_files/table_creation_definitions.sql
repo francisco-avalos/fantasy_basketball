@@ -562,6 +562,18 @@ BEGIN
 	  `league` varchar(5) NOT NULL,
 	  PRIMARY KEY (date,slug,league)
 	);
+	DROP TABLE IF EXISTS basketball.myteam_next_5_games;
+	CREATE TABLE basketball.myteam_next_5_games
+	(
+	  `date` date NOT NULL,
+	  `day` double DEFAULT NULL,
+	  `slug` varchar(50) NOT NULL,
+	  `team` varchar(100) NOT NULL,
+	  `opponent` varchar(100) NOT NULL,
+	  `location` varchar(100) NOT NULL,
+	  `opponent_location` varchar(101) DEFAULT NULL,
+	  `points` int DEFAULT NULL
+	);
     SET @slug := (SELECT MIN(slug) AS slug FROM basketball.temp_player_info LIMIT 1);
     SET @league := (SELECT league FROM basketball.temp_player_info WHERE slug = @slug LIMIT 1);
     WHILE @slug IS NOT NULL DO
@@ -576,8 +588,25 @@ BEGIN
 			@league AS league
 		FROM basketball.historical_player_data HPD
 		WHERE HPD.slug = @slug
-		ORDER BY date DESC
-		;
+		ORDER BY date DESC;
+
+		REPLACE INTO basketball.myteam_next_5_games
+		SELECT
+			date,
+			@day := @day +1 AS day,
+			slug,
+			team,
+			opponent,
+			location,
+			CASE
+				WHEN SUBSTRING_INDEX(location,'.',-1) = 'HOME' THEN REPLACE(opponent,'Team.','')
+				WHEN SUBSTRING_INDEX(location,'.',-1) = 'AWAY' THEN CONCAT('@',REPLACE(opponent,'Team.',''))
+			END AS opponent_location,
+			points
+		FROM basketball.historical_player_data, (SELECT @day := 0) AS init
+		WHERE slug = @slug
+			AND date > '2024-04-04'
+		LIMIT 5;
         
         DELETE FROM basketball.temp_player_info WHERE slug = @slug AND league = @league;
         SET @slug := (SELECT MIN(slug) AS slug FROM basketball.temp_player_info LIMIT 1);
@@ -589,3 +618,9 @@ DELIMITER ;
 
 CALL basketball.player_app_display();
 
+
+
+
+
+
+-- SELECT * FROM basketball.myteam_next_5_games;

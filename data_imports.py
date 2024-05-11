@@ -187,23 +187,29 @@ LEFT JOIN basketball.predictions P ON ME.slug = P.slug
 ;'''
 
 
+# next_5_games_opps_qry='''
+# SELECT
+#     date,
+#     @day := @day +1 AS day,
+#     slug,
+#     team,
+#     opponent,
+#     location,
+#     CASE
+#         WHEN SUBSTRING_INDEX(location,'.',-1) = 'HOME' THEN REPLACE(opponent,'Team.','')
+#         WHEN SUBSTRING_INDEX(location,'.',-1) = 'AWAY' THEN CONCAT('@',REPLACE(opponent,'Team.',''))
+#     END AS opponent_location,
+#     points
+# FROM basketball.historical_player_data, (SELECT @day := 0) AS init
+# WHERE slug = '{p}'
+#     AND date > '2024-04-04'
+# LIMIT 5
+# ;
+# '''
+
 next_5_games_opps_qry='''
-SELECT
-    date,
-    @day := @day +1 AS day,
-    slug,
-    team,
-    opponent,
-    location,
-    CASE
-        WHEN SUBSTRING_INDEX(location,'.',-1) = 'HOME' THEN REPLACE(opponent,'Team.','')
-        WHEN SUBSTRING_INDEX(location,'.',-1) = 'AWAY' THEN CONCAT('@',REPLACE(opponent,'Team.',''))
-    END AS opponent_location,
-    points
-FROM basketball.historical_player_data, (SELECT @day := 0) AS init
-WHERE slug = '{p}'
-    AND date > '2024-04-04'
-LIMIT 5
+SELECT *
+FROM basketball.myteam_next_5_games
 ;
 '''
 
@@ -355,10 +361,11 @@ def optimize_code(connection):
         # dfs['df_for_agg']=df_for_agg
         # dfs['df_yh_for_agg']=df_yh_for_agg
 
-        unique_current_players=set(my_live_espn_df['slug'].tolist() + my_live_yahoo_df['slug'].tolist())
+        # unique_current_players=set(my_live_espn_df['slug'].tolist() + my_live_yahoo_df['slug'].tolist())
         # model_eval_pred_df=new_fetch_players_df(query=model_eval_pred_query,connection=connection,players=unique_current_players) ###HMM
         model_eval_pred_df=mf.execute_query_and_fetch_df(query=model_eval_pred_query,connection=connection)
-        next_5_players_df=new_fetch_players_df(query=next_5_games_opps_qry,connection=connection,players=unique_current_players)
+        # next_5_players_df=new_fetch_players_df(query=next_5_games_opps_qry,connection=connection,players=unique_current_players) ##HMMM 
+        next_5_players_df=mf.execute_query_and_fetch_df(query=next_5_games_opps_qry,connection=connection)
         dfs['model_eval_pred_df']=model_eval_pred_df
         dfs['next_5_players_df']=next_5_players_df
 
@@ -377,10 +384,11 @@ def optimize_code_layouts(connection):
         dfs['fa_espn_df']=fa_espn_df
         my_live_espn_df=mf.execute_query_and_fetch_df(my_live_espn_qry,connection)
         my_live_yahoo_df=mf.execute_query_and_fetch_df(my_live_yahoo_qry,connection)
-        unique_current_players=set(my_live_espn_df['slug'].tolist() + my_live_yahoo_df['slug'].tolist())
+        # unique_current_players=set(my_live_espn_df['slug'].tolist() + my_live_yahoo_df['slug'].tolist())
         # model_eval_pred_df=new_fetch_players_df(query=model_eval_pred_query,connection=connection,players=unique_current_players) ###HMMM       
         model_eval_pred_df=mf.execute_query_and_fetch_df(query=model_eval_pred_query,connection=connection)
-        next_5_players_df=new_fetch_players_df(query=next_5_games_opps_qry,connection=connection,players=unique_current_players)
+        # next_5_players_df=new_fetch_players_df(query=next_5_games_opps_qry,connection=connection,players=unique_current_players) ## HMM
+        next_5_players_df=mf.execute_query_and_fetch_df(query=next_5_games_opps_qry,connection=connection)
         dfs['model_eval_pred_df']=model_eval_pred_df
         dfs['next_5_players_df']=next_5_players_df
     return dfs
