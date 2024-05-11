@@ -13,7 +13,7 @@ from concurrent.futures import ThreadPoolExecutor
 import callbacks as cbc
 import my_functions as mf
 
-from data_imports import optimize_code, add_new_fields
+from data_imports import add_new_fields, optimize_code_layouts
 from config import get_creds
 from mysql.connector import pooling
 
@@ -123,7 +123,7 @@ connection_pool = pooling.MySQLConnectionPool(
 with connection_pool.get_connection() as connection:
     try:
         if connection.is_connected():
-            dfs=optimize_code(connection=connection)
+            dfs=optimize_code_layouts(connection=connection)
     finally:
         print(None)
 

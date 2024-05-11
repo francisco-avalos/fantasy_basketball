@@ -368,3 +368,20 @@ def optimize_code(connection):
         # historicals_df=new_fetch_players_df(query=historicals_query,connection=connection,players=unique_current_players) # new attempt
         dfs['historicals_df']=historicals_df
     return dfs
+
+def optimize_code_layouts(connection):
+    dfs={}
+    if connection.is_connected():
+        fa_espn_df=mf.execute_query_and_fetch_df(espn_query,connection)
+        dfs['fa_espn_df']=fa_espn_df
+        my_live_espn_df=mf.execute_query_and_fetch_df(my_live_espn_qry,connection)
+        my_live_yahoo_df=mf.execute_query_and_fetch_df(my_live_yahoo_qry,connection)
+        unique_current_players=set(my_live_espn_df['slug'].tolist() + my_live_yahoo_df['slug'].tolist())
+        model_eval_pred_df=new_fetch_players_df(query=model_eval_pred_query,connection=connection,players=unique_current_players)        
+        next_5_players_df=new_fetch_players_df(query=next_5_games_opps_qry,connection=connection,players=unique_current_players)
+        dfs['model_eval_pred_df']=model_eval_pred_df
+        dfs['next_5_players_df']=next_5_players_df
+    return dfs
+
+
+
