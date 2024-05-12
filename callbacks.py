@@ -14,7 +14,7 @@ import plotly.graph_objects as go
 
 # import logging
 import random
-from my_functions import clean_string, remove_name_suffixes,execute_query_and_fetch_df,execute_query_and_fetch_player_df,convert_fields_to_float
+from my_functions import clean_string,remove_name_suffixes,execute_query_and_fetch_df,execute_query_and_fetch_player_df,convert_fields_to_float
 
 from dash import dash_table
 
@@ -32,8 +32,6 @@ from mysql.connector import pooling
 
 
 dbconfig = get_creds()
-# if isinstance(dbconfig,dict):
-#     print(f"{dbconfig} is dictionary")
 
 connection_pool = pooling.MySQLConnectionPool(
     pool_name="sports_db_pool",
@@ -52,34 +50,17 @@ try:
 finally:
     close_connection(connection)
 
-# with connection_pool.get_connection() as connection:
-#     try:
-#         if connection.is_connected():
-#             dfs=optimize_code(connection=connection)
-#     finally:
-#         print(None)
 
 fa_espn_df = dfs['fa_espn_df']
 fa_yahoo_df = dfs['fa_yahoo_df']
 myteam_df = dfs['myteam_df']
 myteam_df_yh = dfs['myteam_df_yh']
 live_yahoo_players_df = dfs['live_yahoo_players_df']
-# inj_df = dfs['inj_df']
-# inj_df_yf = dfs['inj_df_yf']
-
 my_live_espn_df = dfs['my_live_espn_df']
 my_live_yahoo_df = dfs['my_live_yahoo_df']
-
 current_players = dfs['current_players']
-# players_at_risk = dfs['players_at_risk']
-
-# current_players_yh_at_risk_df = dfs['current_players_yh_at_risk_df']
-# df_for_agg = dfs['df_for_agg']
-# df_yh_for_agg = dfs['df_yh_for_agg']
-
 model_eval_pred_df = dfs['model_eval_pred_df']
 next_5_players_df = dfs['next_5_players_df']
-
 injury_probabilities_df = dfs['injury_probabilities_df']
 historicals_df = dfs['historicals_df']
 
@@ -89,15 +70,11 @@ merged_table_1=pd.merge(model_eval_pred_df,next_5_players_df,on=['slug','day'],h
 merged_table_1=merged_table_1[['day','opponent_location','predictions','league','slug','model_type']]
 
 
-
-pd.set_option('display.max_columns', None)
-pd.set_option('display.max_rows', None)
-
-
 fa_espn_df=add_new_fields(fa_espn_df)
 fa_yahoo_df=add_new_fields(fa_yahoo_df)
 
-fa_df=fa_espn_df[fa_espn_df['current_season_vs_historicals']=='current_season_only'].copy()
+fa_df=fa_espn_df.copy()
+# fa_df=fa_espn_df[fa_espn_df['current_season_vs_historicals']=='current_season_only'].copy() #took me out
 
 
 model_eval_pred_df_table2_copy=model_eval_pred_df[['league','slug','model_type','p','d','q','alpha','beta','evaluation_metric','evaluation_metric_value']].copy()
@@ -129,11 +106,12 @@ def players_shown_at_once(top_n_value:int)->int:
         player_sample=int(top_n_value)
     return player_sample
 
+
 def filter_players_deselected(data_df:pd.DataFrame,player_list:list)->pd.DataFrame:
     if len(player_list)!=len(data_df['name'].unique()):
         output_df=data_df[data_df['name'].isin(player_list)]
     else:
-        output_df=data_df
+        output_df=data_df.copy() # added this 
     return output_df
 
 
@@ -180,8 +158,6 @@ def update_fig_with_calculation(df:pd.DataFrame,
              Input(component_id='player_list', component_property='value')
             )
 
-
-
 def graph_update(input_value:str,
                 focus_field_value:str,
                 calc_value:str,
@@ -202,64 +178,37 @@ def graph_update(input_value:str,
      'defensive_rebounds','assists','steals','blocks','turnovers','personal_fouls','points_scored',
      'total_rebounds','minutes_played']
     player_sample=players_shown_at_once(top_n_value=top_n_val)
+
     if league_id=='espn':
-        if history_id=='cso':
-            fa_df1=filter_players_deselected(data_df=fa_df,player_list=player_list)
-            df_query1=fa_df1.query("date >= @days_back")
-            output=apply_calculation(calculation_type=calc_value,df=df_query1,imps=imps,
-                                display_field=display_field,focus_field=focus_field_value,
-                                player_sample=player_sample,cols=cols)
-            fig=update_fig_with_calculation(df=output,display_field=display_field,calculation_value=calc_value)
-
-            return fig
-        elif history_id=='ho':
-            fa_hist_only_df=fa_espn_df[fa_espn_df['current_season_vs_historicals']=='historicals_only']
-            fa_hist_only_df1=filter_players_deselected(data_df=fa_hist_only_df,player_list=player_list)
-            output=apply_calculation(calculation_type=calc_value,df=fa_hist_only_df1,imps=imps,
-                                display_field=display_field,focus_field=focus_field_value,
-                                player_sample=player_sample,cols=cols)
-            fig=update_fig_with_calculation(df=output,display_field=display_field,calculation_value=calc_value)
-
-            return fig
+        fa_df_filtered=fa_df.copy()
+        if history_id=='ho':
+            fa_df_filtered=fa_df_filtered[fa_df_filtered['current_season_vs_historicals']=='historicals_only']
         elif history_id=='hcs':
-            fa_hist_and_current_df=fa_espn_df[fa_espn_df['all_history']=='history_plus_current']
-            fa_hist_and_current_df1=filter_players_deselected(data_df=fa_hist_and_current_df,player_list=player_list)
-            output=apply_calculation(calculation_type=calc_value,df=fa_hist_and_current_df1,imps=imps,
-                                display_field=display_field,focus_field=focus_field_value,
-                                player_sample=player_sample,cols=cols)
-            fig=update_fig_with_calculation(df=output,display_field=display_field,calculation_value=calc_value)
-
-            return fig
+            fa_df_filtered=fa_df_filtered[fa_df_filtered['all_history']=='history_plus_current']
+        elif history_id=='cso':
+            fa_df_filtered=fa_df_filtered[fa_df_filtered['current_season_vs_historicals']=='current_season_only']
+            fa_df_filtered=fa_df_filtered.query("date >= @days_back")
     elif league_id=='yahoo':
-        if history_id=='cso':
-            fa_yahoo_df1 = fa_yahoo_df[fa_yahoo_df['all_history']=='history_plus_current']
-            fa_yahoo_current_only_df1=filter_players_deselected(data_df=fa_yahoo_df1,player_list=player_list)
-            fa_yahoo_current_only_df1=fa_yahoo_current_only_df1.query("date >= @days_back")
-
-            output=apply_calculation(calculation_type=calc_value,df=fa_yahoo_current_only_df1,imps=imps,
-                                display_field=display_field,focus_field=focus_field_value,
-                                player_sample=player_sample,cols=cols)
-            fig=update_fig_with_calculation(df=output,display_field=display_field,calculation_value=calc_value)
-
-            return fig
-        elif history_id=='ho':
-            fa_yahoo_hist_only_df = fa_yahoo_df[fa_yahoo_df['current_season_vs_historicals']=='historicals_only']
-            fa_yahoo_hist_only_df1=filter_players_deselected(data_df=fa_yahoo_hist_only_df,player_list=player_list)
-            output=apply_calculation(calculation_type=calc_value,df=fa_yahoo_hist_only_df1,imps=imps,
-                                display_field=display_field,focus_field=focus_field_value,
-                                player_sample=player_sample,cols=cols)
-            fig=update_fig_with_calculation(df=output,display_field=display_field,calculation_value=calc_value)
-
-            return fig
+        fa_df_filtered=fa_yahoo_df.copy()
+        if history_id=='ho':
+            fa_df_filtered=fa_df_filtered[fa_df_filtered['current_season_vs_historicals']=='historicals_only']
         elif history_id=='hcs':
-            fa_yahoo_hist_and_current_df = fa_yahoo_df[fa_yahoo_df['current_season_vs_historicals']=='current_season_only']
-            fa_yahoo_hist_and_current_df1=filter_players_deselected(data_df=fa_yahoo_hist_and_current_df,player_list=player_list)
-            output=apply_calculation(calculation_type=calc_value,df=fa_yahoo_hist_and_current_df1,imps=imps,
-                                display_field=display_field,focus_field=focus_field_value,
-                                player_sample=player_sample,cols=cols)
-            fig=update_fig_with_calculation(df=output,display_field=display_field,calculation_value=calc_value)
+            fa_df_filtered=fa_df_filtered[fa_df_filtered['all_history']=='history_plus_current']
+        elif history_id=='cso':
+            fa_df_filtered=fa_df_filtered[fa_df_filtered['current_season_vs_historicals']=='current_season_only']
+            fa_df_filtered=fa_df_filtered.query("date >= @days_back")
+    fa_df_filtered=filter_players_deselected(data_df=fa_df_filtered,player_list=player_list) #imhere
+    # fa_df_filtered=fa_df_filtered.query("date >= @days_back")
+    output=apply_calculation(calculation_type=calc_value,
+                            df=fa_df_filtered,
+                            imps=imps,
+                            display_field=display_field,
+                            focus_field=focus_field_value,
+                            player_sample=player_sample,
+                            cols=cols)
+    fig=update_fig_with_calculation(df=output,display_field=display_field,calculation_value=calc_value)
 
-            return fig
+    return fig
 
 
 
