@@ -1,34 +1,31 @@
 
-# import os
-# import dash
-from dash.dependencies import Input, Output
-
-import mysql.connector as mysql
-from mysql.connector import pooling
-
+# Standard
 import pandas as pd
 import datetime as dt
+import random
+
+# db connections
+import mysql.connector as mysql
+from mysql.connector import pooling
+from config import get_creds
+
+# dash outlay
+from dash.dependencies import Input, Output
+from dash import dash_table
 from dash_create import app
+
+# plot outlay
 import plotly.express as px
 import plotly.graph_objects as go
 
-# import logging
-import random
-from my_functions import clean_string,remove_name_suffixes,execute_query_and_fetch_df,execute_query_and_fetch_player_df,convert_fields_to_float
-
-from dash import dash_table
-
+# own functions/connections
+from my_functions import clean_string,remove_name_suffixes,convert_fields_to_float
 from data_imports import optimize_code,add_new_fields
-from config import get_creds
-from mysql.connector import pooling
 
 
 ####################################################################################################
 # 000 - IMPORT DATA FROM DB - FREE AGENT SCREEN TOOL
 ####################################################################################################
-
-## NEEDED
-# injury_probabilities_df = execute_query_and_fetch_df(inj_prob_qry, connection)
 
 
 dbconfig = get_creds()
@@ -55,7 +52,6 @@ fa_espn_df = dfs['fa_espn_df']
 fa_yahoo_df = dfs['fa_yahoo_df']
 myteam_df = dfs['myteam_df']
 myteam_df_yh = dfs['myteam_df_yh']
-live_yahoo_players_df = dfs['live_yahoo_players_df']
 my_live_espn_df = dfs['my_live_espn_df']
 my_live_yahoo_df = dfs['my_live_yahoo_df']
 current_players = dfs['current_players']
@@ -74,8 +70,6 @@ fa_espn_df=add_new_fields(fa_espn_df)
 fa_yahoo_df=add_new_fields(fa_yahoo_df)
 
 fa_df=fa_espn_df.copy()
-# fa_df=fa_espn_df[fa_espn_df['current_season_vs_historicals']=='current_season_only'].copy() #took me out
-
 
 model_eval_pred_df_table2_copy=model_eval_pred_df[['league','slug','model_type','p','d','q','alpha','beta','evaluation_metric','evaluation_metric_value']].copy()
 
@@ -111,7 +105,7 @@ def filter_players_deselected(data_df:pd.DataFrame,player_list:list)->pd.DataFra
     if len(player_list)!=len(data_df['name'].unique()):
         output_df=data_df[data_df['name'].isin(player_list)]
     else:
-        output_df=data_df.copy() # added this 
+        output_df=data_df.copy()
     return output_df
 
 
@@ -197,8 +191,8 @@ def graph_update(input_value:str,
         elif history_id=='cso':
             fa_df_filtered=fa_df_filtered[fa_df_filtered['current_season_vs_historicals']=='current_season_only']
             fa_df_filtered=fa_df_filtered.query("date >= @days_back")
-    fa_df_filtered=filter_players_deselected(data_df=fa_df_filtered,player_list=player_list) #imhere
-    # fa_df_filtered=fa_df_filtered.query("date >= @days_back")
+
+    fa_df_filtered=filter_players_deselected(data_df=fa_df_filtered,player_list=player_list)
     output=apply_calculation(calculation_type=calc_value,
                             df=fa_df_filtered,
                             imps=imps,
@@ -218,43 +212,16 @@ def graph_update(input_value:str,
 
 
 
-my_safe_players=['Jayson Tatum', 'Kyrie Irving','Jaylen Brown']
-
-
+# my_safe_players=['Jayson Tatum', 'Kyrie Irving','Jaylen Brown']
 
 current_players=my_live_espn_df['name'].values.tolist()
 
-
-# players_at_risk=list(set(current_players)-set(my_safe_players))
-# players_at_risk=pd.DataFrame(players_at_risk)
-# players_at_risk.columns=['Name']
-
-
-
-current_players_yh=live_yahoo_players_df.name.tolist()
+current_players_yh=my_live_yahoo_df.name.tolist()
 
 current_players_yh=clean_string(current_players_yh).split(',')
 current_players_yh=[remove_name_suffixes(x) for x in current_players_yh]
 current_players_yh=[x.replace("'","") for x in current_players_yh]
 current_players_yh=[x.replace("'","").strip() for x in current_players_yh]
-
-# current_players_yh_at_risk_df=pd.DataFrame(current_players_yh)
-# current_players_yh_at_risk_df.columns=['Name']
-
-
-
-# aggregate=df_for_agg.groupby(['name']).start_time.nunique()
-# aggregate=aggregate.reset_index()
-# aggregate.columns=['name', 'games_this_week']
-# aggregate=aggregate.sort_values(['games_this_week', 'name'], ascending=False)
-
-# aggregate_yh=df_yh_for_agg.groupby(['name']).start_time.nunique()
-# aggregate_yh=aggregate_yh.reset_index()
-# aggregate_yh.columns=['name', 'games_this_week']
-# aggregate_yh=aggregate_yh.sort_values(['games_this_week', 'name'], ascending=False)
-
-# del df_for_agg, df_yh_for_agg
-
 
 
 convert_to_float_fields=['seconds_played','made_field_goals',
@@ -274,7 +241,6 @@ random.seed(11)
 mycolors=px.colors.qualitative.Light24+px.colors.qualitative.Pastel1+px.colors.qualitative.Vivid+px.colors.qualitative.Set1
 random.shuffle(mycolors)
 
-# print(myteam_df.head())
 
 def line_plot(metric='points',leagueid='ESPN'):
 
@@ -294,7 +260,6 @@ def line_plot(metric='points',leagueid='ESPN'):
         'tickangle':-45
     }
     legend_formats={
-        # orientation='h',
         'title_text':'Player name'
     }
     title_formats={
@@ -307,7 +272,6 @@ def line_plot(metric='points',leagueid='ESPN'):
     labels={
         'week_ending_sunday':'Week Ending Sunday',
         metric:metric
-        # 'points':'Point'
     }
 
     line_plot=px.line(myteam_df_x_we,
@@ -320,11 +284,6 @@ def line_plot(metric='points',leagueid='ESPN'):
                 color_discrete_sequence=mycolors
     )
     line_plot.update_layout(
-        # xaxis=dict(
-        #     tickvals=xaxis,
-        #     tickformat='%Y-%m-%d',
-        #     tickangle=-45
-        # ),
         xaxis=xaxis_formats,
         legend=legend_formats,
         title=title_formats,
@@ -336,14 +295,6 @@ def line_plot(metric='points',leagueid='ESPN'):
     )
     return line_plot
 
-# fig1=px.bar(myteam_df_x_we, 
-#             x='week_ending_sunday',
-#             y='pct',
-#             text='pct',
-#             color='name',
-#             barmode='stack'
-# )
-
 
 def line_plot_preds(leagueid='espn',player_slug='brownja02',model_type=None):
     if leagueid=='Yahoo':
@@ -353,7 +304,7 @@ def line_plot_preds(leagueid='espn',player_slug='brownja02',model_type=None):
     df=historicals_df[(historicals_df['slug']==player_slug) & (historicals_df['league']==leagueid)].copy()
 
     df.reset_index(drop=True,inplace=True)
-    df.reset_index(drop=False,inplace=True) # new
+    df.reset_index(drop=False,inplace=True)
 
     points_mean=df[~df['points'].isna()]['points'].mean()
     nan_rows=df.index[df.points.isna()][1:]
@@ -361,13 +312,6 @@ def line_plot_preds(leagueid='espn',player_slug='brownja02',model_type=None):
 
     points_mean = df.loc[~df['points'].isna(), 'points'].mean()
     df.loc[df['points'].isna(), 'points'] = points_mean
-
-    # if df.empty:
-    #     logging.warning(f"DataFrame is empty. No data to plot. {historicals_df.shape}")
-    #     return None
-
-    # sorted_idx=df.sort_values(by='start_time_pst',ascending=False).index
-    # sorted_values=df.sort_values(by='start_time_pst',ascending=True)['points'].values
 
     dups=model_eval_pred_df[model_eval_pred_df.duplicated()]
 
@@ -428,7 +372,6 @@ def bar_plot(metric='points',leagueid='ESPN'):
     hover_data={
         'pct':False,
         metric:True
-        # 'points':True
     }
     title_data={
         'text':'Player contribution share by week',
@@ -463,16 +406,15 @@ def bar_plot(metric='points',leagueid='ESPN'):
     )
 
     bar_plot_pct_share.update_layout(title=title_data,
-        # legend=dict(title_text='Player name'),
         legend=legend_data,
         height=800,
         width=1250,
-        # height=800,
-        # width=1250,
         yaxis_tickformat=".2%",
         xaxis=xaxis_formats
     )
     return bar_plot_pct_share
+
+
 
 
 metric='points'
@@ -483,18 +425,8 @@ output.columns=imps_temp
 mins_agg=myteam_df.groupby(['name'])['minutes_played'].sum()
 
 output=pd.merge(output, mins_agg, how='inner', on='name')
-
 output=output.sort_values(by=metric, ascending=False)
-# output=output.sort_values(by=[focus_field_value],ascending=False).head(player_sample)
-
 output=output[output.index.isin(current_players)]
-# output=output.reset_index()
-# print(output.head())
-# print(output.index)
-
-
-
-
 
 
 def heatmap(metric='points',leagueid='ESPN'):
@@ -510,46 +442,15 @@ def heatmap(metric='points',leagueid='ESPN'):
         output.columns=imps
         output=output.sort_values(by=metric, ascending=False)
         output=output[output.index.isin(current_players_yh)]
-    # output=myteam_df.groupby(['name']).apply(lambda x: pd.Series([sum(x[v]*x.minutes_played)/sum(x.minutes_played) for v in imps]))
-    # output.columns=imps
-    
-    # mins_agg=myteam_df.groupby(['name'])['minutes_played'].sum()
-
-    # output=pd.merge(output, mins_agg, how='inner', on='name')
-
-
-
-
-    # output=output.sort_values(by=[focus_field_value],ascending=False).head(player_sample)
-
     
     fig=px.imshow(output, 
                     text_auto='.2f', 
                     color_continuous_scale='RdBu_r',
                     aspect='auto'
-                    # labels=dict(x=f'{metric}', y='name')
     )
     fig.update_xaxes(side='top')
     fig.update_yaxes(title=None)
     fig.update_layout(width=300,height=550)
-
-    # output=output.reset_index()
-    # fig=px.density_heatmap(output,
-    #                             x=metric,
-    #                             y='name',
-    #                             text_auto=True
-    # )
-    # fig.update_xaxes(side='top')
-
-
-
-    # heat_map=px.density_heatmap(myteam_df,
-    #                             x='attempted_field_goals',
-    #                             y='name',
-    #                             z='made_field_goals',
-    #                             text_auto=True
-    # )
-    # heat_map.update_xaxes(side='top')
     return fig
 
 def heatmap_weights(leagueid='ESPN'):
@@ -579,7 +480,7 @@ def heatmap_weights(leagueid='ESPN'):
 
     return fig
 
-# print(myteam_df[myteam_df['name'].isin(current_players)].head())
+
 def boxplot_by_player(metric='points',leagueid='ESPN'):
     if leagueid=='ESPN':
         myteam_df_v1=myteam_df[myteam_df['name'].isin(current_players)]
@@ -604,6 +505,7 @@ def boxplot_by_player_weekday_class(metric='points',leagueid='ESPN'):
     return fig
 
 
+
 ####################################################################################################
 # 001 - CURRENT TEAM PERFORMANCE
 ####################################################################################################
@@ -620,9 +522,6 @@ def injury_probabilities(searched_injury='flu'):
     Output(component_id='heat-map-weights', component_property='figure'),
     Output(component_id='box-plot', component_property='figure'),
     Output(component_id='box-plot-x-week-class', component_property='figure'),
-    # Output(component_id='id-injury-probabilities-table', component_property='string'),
-    # Output(component_id='my-table', component_property='data'),
-    # Output(component_id='my-table', component_property='figure'),
     Input(component_id='id-dropdown', component_property='value'),
     Input(component_id='id-league',component_property='value')
 )
@@ -684,16 +583,13 @@ def update_plots(metric_value,league_id):
 
 @app.callback(
     Output('id-inj-prob-table','data'),
-    # Output('id-inj-prob-table','columns'),
     Input('id-inj-prob', 'value')
 )
 
 def update_probabilities_seach_table(searched_injury):
     searched_injury=str(searched_injury)
     specified_injury_search=injury_probabilities_df[injury_probabilities_df['injury'].str.contains(searched_injury,case=False)]
-
-    # columns=[{"name":i,"id":i} if i != 'probabilities' else {"name":i,"id":i,"type":"numeric","format": {"specifier":'.2%'}} for i in specified_injury_search.columns],
-    return specified_injury_search.to_dict('records')#, columns
+    return specified_injury_search.to_dict('records')
 
 
 
@@ -723,11 +619,7 @@ def update_preds_table(leagueid,player_slug,model_type):
     elif leagueid=='ESPN':
         leagueid='espn'
 
-
-    # dups=model_eval_pred_df[model_eval_pred_df.duplicated()]
     dups=merged_table_1[merged_table_1.duplicated()]
-
-    # model_eval_pred_df_copy=model_eval_pred_df.copy()
     model_eval_pred_df_copy=merged_table_1.copy()
     if not dups.empty:
         model_eval_pred_df_copy.drop_duplicates(inplace=True)
@@ -749,11 +641,6 @@ def update_preds_table(leagueid,player_slug,model_type):
     return data, columns
 
 
-
-
-
-
-### NEW
 
 @app.callback(
     [Output('League-Players', 'options'),
@@ -805,7 +692,6 @@ def update_model_list(selected_player, selected_league):
 
     # Return empty options and default value if no valid data found or when any of the inputs are None
     return [], None
-### NEW
 
 
 @app.callback(
@@ -832,7 +718,6 @@ def update_model_picked_comment(selected_value):
             return 'Repeat'
         elif selected_value == 'LAST':
             return 'Last'
-        # return f'You have selected {selected_value}'
     else:
         return 'Please select a value'
 
@@ -864,8 +749,6 @@ def update_player_models_table(leagueid,player_slug):
     columns=[{"name":i,"id":i} for i in df.columns]
 
     return data, columns
-
-
 
 
 

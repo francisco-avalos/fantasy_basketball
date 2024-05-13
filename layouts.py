@@ -1,21 +1,26 @@
 
-# import os
-import mysql.connector as mysql
-from mysql.connector import pooling
+# Standard
 import pandas as pd
 import datetime as dt
+
+# db connections
+import mysql.connector as mysql
+from mysql.connector import pooling
+from config import get_creds
+
+# dash outlay
 from dash import dcc, html, Input, Output, dash_table
+from dash_create import app
+
+
+# plot outlay
 import plotly.express as px
 import plotly.graph_objects as go
-from dash_create import app
-from concurrent.futures import ThreadPoolExecutor
 
-import callbacks as cbc
-import my_functions as mf
-
+# own functions/connections
+from callbacks import injury_probabilities,line_plot_preds,create_data_table,heatmap
+from callbacks import heatmap_weights,line_plot,bar_plot,boxplot_by_player,boxplot_by_player_weekday_class
 from data_imports import add_new_fields, optimize_code_layouts
-from config import get_creds
-from mysql.connector import pooling
 
 
 ####################################################################################################
@@ -121,28 +126,13 @@ finally:
 
 
 fa_espn_df = dfs['fa_espn_df']
-# fa_yahoo_df = dfs['fa_yahoo_df']
-# myteam_df = dfs['myteam_df']
-# myteam_df_yh = dfs['myteam_df_yh']
-# inj_df = dfs['inj_df']
-# players_at_risk = dfs['players_at_risk']
-
-# df_for_agg = dfs['df_for_agg']
-# df_yh_for_agg = dfs['df_yh_for_agg']
-
 model_eval_pred_df = dfs['model_eval_pred_df']
 next_5_players_df = dfs['next_5_players_df']
-
-
 
 fa_df=fa_espn_df[fa_espn_df['current_season_vs_historicals']=='current_season_only'].copy()
 fa_df=add_new_fields(fa_df)
 
-# fa_yahoo_df=add_new_fields(fa_yahoo_df)
 
-
-######
-# myteam_df.head()
 cols=['made_field_goals', 'made_three_point_field_goals','made_free_throws', 
       'total_rebounds', 'offensive_rebounds', 'defensive_rebounds', 'assists', 
       'steals', 'blocks', 'turnovers', 'personal_fouls', 'points_scored', 'minutes_played'
@@ -158,12 +148,9 @@ days_back=today-dt.timedelta(days=days_ago)
 
 
 df_query=fa_df.query("date >= @days_back")
-
 output=df_query.groupby(['name'])[cols].agg(calc).reset_index().sort_values(by=[focus_value],ascending=False).head(player_sample)
-
 output.set_index(['name'], inplace=True, drop=True, append=False)
 output.reset_index(inplace=False)
-
 
 short_df = output.iloc[:,0:len(output)]
 
@@ -173,7 +160,6 @@ short_df = output.iloc[:,0:len(output)]
 def player_stats():
     fig=px.imshow(short_df, 
         text_auto=True)
-    # fig=go.Figure(data=go.Heatmap(short_df))
     fig.update_xaxes(side='top')
     fig.layout.height=750
     fig.layout.width=900
@@ -181,30 +167,7 @@ def player_stats():
     return fig
 
 
-# aggregate=df_for_agg.groupby(['name']).start_time.nunique()
-# aggregate=aggregate.reset_index()
-# aggregate.columns=['name', 'games_this_week']
-# aggregate=aggregate.sort_values(['games_this_week', 'name'], ascending=False)
-
-# aggregate_yh=df_yh_for_agg.groupby(['name']).start_time.nunique()
-# aggregate_yh=aggregate_yh.reset_index()
-# aggregate_yh.columns=['name', 'games_this_week']
-# aggregate_yh=aggregate_yh.sort_values(['games_this_week', 'name'], ascending=False)
-
-# del df_for_agg, df_yh_for_agg
-
-
-# convert_to_float_fields=['seconds_played','made_field_goals',
-#                         'attempted_field_goals','made_three_point_field_goals',
-#                         'attempted_three_point_field_goals','made_free_throws',
-#                         'attempted_free_throws','offensive_rebounds',
-#                         'defensive_rebounds','assists','steals','blocks',
-#                         'turnovers','personal_fouls','points','total_rebounds','game_score']
-# myteam_df=mf.convert_fields_to_float(df=myteam_df,fields=convert_to_float_fields)
-# myteam_df_yh=mf.convert_fields_to_float(df=myteam_df_yh,fields=convert_to_float_fields)
-
-
-injury_probabilities_df=cbc.injury_probabilities()
+injury_probabilities_df=injury_probabilities()
 
 
 
@@ -512,7 +475,7 @@ page1 = html.Div([
         html.Div([
             html.Div([ # Internal row 1
                 html.Div([
-                    dcc.Graph(id='preds-line',figure=cbc.line_plot_preds(),config=config)
+                    dcc.Graph(id='preds-line',figure=line_plot_preds(),config=config)
                 ])
             ]),
         ],
@@ -522,10 +485,10 @@ page1 = html.Div([
             html.H5("Predictions Table",
                 style={'color': corporate_colors['white']}),
             html.Div([ 
-                    cbc.create_data_table(df=merged_table_1,table_id='id-preds-table',columns=merged_table_1.columns)
+                    create_data_table(df=merged_table_1,table_id='id-preds-table',columns=merged_table_1.columns)
                 ],className='col-6'),
             html.Div([
-                    cbc.create_data_table(df=model_eval_pred_df_table2_copy,table_id='id-model-mae',columns=model_eval_pred_df_table2_copy.columns)
+                    create_data_table(df=model_eval_pred_df_table2_copy,table_id='id-model-mae',columns=model_eval_pred_df_table2_copy.columns)
                 ],className='col-6')
         ],
         className='row'),
@@ -972,12 +935,12 @@ page3 = html.Div([
             html.Div([ # Internal row 1
                 # min-weight focus field prod heatmap
                 html.Div([
-                    dcc.Graph(id='heat-map', figure=cbc.heatmap(), config=config),
+                    dcc.Graph(id='heat-map', figure=heatmap(), config=config),
                 ],
                 className = 'col-6'),
                 # min-weights
                 html.Div([
-                    dcc.Graph(id='heat-map-weights', figure=cbc.heatmap_weights(), config=config)
+                    dcc.Graph(id='heat-map-weights', figure=heatmap_weights(), config=config)
                 ],
                 className = 'col-6'),
             ],
@@ -987,7 +950,7 @@ page3 = html.Div([
 
                 # Chart Column
                 html.Div([
-                    dcc.Graph(id='line_plot', figure=cbc.line_plot(), config=config)
+                    dcc.Graph(id='line_plot', figure=line_plot(), config=config)
                 ],
                 className = 'col-4'),
             ],
@@ -996,7 +959,7 @@ page3 = html.Div([
             html.Div([ # Internal row 3
                 # Chart Column
                 html.Div([
-                    dcc.Graph(id='bar-plot', figure=cbc.bar_plot(), config=config)
+                    dcc.Graph(id='bar-plot', figure=bar_plot(), config=config)
                 ],
                 className = 'col-4'),
             ],
@@ -1005,7 +968,7 @@ page3 = html.Div([
             html.Div([ # Internal row 4
                 # Chart Column
                 html.Div([
-                    dcc.Graph(id='box-plot', figure=cbc.boxplot_by_player(), config=config)
+                    dcc.Graph(id='box-plot', figure=boxplot_by_player(), config=config)
                 ],
                 className = 'col-12'),
             ],
@@ -1014,7 +977,7 @@ page3 = html.Div([
             html.Div([ # Internal row 5
                 # Chart Column
                 html.Div([
-                    dcc.Graph(id='box-plot-x-week-class', figure=cbc.boxplot_by_player_weekday_class(), config=config)
+                    dcc.Graph(id='box-plot-x-week-class', figure=boxplot_by_player_weekday_class(), config=config)
                 ],
                 className = 'col-12'),
             ],
@@ -1076,7 +1039,7 @@ page3 = html.Div([
                     style={'color':corporate_colors['white']}),
                 # Chart Column
                 html.Div([
-                    cbc.create_data_table(df=injury_probabilities_df,table_id='id-inj-prob-table',columns=injury_probabilities_df.columns)
+                    create_data_table(df=injury_probabilities_df,table_id='id-inj-prob-table',columns=injury_probabilities_df.columns)
                 ],
                 className = 'col-12'),
             ],

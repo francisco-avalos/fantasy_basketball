@@ -1,14 +1,8 @@
-
-# import os
+# Standard
 import pandas as pd
-import my_functions as mf
 
-# import mysql.connector as mysql
-# from mysql.connector import pooling
-
-
-
-
+# own functions
+from my_functions import execute_query_and_fetch_df
 
 
 ####################################################################################################
@@ -149,7 +143,6 @@ WHERE name IN (SELECT DISTINCT name FROM basketball.live_yahoo_players);
 '''
 
 
-##
 my_live_espn_qry='''
 SELECT 
     LEP.name,
@@ -189,25 +182,6 @@ LEFT JOIN basketball.predictions P ON ME.slug = P.slug
 ;'''
 
 
-# next_5_games_opps_qry='''
-# SELECT
-#     date,
-#     @day := @day +1 AS day,
-#     slug,
-#     team,
-#     opponent,
-#     location,
-#     CASE
-#         WHEN SUBSTRING_INDEX(location,'.',-1) = 'HOME' THEN REPLACE(opponent,'Team.','')
-#         WHEN SUBSTRING_INDEX(location,'.',-1) = 'AWAY' THEN CONCAT('@',REPLACE(opponent,'Team.',''))
-#     END AS opponent_location,
-#     points
-# FROM basketball.historical_player_data, (SELECT @day := 0) AS init
-# WHERE slug = '{p}'
-#     AND date > '2024-04-04'
-# LIMIT 5
-# ;
-# '''
 
 next_5_games_opps_qry='''
 SELECT *
@@ -215,58 +189,6 @@ FROM basketball.myteam_next_5_games
 ;
 '''
 
-
-
-
-my_injured_espn_team_qry='''
-SELECT 
-    name,
-    injury,
-    news_date,
-    exp_return_date 
-FROM basketball.injured_player_news 
-ORDER BY exp_return_date ASC;
-'''
-
-my_injured_yahoo_team_qry='''
-SELECT 
-    name,
-    injury,
-    news_date,
-    exp_return_date 
-FROM basketball.injured_player_news_yh 
-ORDER BY exp_return_date ASC;
-'''
-
-
-
-p = ''
-# my_espn_players_sched_query='''
-# SELECT
-#     name,
-#     team,
-#     TSCHED.*
-# FROM basketball.my_team_stats MTS
-# JOIN basketball.high_level_nba_team_schedules TSCHED ON MTS.team = TSCHED.away_team OR MTS.team = TSCHED.home_team
-# JOIN basketball.calendar CAL ON DATE(SUBDATE(CAST(TSCHED.start_time AS DATETIME), INTERVAL 8 HOUR)) = CAL.day
-# WHERE MTS.name LIKE CONCAT("%", "{p}","%")
-#     AND CURDATE() BETWEEN CAL.week_starting_monday AND CAL.week_ending_sunday
-# GROUP BY MTS.name, TSCHED.start_time;
-# '''
-
-# my_yahoo_players_sched_query='''
-# SELECT
-#     name,
-#     team,
-#     TSCHED.*
-# FROM basketball.my_team_stats_yahoo MTS
-# JOIN basketball.high_level_nba_team_schedules TSCHED ON MTS.team = TSCHED.away_team OR MTS.team = TSCHED.home_team
-# JOIN basketball.calendar CAL ON DATE(SUBDATE(CAST(TSCHED.start_time AS DATETIME), INTERVAL 8 HOUR)) = CAL.day
-# WHERE MTS.name LIKE CONCAT("%", "{p}","%")
-#     AND CURDATE() BETWEEN CAL.week_starting_monday AND CAL.week_ending_sunday
-#     AND name IN (SELECT DISTINCT name FROM basketball.live_yahoo_players)
-# GROUP BY MTS.name, TSCHED.start_time;
-# '''
 
 inj_prob_qry="""
 SELECT *
@@ -286,11 +208,6 @@ FROM basketball.player_historical_web_app_display HWAD
 ;'''
 
 
-# JOIN (SELECT MAX(date) AS max_date FROM basketball.player_historical_web_app_display HWAD WHERE slug = "{p}") A ON HWAD.date >= SUBDATE(A.max_date,INTERVAL 1 MONTH)
-# WHERE slug = "{p}"
-
-
-
 
 ####################################################################################################
 # 000 - DEFINE AND DB CONNECT
@@ -300,97 +217,61 @@ FROM basketball.player_historical_web_app_display HWAD
 my_safe_players=['Jayson Tatum', 'Kyrie Irving','Jaylen Brown']
 
 
-def clean_player_names(player_list:list)->list:
-    cleaned_names=[mf.remove_name_suffixes(x.replace("'","").strip()) for x in player_list]
-    return cleaned_names
-
 def add_new_fields(df:pd.DataFrame)->pd.DataFrame:
     new_columns=['total_rebounds','minutes_played']
     df[new_columns[0]]=df['offensive_rebounds']+df['defensive_rebounds']
     df[new_columns[1]]=df['seconds_played']/60
     return df
 
-def new_fetch_players_df(query,connection,players):
-    df_list=[]
-    for p in players:
-        df_list.append(mf.execute_query_and_fetch_player_df(query=query,connection=connection,p=p))
-    return pd.concat(df_list,ignore_index=True)
 
 
 
 def optimize_code(connection):
     dfs={}
     if connection.is_connected():
-        fa_espn_df=mf.execute_query_and_fetch_df(espn_query,connection)
-        fa_yahoo_df=mf.execute_query_and_fetch_df(yahoo_query, connection)
+        fa_espn_df=execute_query_and_fetch_df(espn_query,connection)
+        fa_yahoo_df=execute_query_and_fetch_df(yahoo_query, connection)
         dfs['fa_espn_df']=fa_espn_df
         dfs['fa_yahoo_df']=fa_yahoo_df
 
-        myteam_df=mf.execute_query_and_fetch_df(my_espn_team_qry,connection)
+        myteam_df=execute_query_and_fetch_df(my_espn_team_qry,connection)
         myteam_df=add_new_fields(myteam_df)
         dfs['myteam_df']=myteam_df
 
-        myteam_df_yh=mf.execute_query_and_fetch_df(my_yahoo_team_qry,connection)
+        myteam_df_yh=execute_query_and_fetch_df(my_yahoo_team_qry,connection)
         myteam_df_yh=add_new_fields(myteam_df_yh)
         dfs['myteam_df_yh']=myteam_df_yh
 
-        live_yahoo_players_df=mf.execute_query_and_fetch_df(my_live_yahoo_qry,connection)
-        # inj_df=mf.execute_query_and_fetch_df(my_injured_espn_team_qry,connection)
-        # inj_df_yf=mf.execute_query_and_fetch_df(my_injured_yahoo_team_qry,connection)
-        dfs['live_yahoo_players_df']=live_yahoo_players_df
-        # dfs['inj_df']=inj_df
-        # dfs['inj_df_yf']=inj_df_yf
-
-        my_live_espn_df=mf.execute_query_and_fetch_df(my_live_espn_qry,connection)
-        my_live_yahoo_df=mf.execute_query_and_fetch_df(my_live_yahoo_qry,connection)
+        my_live_espn_df=execute_query_and_fetch_df(my_live_espn_qry,connection)
+        my_live_yahoo_df=execute_query_and_fetch_df(my_live_yahoo_qry,connection)
         dfs['my_live_espn_df']=my_live_espn_df
         dfs['my_live_yahoo_df']=my_live_yahoo_df
 
         current_players=my_live_espn_df['name'].values.tolist()
-        # players_at_risk=list(set(current_players)-set(my_safe_players))
-        # players_at_risk_spec=pd.DataFrame({'Name':players_at_risk},index=None)
-        # # players_at_risk_df=pd.DataFrame({'Name':players_at_risk},index=None)
-        # # dfs['players_at_risk_df']=players_at_risk_df
-        # dfs['players_at_risk']=players_at_risk_spec
         dfs['current_players']=current_players
-
-        # current_players_yh=clean_player_names(live_yahoo_players_df['name'].tolist())
-        # current_players_yh_at_risk_df=pd.DataFrame({'Name':current_players_yh})
-        # dfs['current_players_yh_at_risk_df']=current_players_yh_at_risk_df
-
-        # df_for_agg=new_fetch_players_df(query=my_espn_players_sched_query,connection=connection,players=current_players)
-        # df_yh_for_agg=new_fetch_players_df(query=my_yahoo_players_sched_query,connection=connection,players=current_players_yh)
-        # dfs['df_for_agg']=df_for_agg
-        # dfs['df_yh_for_agg']=df_yh_for_agg
-
-        # unique_current_players=set(my_live_espn_df['slug'].tolist() + my_live_yahoo_df['slug'].tolist())
-        # model_eval_pred_df=new_fetch_players_df(query=model_eval_pred_query,connection=connection,players=unique_current_players) ###HMM
-        model_eval_pred_df=mf.execute_query_and_fetch_df(query=model_eval_pred_query,connection=connection)
-        # next_5_players_df=new_fetch_players_df(query=next_5_games_opps_qry,connection=connection,players=unique_current_players) ##HMMM 
-        next_5_players_df=mf.execute_query_and_fetch_df(query=next_5_games_opps_qry,connection=connection)
+        model_eval_pred_df=execute_query_and_fetch_df(query=model_eval_pred_query,connection=connection)
+        next_5_players_df=execute_query_and_fetch_df(query=next_5_games_opps_qry,connection=connection)
         dfs['model_eval_pred_df']=model_eval_pred_df
         dfs['next_5_players_df']=next_5_players_df
 
-        injury_probabilities_df = mf.execute_query_and_fetch_df(inj_prob_qry, connection)
+        injury_probabilities_df = execute_query_and_fetch_df(inj_prob_qry, connection)
         dfs['injury_probabilities_df']=injury_probabilities_df
 
-        historicals_df=mf.execute_query_and_fetch_df(historicals_query,connection)
-        # historicals_df=new_fetch_players_df(query=historicals_query,connection=connection,players=unique_current_players) # new attempt
+        historicals_df=execute_query_and_fetch_df(historicals_query,connection)
         dfs['historicals_df']=historicals_df
     return dfs
 
 def optimize_code_layouts(connection):
     dfs={}
     if connection.is_connected():
-        fa_espn_df=mf.execute_query_and_fetch_df(espn_query,connection)
+        fa_espn_df=execute_query_and_fetch_df(espn_query,connection)
         dfs['fa_espn_df']=fa_espn_df
-        my_live_espn_df=mf.execute_query_and_fetch_df(my_live_espn_qry,connection)
-        my_live_yahoo_df=mf.execute_query_and_fetch_df(my_live_yahoo_qry,connection)
-        # unique_current_players=set(my_live_espn_df['slug'].tolist() + my_live_yahoo_df['slug'].tolist())
-        # model_eval_pred_df=new_fetch_players_df(query=model_eval_pred_query,connection=connection,players=unique_current_players) ###HMMM       
-        model_eval_pred_df=mf.execute_query_and_fetch_df(query=model_eval_pred_query,connection=connection)
-        # next_5_players_df=new_fetch_players_df(query=next_5_games_opps_qry,connection=connection,players=unique_current_players) ## HMM
-        next_5_players_df=mf.execute_query_and_fetch_df(query=next_5_games_opps_qry,connection=connection)
+        my_live_espn_df=execute_query_and_fetch_df(my_live_espn_qry,connection)
+        
+        my_live_yahoo_df=execute_query_and_fetch_df(my_live_yahoo_qry,connection)
+
+        model_eval_pred_df=execute_query_and_fetch_df(query=model_eval_pred_query,connection=connection)
+        next_5_players_df=execute_query_and_fetch_df(query=next_5_games_opps_qry,connection=connection)
         dfs['model_eval_pred_df']=model_eval_pred_df
         dfs['next_5_players_df']=next_5_players_df
     return dfs

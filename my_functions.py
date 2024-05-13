@@ -1,16 +1,11 @@
+
+# Standard
 import pandas as pd
 import requests
-from bs4 import BeautifulSoup
-import datetime as dt
 import time
 import os
-import numpy as np
 import re
-import mysql.connector as mysql
-# import statsmodels.api as sm
-# from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
-# import matplotlib.pyplot as plt
-# from statsmodels.stats.diagnostic import acorr_ljungbox
+from bs4 import BeautifulSoup
 
 
 '''My functions'''
@@ -93,9 +88,6 @@ def convert_game_score_to_points(GS, FG, FGA, FTA, FT, ORB, DRB, STL, AST, BLK, 
 
 
 
-
-
-
 def list_of_pages(dat):
 	page_list=[]
 	df=dat.find_all('p',class_='bodyCopy')
@@ -168,45 +160,6 @@ def day_injuries_basketball(day) -> pd.DataFrame():
     	time.sleep(5)
     return main_df
 
-
-
-
-########### OLD FUNCTION BELOW
-
-
-# def day_injuries_basketball(start_day, end_day) -> pd.DataFrame():
-# def day_injuries_basketball(day) -> pd.DataFrame():
-#     url=f"https://www.prosportstransactions.com/basketball/Search/SearchResults.php?Player=&Team=&BeginDate={day}&EndDate={day}&ILChkBx=yes&InjuriesChkBx=yes&PersonalChkBx=yes&DisciplinaryChkBx=yes&LegalChkBx=yes&Submit=Search"
-#     res=requests.get(url,timeout=None).content
-#     data=BeautifulSoup(res,'html.parser')
-#     table=data.find('table', class_='datatable center')
-#     rows=table.find_all('tr')
-#     mylist=[]
-#     for row in rows:
-#         cols=row.find_all('td')
-#         cols=[x.text.strip() for x in cols]
-#         mylist.append(cols)
-#     df=pd.DataFrame(mylist[1:],columns=['date','team','acquired','relinquished','notes'])
-#     clean_r=[x.replace('• ','') for x in df.relinquished]
-#     clean_a=[x.replace('• ','') for x in df.acquired]
-
-#     syntax_clean_list_r=[]
-#     for name in range(len(clean_r)):
-#         c_name=clean_r[name]
-#         s=c_name.encode().decode('unicode_escape').encode('raw_unicode_escape')
-#         string_uni=s.decode('utf-8')
-#         syntax_clean_list_r.append(string_uni)
-#     df.relinquished=syntax_clean_list_r
-
-#     syntax_clean_list_a=[]
-#     for name in range(len(clean_a)):
-#         c_name=clean_a[name]
-#         s=c_name.encode().decode('unicode_escape').encode('raw_unicode_escape')
-#         string_uni=s.decode('utf-8')
-#         syntax_clean_list_a.append(string_uni)
-#     df.acquired=syntax_clean_list_a
-
-#     return df
 
 
 
@@ -296,15 +249,6 @@ def execute_query_and_fetch_df(query, connection):
         cursor.execute(query)
         result = cursor.fetchall()
     return pd.DataFrame(result, columns=cursor.column_names)
-
-
-def execute_query_and_fetch_player_df(query, connection,p=None):
-	with connection.cursor() as cursor:
-		formatted_query=query.format(p=p)
-		cursor.execute(formatted_query)
-		result = cursor.fetchall()
-	return pd.DataFrame(result, columns=cursor.column_names)
-
 
 
 def convert_fields_to_float(df:pd.DataFrame,fields:list)->pd.DataFrame:
