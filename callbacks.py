@@ -82,7 +82,7 @@ def create_data_table(df,table_id,columns):
             columns=[{'name':col,'id':col} for col in columns],
             style_cell=dict(textAlign='center'),
             style_header=dict(backgroundColor='paleturquoise'),
-            style_table={'overflowX':'auto','width':'100%'}
+            style_table={'overflowX':'auto','minwidth':'100%'}
         )
 
 
@@ -650,9 +650,11 @@ def update_preds_table(leagueid,player_slug,model_type):
 def update_player_list(selected_value):
     if selected_value == 'ESPN':
         options = [{'label': row['name'], 'value': row['slug']} for idx, row in my_live_espn_df.iterrows()]
+        # options.sort(key=lambda x:x['label'])
         default_val = my_live_espn_df.iloc[0, 1] if not my_live_espn_df.empty else None
     elif selected_value == 'Yahoo':
         options = [{'label': row['name'], 'value': row['slug']} for idx, row in my_live_yahoo_df.iterrows()]
+        # options.sort(key=lambda x:x['label'])
         default_val = my_live_yahoo_df.iloc[0, 1] if not my_live_yahoo_df.empty else None
     else:
         options = []
@@ -668,6 +670,20 @@ def update_player_picked_comment(selected_value):
         return f'You have selected {selected_value}'
     else:
         return 'Please select a value'
+
+
+dropdown_model_name_display_dict={
+    'ARIMA':'ARIMA',
+    'DBL_EXP':'Double Exponential',
+    'LAST':'Last Game',
+    'LINEAR':'Linear',
+    'LSTM':'LSTM',
+    'NEURAL_NETWORK':'Neural Network',
+    'REPEAT':'Repeat Last 5 Games',
+    'SGL_EXP':'Single Exponential'
+}
+sorted_model_list=['ARIMA','SGL_EXP','DBL_EXP','NEURAL_NETWORK','LSTM','REPEAT','LINEAR','LAST']
+
 
 @app.callback(
     [Output('id-model', 'options'),
@@ -688,7 +704,10 @@ def update_model_list(selected_player, selected_league):
             player_df = df[df['slug'] == selected_player].copy()
             player_models = player_df['model_type'].unique().tolist()
             model_default = player_models[0] if player_models else None
-            return [{'label': model, 'value': model} for model in player_models], model_default
+            return [{'label':dropdown_model_name_display_dict.get(model,model),'value':model} for model in player_models],model_default
+            # sorted_models=sorted(player_models,key=lambda x:sorted_model_list.index(x))
+            # model_default = sorted_models[0] if sorted_models else None
+            # return [{'label':dropdown_model_name_display_dict.get(model,model),'value':model} for model in sorted_models],model_default
 
     # Return empty options and default value if no valid data found or when any of the inputs are None
     return [], None

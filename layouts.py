@@ -486,10 +486,10 @@ page1 = html.Div([
                 style={'color': corporate_colors['white']}),
             html.Div([ 
                     create_data_table(df=merged_table_1,table_id='id-preds-table',columns=merged_table_1.columns)
-                ],className='col-6'),
+                ],className='col-6',style={'overflowX':'auto'}),
             html.Div([
                     create_data_table(df=model_eval_pred_df_table2_copy,table_id='id-model-mae',columns=model_eval_pred_df_table2_copy.columns)
-                ],className='col-6')
+                ],className='col-6',style={'overflowX':'auto'})
         ],
         className='row'),
     ],className='container')
@@ -524,7 +524,7 @@ calculation_default_value_filter4='weights'
 
 dropdown_options_filter5=[
     {'label':'Made Field Goals','value':'made_field_goals'},
-    {'label':'Made 3p Field Goals','value':'made_three_point_field_goals'},
+    {'label':'Made 3pt Field Goals','value':'made_three_point_field_goals'},
     {'label':'Made Free Throws','value':'made_free_throws'},
     {'label':'Total Rebounds','value':'total_rebounds'},
     {'label':'Offensive Rebounds','value':'offensive_rebounds'},
@@ -807,7 +807,7 @@ page2 = html.Div([
 
 id_dropdown_options=[
     {'label':'Made Field Goals','value':'made_field_goals'},
-    {'label':'Made 3p Field Goals','value':'made_three_point_field_goals'},
+    {'label':'Made 3pt Field Goals','value':'made_three_point_field_goals'},
     {'label':'Made Free Throws','value':'made_free_throws'},
     {'label':'Total Rebounds','value':'total_rebounds'},
     {'label':'Offensive Rebounds','value':'offensive_rebounds'},
