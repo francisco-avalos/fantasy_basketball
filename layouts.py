@@ -16,6 +16,7 @@ from dash_create import app
 # plot outlay
 import plotly.express as px
 import plotly.graph_objects as go
+import matplotlib.pyplot as plt
 
 # own functions/connections
 from callbacks import injury_probabilities,line_plot_preds,create_data_table,heatmap
@@ -28,7 +29,7 @@ from data_imports import add_new_fields, optimize_code_layouts
 ####################################################################################################
 
 ####################### Corporate css formatting
-corporate_colors = {
+corporate_colors={
     'dark-blue-grey' : 'rgb(62, 64, 76)',
     'medium-blue-grey' : 'rgb(77, 79, 91)',
     'superdark-green' : 'rgb(41, 56, 55)',
@@ -42,23 +43,23 @@ corporate_colors = {
     'yellow': 'rgb(255,211,67)'
 }
 
-externalgraph_rowstyling = {
-    'margin-left' : '15px',
-    'margin-right' : '15px'
+externalgraph_rowstyling={
+    'margin-left' : '1px',
+    'margin-right' : '1px'
 }
 
-externalgraph_colstyling = {
+externalgraph_colstyling={
     'border-radius' : '10px',
     'border-style' : 'solid',
     'border-width' : '1px',
-    'border-color' : corporate_colors['superdark-green'],
-    'background-color' : corporate_colors['superdark-green'],
-    'box-shadow' : '0px 0px 17px 0px rgba(186, 218, 212, .5)',
+    # 'border-color' : corporate_colors['superdark-green'],
+    # 'background-color' : corporate_colors['superdark-green'],
+    # 'box-shadow' : '0px 0px 17px 0px rgba(186, 218, 212, .5)',
     'padding-top' : '5px'
 }
 
 
-navbarcurrentpage = {
+navbarcurrentpage={
     'text-decoration' : 'underline',
     'text-decoration-color' : corporate_colors['white'],
     'text-shadow': '0px 0px 1px rgb(251, 251, 252)',
@@ -67,30 +68,30 @@ navbarcurrentpage = {
 
 
 
-recapdiv = {
-    'border-radius' : '10px',
-    'border-style' : 'solid',
-    'border-width' : '1px',
-    'border-color' : 'rgb(251, 251, 252, 0.1)',
-    'margin-left' : '15px',
-    'margin-right' : '15px',
-    'margin-top' : '15px',
-    'margin-bottom' : '15px',
-    'padding-top' : '5px',
-    'padding-bottom' : '5px',
-    'background-color' : 'rgb(251, 251, 252, 0.1)'
-}
+# recapdiv={
+#     'border-radius' : '10px',
+#     'border-style' : 'solid',
+#     'border-width' : '1px',
+#     'border-color' : 'rgb(251, 251, 252, 0.1)',
+#     'margin-left' : '15px',
+#     'margin-right' : '15px',
+#     'margin-top' : '15px',
+#     'margin-bottom' : '15px',
+#     'padding-top' : '5px',
+#     'padding-bottom' : '5px',
+#     'background-color' : 'rgb(251, 251, 252, 0.1)'
+# }
 
-recapdiv_text = {
-    'text-align' : 'left',
-    'font-weight' : '350',
-    'color' : corporate_colors['white'],
-    'font-size' : '1.5rem',
-    'letter-spacing' : '0.04em'
-}
+# recapdiv_text={
+#     'text-align' : 'left',
+#     'font-weight' : '350',
+#     'color' : corporate_colors['white'],
+#     'font-size' : '1.5rem',
+#     'letter-spacing' : '0.04em'
+# }
 
 
-filterdiv_borderstyling = {
+filterdiv_borderstyling={
     'border-radius' : '0px 0px 10px 10px',
     'border-style' : 'solid',
     'border-width' : '1px',
@@ -106,8 +107,8 @@ filterdiv_borderstyling = {
 ####################################################################################################
 
 
-dbconfig = get_creds()
-connection_pool = pooling.MySQLConnectionPool(
+dbconfig=get_creds()
+connection_pool=pooling.MySQLConnectionPool(
     pool_name="sports_db_pool",
     pool_size=5,
     **dbconfig
@@ -125,9 +126,9 @@ finally:
     close_connection(connection)
 
 
-fa_espn_df = dfs['fa_espn_df']
-model_eval_pred_df = dfs['model_eval_pred_df']
-next_5_players_df = dfs['next_5_players_df']
+fa_espn_df=dfs['fa_espn_df']
+model_eval_pred_df=dfs['model_eval_pred_df']
+next_5_players_df=dfs['next_5_players_df']
 
 fa_df=fa_espn_df[fa_espn_df['current_season_vs_historicals']=='current_season_only'].copy()
 fa_df=add_new_fields(fa_df)
@@ -152,17 +153,16 @@ output=df_query.groupby(['name'])[cols].agg(calc).reset_index().sort_values(by=[
 output.set_index(['name'], inplace=True, drop=True, append=False)
 output.reset_index(inplace=False)
 
-short_df = output.iloc[:,0:len(output)]
+short_df=output.iloc[:,0:len(output)]
 
 ######
 
 
 def player_stats():
     fig=px.imshow(short_df, 
-        text_auto=True)
+        text_auto='.2f')
     fig.update_xaxes(side='top')
-    fig.layout.height=750
-    fig.layout.width=900
+    fig.update_layout(height=300, width=100)
 
     return fig
 
@@ -189,131 +189,117 @@ model_eval_pred_df_table2_copy=model_eval_pred_df[['league','slug','model_type',
 #####################
 # Header with logo
 def get_header():
-    header = html.Div([
-        html.Div([], className = 'col-2'), #Same as img width, allowing to have the title centrally aligned
-        html.Div([
-            html.H1(children='Fantasy Basketball Analytics',
-                    style = {'textAlign' : 'center', 'color':corporate_colors['white']}
-            ),
-            html.H6(children='*Combined data from Basketball-Reference.com, Prosportstransactions.com, ESPN & Yahoo',
-                    style={'textAlign':'center','color':corporate_colors['yellow']})],
-            className='col-8',
-            style = {'padding-top' : '1%'}
-        ),
-        html.Div([
-            html.Img(
-                    src = app.get_asset_url('basketball_hoops.jpg'),
-                    height = '75 px',
-                    width = 'auto')
-            ],
-            className = 'col-2',
-            style = {
-                    'align-items': 'center',
-                    'padding-top' : '1%',
-                    'height' : 'auto'})
-        ],
-        className = 'row',
-        style = {'height' : '4%',
-                'background-color' : corporate_colors['superdark-green']}
-        )
+    header=html.Div([
+                html.Div([], className='col-2'), #Same as img width, allowing to have the title centrally aligned
+                html.Div([
+                    html.H1(children='Fantasy Basketball Analytics',
+                        style={'textAlign' : 'center', 'color':corporate_colors['white']}
+                    ),
+                    html.H6(children='*Combined data from Basketball-Reference.com, Prosportstransactions.com, ESPN & Yahoo',
+                        style={'textAlign':'center','color':corporate_colors['yellow']}
+                    )
+                    ],className='col-8',style={'padding-top' : '1%'}
+                ),
+                html.Div([
+                    html.Img(src=app.get_asset_url('basketball_hoops.jpg'),
+                        height='75 px',
+                        width='auto')
+                    ],className='col-2',style={'align-items': 'center','padding-top' : '1%','height' : 'auto'}
+                )
+                ],className='row',style={'height' : '4%','background-color' : corporate_colors['superdark-green']}
+            )
     return header
 
 
 #####################
 # Nav bar
-def get_navbar(p = 'page1'):
-    navbar_page1 = html.Div([
-        html.Div([], className = 'col-3'),
-        html.Div([
-            dcc.Link(
-                html.H4(children = 'Predictive Modeling',
-                        style = navbarcurrentpage),
-                href='/apps/fantasy-predictions'
-                )
-        ],
-        className='col-2'),
-        html.Div([
-            dcc.Link(
-                html.H4(children = 'Free Agent Screening Tool', style={'color':corporate_colors['white']}),
-                href='/apps/free-agent-screening'
-                )
-        ],
-        className='col-2'),
-        html.Div([
-            dcc.Link(
-                html.H4(children = 'Current Team Performance', style={'color':corporate_colors['white']}),
-                href='/apps/team-performance'
-                )
-        ],
-        className='col-2'),
-        html.Div([], className = 'col-')
-    ],
-    className = 'row',
-    style = {'background-color' : corporate_colors['dark-green'],
-            'box-shadow': '2px 5px 5px 1px rgba(255, 101, 131, .5)'}
-    )
+def get_navbar(p='page1'):
+    navbar_page1=html.Div([
+                    html.Div([], className='col-3'),
+                    html.Div([
+                        dcc.Link(
+                            html.H4(children='Predictive Modeling',
+                                    style=navbarcurrentpage),
+                            href='/apps/fantasy-predictions'
+                        )
+                    ],className='col-2'),
+                    html.Div([
+                        dcc.Link(
+                            html.H4(children='Free Agent Screening Tool', 
+                                style={'color':corporate_colors['white']}),
+                            href='/apps/free-agent-screening'
+                        )
+                    ],className='col-2'),
+                    html.Div([
+                        dcc.Link(
+                            html.H4(children='Current Team Performance', 
+                                style={'color':corporate_colors['white']}),
+                            href='/apps/team-performance'
+                        )
+                    ],className='col-2'),
+                    html.Div([], className='col-')
+                ],className='row',
+                style={'background-color' : corporate_colors['dark-green'],
+                    'box-shadow': '2px 5px 5px 1px rgba(255, 101, 131, .5)'}
+            )
 
-    navbar_page2 = html.Div([
-        html.Div([], className = 'col-3'),
-        html.Div([
-            dcc.Link(
-                html.H4(children = 'Predictive Modeling', style={'color':corporate_colors['white']}),
-                href='/apps/fantasy-predictions'
-                )
-        ],
-        className='col-2'),
-        html.Div([
-            dcc.Link(
-                html.H4(children = 'Free Agent Screening Tool',
-                        style = navbarcurrentpage),
-                href='/apps/free-agent-screening'
-                )
-        ],
-        className='col-2'),
-        html.Div([
-            dcc.Link(
-                html.H4(children = 'Current Team Performance', style={'color':corporate_colors['white']}),
-                href='/apps/team-performance'
-                )
-        ],
-        className='col-2'),
-        html.Div([], className = 'col-3')
-    ],
-    className = 'row',
-    style = {'background-color' : corporate_colors['dark-green'],
-            'box-shadow': '2px 5px 5px 1px rgba(255, 101, 131, .5)'}
-    )
+    navbar_page2=html.Div([
+                    html.Div([], className='col-3'),
+                    html.Div([
+                        dcc.Link(
+                            html.H4(children='Predictive Modeling', 
+                                style={'color':corporate_colors['white']}),
+                            href='/apps/fantasy-predictions'
+                        )
+                    ],className='col-2'),
+                    html.Div([
+                        dcc.Link(
+                            html.H4(children='Free Agent Screening Tool',
+                                    style=navbarcurrentpage),
+                            href='/apps/free-agent-screening'
+                        )
+                    ],className='col-2'),
+                    html.Div([
+                        dcc.Link(
+                            html.H4(children='Current Team Performance', 
+                                style={'color':corporate_colors['white']}),
+                            href='/apps/team-performance'
+                        )
+                    ],className='col-2'),
+                    html.Div([], className='col-3')
+                ],className='row',
+                style={'background-color' : corporate_colors['dark-green'],
+                        'box-shadow': '2px 5px 5px 1px rgba(255, 101, 131, .5)'}
+            )
 
-    navbar_page3 = html.Div([
-        html.Div([], className = 'col-3'),
-        html.Div([
-            dcc.Link(
-                html.H4(children = 'Predictive Modeling', style={'color':corporate_colors['white']}),
-                href='/apps/fantasy-predictions'
-                )
-        ],
-        className='col-2'),
-        html.Div([
-            dcc.Link(
-                html.H4(children = 'Free Agent Screening Tool', style={'color':corporate_colors['white']}),
-                href='/apps/free-agent-screening'
-                )
-        ],
-        className='col-2'),
-        html.Div([
-            dcc.Link(
-                html.H4(children = 'Current Team Performance',
-                        style = navbarcurrentpage), 
-                href='/apps/team-performance'
-                )
-        ],
-        className='col-2'),
-        html.Div([], className = 'col-3')
-    ],
-    className = 'row',
-    style = {'background-color' : corporate_colors['dark-green'],
-            'box-shadow': '2px 5px 5px 1px rgba(255, 101, 131, .5)'}
-    )
+    navbar_page3=html.Div([
+                    html.Div([], className='col-3'),
+                    html.Div([
+                        dcc.Link(
+                            html.H4(children='Predictive Modeling', 
+                                style={'color':corporate_colors['white']}),
+                            href='/apps/fantasy-predictions'
+                        )
+                    ],className='col-2'),
+                    html.Div([
+                        dcc.Link(
+                            html.H4(children='Free Agent Screening Tool', 
+                                style={'color':corporate_colors['white']}),
+                            href='/apps/free-agent-screening'
+                        )
+                    ],className='col-2'),
+                    html.Div([
+                        dcc.Link(
+                            html.H4(children='Current Team Performance',
+                                    style=navbarcurrentpage), 
+                            href='/apps/team-performance'
+                        )
+                    ],className='col-2'),
+                    html.Div([], className='col-3')
+                ],className='row',
+                style={'background-color' : corporate_colors['dark-green'],
+                        'box-shadow': '2px 5px 5px 1px rgba(255, 101, 131, .5)'}
+            )
     if p == 'page1':
         return navbar_page1
     elif p == 'page2':
@@ -328,13 +314,13 @@ def get_navbar(p = 'page1'):
 
 def get_emptyrow(h='45px'):
     """This returns an empty row of a defined height"""
-    emptyrow = html.Div([
+    emptyrow=html.Div([
         html.Div([
             html.Br()
-        ], className = 'col-12')
+        ], className='col-12')
     ],
-    className = 'row',
-    style = {'height' : h})
+    className='row',
+    style={'height' : h})
     return emptyrow
 
 config={
@@ -363,7 +349,7 @@ id_league_dropdown_options=[
 id_league_default_value='ESPN'
 
 
-page1 = html.Div([
+page1=html.Div([
 
     #####################
     #Row 1 : Header
@@ -384,7 +370,7 @@ page1 = html.Div([
                     html.Div([
                         html.H5(
                             children='League:',
-                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
+                            style={'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
                         ),
                         #Date range picker
                         html.Div([#'Focus Field: ',
@@ -392,38 +378,37 @@ page1 = html.Div([
                                     options=id_league_dropdown_options,
                                               value=id_league_default_value
                                 ),
-                        ], style = {'margin-top' : '5px'}
+                        ], style={'margin-top' : '5px'}
                         )
                     ],
-                    style = {'margin-top' : '10px',
+                    style={'margin-top' : '10px',
                             'margin-bottom' : '5px',
                             'text-align' : 'left',
                             'paddingLeft': 5})
 
                 ],
-                className = 'col-4'), # Filter part 1
+                className='col-4'), # Filter part 1
                 ########################################################################################
                 # Filter pt 2
                 html.Div([
                     html.Div([
                         html.H5(
                             children='Team Players:',
-                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
+                            style={'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
                         ),
                         html.Div([
                             dcc.Dropdown(
                                 id='League-Players'
                             ),
                             html.Div(id='output'),
-                        ], style = {'margin-top' : '5px'}
+                        ], style={'margin-top' : '5px'}
                         ),
                     ],
-                    style = {'margin-top' : '10px',
+                    style={'margin-top' : '10px',
                             'margin-bottom' : '5px',
                             'text-align' : 'left',
                             'paddingLeft': 5})
-                ],
-                className = 'col-4'), #Filter pt 2
+                ],className='col-4'), #Filter pt 2
 
                 ########################################################################################
 
@@ -432,35 +417,30 @@ page1 = html.Div([
                     html.Div([
                         html.H5(
                             children='Model:',
-                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
+                            style={'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
                         ),
                         html.Div([
                             dcc.Dropdown(
                                 id='id-model'
                             ),
                             html.Div(id='model-output'),
-                        ], style = {'margin-top' : '5px'}
+                        ], style={'margin-top' : '5px'}
                         ),
                     ],
-                    style = {'margin-top' : '10px',
+                    style={'margin-top' : '10px',
                             'margin-bottom' : '5px',
                             'text-align' : 'left',
                             'paddingLeft': 5})
-                ],
-                className = 'col-4'), #Filter pt 3
+                ],className='col-4'), #Filter pt 3
 
                 ########################################################################################          
 
                 html.Div([
-                ],
-                className = 'col-2') # Blank 2 columns
-            ],
-            className = 'row') # Internal row
-        ],
-        className = 'col-12',
-        style = filterdiv_borderstyling) # External 12-column
-    ],
-    className = 'row sticky-top'), # External row
+                ],className='col-2') # Blank 2 columns
+            ],className='row') # Internal row
+        ],className='col-12',
+        style=filterdiv_borderstyling) # External 12-column
+    ],className='row sticky-top'), # External row
 
     #####################
     #Row 4
@@ -469,17 +449,14 @@ page1 = html.Div([
     #####################
     #Row 5 : Charts
     html.Div([ # External row
-        html.Div([
-        ],
-        className = 'col-1'), # Blank 1 column
+        html.Div([],className='col-1'), # Blank 1 column
         html.Div([
             html.Div([ # Internal row 1
                 html.Div([
                     dcc.Graph(id='preds-line',figure=line_plot_preds(),config=config)
                 ])
             ]),
-        ],
-        className = 'row'),
+        ],className='row'),
         # Injured Players table and title
         html.Div([
             html.H5("Predictions Table",
@@ -490,8 +467,7 @@ page1 = html.Div([
             html.Div([
                     create_data_table(df=model_eval_pred_df_table2_copy,table_id='id-model-mae',columns=model_eval_pred_df_table2_copy.columns)
                 ],className='col-6',style={'overflowX':'auto'})
-        ],
-        className='row'),
+        ],className='row'),
     ],className='container')
 ])
 
@@ -543,12 +519,16 @@ fields_to_display_filter6=['made_field_goals', 'made_three_point_field_goals',
                     'made_free_throws','total_rebounds', 'offensive_rebounds', 
                     'defensive_rebounds', 'assists','steals', 'blocks', 
                     'turnovers', 'personal_fouls', 'points_scored', 'minutes_played']
+
 default_displayed_fields_filter6=['made_field_goals', 'made_three_point_field_goals',
                     'made_free_throws','total_rebounds', 'offensive_rebounds', 
                     'defensive_rebounds','assists','steals', 'blocks', 
                     'turnovers', 'points_scored']
 
-page2 = html.Div([
+players_to_display_filter7=fa_df['name'].unique().tolist()
+
+
+page2=html.Div([
 
     #####################
     #Row 1 : Header
@@ -564,128 +544,94 @@ page2 = html.Div([
         html.Div([ # External 12-column
             html.Div([ # Internal row
                 # #Internal columns
-                # html.Div([
-                # ],
-                # className = 'col-2'), # Blank 2 columns
                 ########################################################################################
                 #Filter pt 1
                 html.Div([
                     html.Div([
                         html.H5(
                             children='League:',
-                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
+                            style={'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
                         ),
                         #Date range picker
                         html.Div([#'League: ',
                             dcc.Dropdown(id='league_id',
                                 options=league_id_dropdown_options_filter1,
                                 value=league_id_default_value_filter1)
-                        ], style = {'margin-top' : '5px'}
-                        )
-                    ],
-                    style = {'margin-top' : '10px',
-                            'margin-bottom' : '5px',
-                            'text-align' : 'left',
-                            'paddingLeft': 5})
-                ],
-                className = 'col-4'), # Filter part 1
+                        ], style={'margin-top' : '5px'})
+                    ],style={'margin-top' : '10px','margin-bottom' : '5px','text-align' : 'left','paddingLeft': 5})
+                ],className='col-4'), # Filter part 1
                 ########################################################################################
                 #Filter pt 2
                 html.Div([
                     html.Div([
                         html.H5(
                             children='Historical Options:',
-                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
+                            style={'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
                         ),
                         #Date range picker
                         html.Div([#'Historical Options: ',
                             dcc.Dropdown(id='history_id',
                                 options=history_dropdown_options_filter2,
                                 value=history_dropdown_default_value_filter2)
-                        ], style = {'margin-top' : '5px'}
-                        )
-                    ],
-                    style = {'margin-top' : '10px',
-                            'margin-bottom' : '5px',
-                            'text-align' : 'left',
-                            'paddingLeft': 5})
-                ],
-                className = 'col-4'), # Filter part 2
-                ########################################################################################
+                        ], style={'margin-top' : '5px'})
+                    ],style={'margin-top' : '10px','margin-bottom' : '5px','text-align' : 'left','paddingLeft': 5})
+                ],className='col-4'), # Filter part 2
+                #######################################################################################
                 #Filter pt 3
                 html.Div([
                     html.Div([
                         html.H5(
                             children='How many days back?',
-                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
+                            style={'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
                         ),
                         html.Div(['(Functional for current season only)',
                             dcc.Input(id='my_input',
                                         value=200,
                                         type='number',
-                                        style = {'font-size': '12px','display': 'inline-block', 'border-radius' : '2px', 'border' : '1px solid #ccc', 'color': '#333', 'border-spacing' : '0', 'border-collapse' :'separate'}
+                                        style={'font-size': '12px','display': 'inline-block', 'border-radius' : '2px', 'border' : '1px solid #ccc', 'color': '#333', 'border-spacing' : '0', 'border-collapse' :'separate'}
                                 )
-                        ], style = {'margin-top' : '5px'}
-                        )
-                    ],
-                    style = {'margin-top' : '10px',
-                            'margin-bottom' : '5px',
-                            'text-align' : 'left',
-                            'paddingLeft': 5})
-                ],
-                className = 'col-4'), # Filter part 3
-                ########################################################################################
+                        ], style={'margin-top' : '5px'})
+                    ],style={'margin-top' : '10px','margin-bottom' : '5px','text-align' : 'left','paddingLeft': 5})
+                ],className='col-4'), # Filter part 3
+                #######################################################################################
                 #Filter pt 4
                 html.Div([
                     html.Div([
                         html.H5(
                             children='Calculation Type:',
-                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
+                            style={'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
                         ),
                         #Date range picker
                         html.Div([#'Calculation Type: ',
                             dcc.Dropdown(id='calculation',
                                 options=calculation_dropdown_options_filter4,
                                 value=calculation_default_value_filter4)
-                        ], style = {'margin-top' : '5px'}
-                        )
-                    ],
-                    style = {'margin-top' : '10px',
-                            'margin-bottom' : '5px',
-                            'text-align' : 'left',
-                            'paddingLeft': 5})
-                ],
-                className = 'col-4'), # Filter part 4
-                ########################################################################################
+                        ], style={'margin-top' : '5px'})
+                    ],style={'margin-top' : '10px','margin-bottom' : '5px','text-align' : 'left','paddingLeft': 5})
+                ],className='col-4'), # Filter part 4
+                #######################################################################################
                 #Filter pt 5
                 html.Div([
                     html.Div([
                         html.H5(
                             children='Focus Field',
-                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
+                            style={'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
                         ),
                         #Date range picker
                         html.Div(['(Picked field must be checked ON in \"Fields to Display\"): ',
                             dcc.Dropdown(id='dropdown',
                                 options=dropdown_options_filter5,
                                 value=dropdown_default_value_filter5)
-                        ], style = {'margin-top' : '5px'}
-                        )
-                    ],
-                    style = {'margin-top' : '10px',
-                            'margin-bottom' : '5px',
-                            'text-align' : 'left',
-                            'paddingLeft': 5})
-                ],
-                className = 'col-4'), # Filter part 5
-                ########################################################################################
+                        ], style={'margin-top' : '5px'})
+                    ],style={'margin-top' : '10px','margin-bottom' : '5px','text-align' : 'left','paddingLeft': 5})
+                ],className='col-4'), # Filter part 5
+                #######################################################################################
                 #Filter pt 6
                 html.Div([
-
                     html.Div([
                         html.H5(
                             children='Fields to Display:',
-                            style = {'text-align' : 'left', 
+                            style={'text-align' : 'left', 
                             "overflow-y":"scroll", #"height": "50px",
                                 'color' : corporate_colors['medium-blue-grey']
                                 }
@@ -696,107 +642,55 @@ page2 = html.Div([
                                 options=[{'label':field,'value':field} for field in fields_to_display_filter6],
                                 value=default_displayed_fields_filter6,
                                 style={"overflow-y":"scroll", "height": "100px"})
-                        ], style = {'margin-top' : '5px'}
-                        )
-                    ],
-                    style = {'margin-top' : '10px',
-                            'margin-bottom' : '5px',
-                            'text-align' : 'left',
-                            'paddingLeft': 5})
-                ],
-                className = 'col-4'), # Filter part 6
-                ########################################################################################
+                        ],style={'margin-top' : '5px'})
+                    ],style={'margin-top' : '10px','margin-bottom' : '5px','text-align' : 'left','paddingLeft': 5})
+                ],className='col-4'), # Filter part 6
+                #######################################################################################
                 #Filter pt 7
                 html.Div([
                     html.Div([
                         html.H5(
                             children='Number of players:',
-                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
+                            style={'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
                         ),
                         #Date range picker
                         html.Div([#'Number of Players: ',
-                            dcc.Input(id='top_n', value=5, type='number')
-                        ], style = {'margin-top' : '5px'}
-                        )
-                    ],
-                    style = {'margin-top' : '10px',
-                            'margin-bottom' : '5px',
-                            'text-align' : 'left',
-                            'paddingLeft': 5})
-                ],
-                className = 'col-4'), # Filter part 7
-                ########################################################################################
+                            dcc.Input(id='top_n', value=12, type='number')
+                        ], style={'margin-top' : '5px'})
+                    ],style={'margin-top' : '10px','margin-bottom' : '5px','text-align' : 'left','paddingLeft': 5})
+                ],className='col-4'), # Filter part 7
+
+                #######################################################################################
                 #Filter pt 8
                 html.Div([
                     html.Div([
                         html.H5(
                             children='Player Checklist:',
-                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
+                            style={'text-align' : 'left', 
+                            "overflow-y":"scroll", #"height": "50px",
+                                'color' : corporate_colors['medium-blue-grey']
+                                }
                         ),
                         #Date range picker
-                        html.Div([#'Player Checklist: ',
+                        html.Div([#'Fields to Display: ',
                             dcc.Checklist(id='player_list', 
-                                options=[name for name in fa_df['name'].unique()], 
-                                value=[name for name in fa_df['name'].unique()], 
-                                style={"overflow-y":"scroll", "height": "100px"},
-                                # style={'height':10000,'width':100}, 
-                                inline=True)
-                        ], style = {'margin-top' : '5px'}
-                        )
-                    ],
-                    style = {'margin-top' : '10px',
-                            'margin-bottom' : '5px',
-                            'text-align' : 'left',
-                            'paddingLeft': 5})
-                ],
-                className = 'col-4'), # Filter part 8
-                ########################################################################################
-                html.Div([
-                ],
-                className = 'col-2') # Blank 2 columns
-            ],
-            className = 'row') # Internal row
-        ],
-        className = 'col-12',
-        style = filterdiv_borderstyling) # External 12-column
-    ],
-    className = 'row sticky-top'), # External row
+                                options=[{'label':field,'value':field} for field in players_to_display_filter7],
+                                value=players_to_display_filter7,
+                                style={"overflow-y":"scroll", "height": "100px"},inline=True)
+                        ],style={'margin-top' : '5px'})
+                    ],style={'margin-top' : '10px','margin-bottom' : '5px','text-align' : 'left','paddingLeft': 5})
+                ],className='col-4'), # Filter part 7
+                # #######################################################################################
+            ],className='row') # Internal row
+        ],className='col-12',style=filterdiv_borderstyling) # External 12-column
+    ],className='row sticky-top'), # External row
 
-    #####################
-    #Row 4
     get_emptyrow(),
 
-    #####################
-    #Row 5 : Charts
-    html.Div([ # External row
-        html.Div([
-        ],
-        className = 'col-1'), # Blank 1 column
-        html.Div([ # External 10-column
-            html.Div([ # Internal row
-                # Chart Column
-                html.Div([
-                    dcc.Graph(id='player_stats',
-                                figure=player_stats(),
-                                config=config)
-                ], 
-                # style={'margin': 'auto','height': '100vh', 'text-align': 'center'},
-                className = 'col-2'),
-            ],
-            className = 'row'), # Internal row
-        ],
-        className = 'col-10',
-        style = externalgraph_colstyling), # External 10-column
-        html.Div([
-        ],
-        className = 'col-1'), # Blank 1 column
-    ],
-    className = 'row',
-    style = externalgraph_rowstyling
-    ), # External row
-])
-
-
+    html.Div([
+        dcc.Graph(id='player_stats',figure=player_stats(),config=config)
+    ],className='col-12')
+],className='col-12')
 
 
 
@@ -823,7 +717,7 @@ id_dropdown_options=[
 ]
 id_dropdown_default_value='made_field_goals'
 
-page3 = html.Div([
+page3=html.Div([
 
     #####################
     #Row 1 : Header
@@ -844,7 +738,7 @@ page3 = html.Div([
                     html.Div([
                         html.H5(
                             children='League:',
-                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
+                            style={'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
                         ),
                         #Date range picker
                         html.Div([#'Focus Field: ',
@@ -852,44 +746,42 @@ page3 = html.Div([
                                     options=id_league_dropdown_options,
                                               value=id_league_default_value
                                 )
-                        ], style = {'margin-top' : '5px'}
+                        ], style={'margin-top' : '5px'}
                         )
                     ],
-                    style = {'margin-top' : '10px',
+                    style={'margin-top' : '10px',
                             'margin-bottom' : '5px',
                             'text-align' : 'left',
                             'paddingLeft': 5})
-                ],
-                className = 'col-4'), # Filter part 1
+                ],className='col-4'), # Filter part 1
                 ########################################################################################
                 #Filter pt 2
                 html.Div([
                     html.Div([
                         html.H5(
                             children='Focus Field:',
-                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
+                            style={'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
                         ),
                         html.Div([ #'Enter # of days back: ',
                             dcc.Dropdown(id='id-dropdown',
                                          options=id_dropdown_options,
                                     value=id_dropdown_default_value
                                 )
-                        ], style = {'margin-top' : '5px'}
+                        ], style={'margin-top' : '5px'}
                         )
                     ],
-                    style = {'margin-top' : '10px',
+                    style={'margin-top' : '10px',
                             'margin-bottom' : '5px',
                             'text-align' : 'left',
                             'paddingLeft': 5})
-                ],
-                className = 'col-4'), # Filter part 2
+                ],className='col-4'), # Filter part 2
                 ########################################################################################                
                 #Filter pt 3
                 html.Div([
                     html.Div([
                         html.H5(
                             children='Injury Type:',
-                            style = {'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
+                            style={'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
                         ),
                         #Date range picker
                         html.Div([#'Focus Field: ',
@@ -898,26 +790,21 @@ page3 = html.Div([
                                         value='flu',
                                         placeholder='wildcard search',
                                 )
-                        ], style = {'margin-top' : '5px'}
+                        ], style={'margin-top' : '5px'}
                         )
                     ],
-                    style = {'margin-top' : '10px',
+                    style={'margin-top' : '10px',
                             'margin-bottom' : '5px',
                             'text-align' : 'left',
                             'paddingLeft': 5})
-                ],
-                className = 'col-4'), # Filter part 2
+                ],className='col-4'), # Filter part 2
                 ########################################################################################                
                 html.Div([
-                ],
-                className = 'col-2') # Blank 2 columns
-            ],
-            className = 'row') # Internal row
-        ],
-        className = 'col-12',
-        style = filterdiv_borderstyling) # External 12-column
-    ],
-    className = 'row sticky-top'), # External row
+                ],className='col-2') # Blank 2 columns
+            ],className='row') # Internal row
+        ],className='col-12',
+        style=filterdiv_borderstyling) # External 12-column
+    ],className='row sticky-top'), # External row
 
     #####################
     #Row 4
@@ -928,60 +815,50 @@ page3 = html.Div([
     html.Div([ # External row
         html.Div([
         ],
-        className = 'col-1'), # Blank 1 column
+        className='col-1'), # Blank 1 column
         html.Div([ # External 10-column
-            html.H2(children = "Minutes-Played Weighted Production",
-                style = {'color' : corporate_colors['white']}),
+            html.H2(children="Minutes-Played Weighted Production",
+                style={'color' : corporate_colors['dark-green']}),
             html.Div([ # Internal row 1
                 # min-weight focus field prod heatmap
                 html.Div([
                     dcc.Graph(id='heat-map', figure=heatmap(), config=config),
                 ],
-                className = 'col-6'),
+                className='col-6'),
                 # min-weights
                 html.Div([
                     dcc.Graph(id='heat-map-weights', figure=heatmap_weights(), config=config)
-                ],
-                className = 'col-6'),
-            ],
-            className = 'row'), # Internal row 1
+                ],className='col-6'),
+            ],className='row'), # Internal row 1
 
             html.Div([ # Internal row 2
 
                 # Chart Column
                 html.Div([
                     dcc.Graph(id='line_plot', figure=line_plot(), config=config)
-                ],
-                className = 'col-4'),
-            ],
-            className = 'row'), # Internal row 2
+                ],className='col-4'),
+            ],className='row'), # Internal row 2
 
             html.Div([ # Internal row 3
                 # Chart Column
                 html.Div([
                     dcc.Graph(id='bar-plot', figure=bar_plot(), config=config)
-                ],
-                className = 'col-4'),
-            ],
-            className = 'row'), # Internal row 3
+                ],className='col-4'),
+            ],className='row'), # Internal row 3
 
             html.Div([ # Internal row 4
                 # Chart Column
                 html.Div([
                     dcc.Graph(id='box-plot', figure=boxplot_by_player(), config=config)
-                ],
-                className = 'col-12'),
-            ],
-            className = 'row'), # Internal row 4
+                ],className='col-12'),
+            ],className='row'), # Internal row 4
 
             html.Div([ # Internal row 5
                 # Chart Column
                 html.Div([
                     dcc.Graph(id='box-plot-x-week-class', figure=boxplot_by_player_weekday_class(), config=config)
-                ],
-                className = 'col-12'),
-            ],
-            className = 'row'), # Internal row 5
+                ],className='col-12'),
+            ],className='row'), # Internal row 5
 
             ##### BELOW 3 TABLES DISCONTINUED
             # html.Div([ # Internal row 6
@@ -1040,19 +917,13 @@ page3 = html.Div([
                 # Chart Column
                 html.Div([
                     create_data_table(df=injury_probabilities_df,table_id='id-inj-prob-table',columns=injury_probabilities_df.columns)
-                ],
-                className = 'col-12'),
-            ],
-            className = 'row'), # Internal row 7
-        ],
-        className = 'col-10',
-        style = externalgraph_colstyling), # External 10-column
-        html.Div([
-        ],
-        className = 'col-1'), # Blank 1 column
-    ],
-    className = 'row',
-    style = externalgraph_rowstyling
+                ],className='col-12'),
+            ],className='row'), # Internal row 7
+        ],className='col-10',
+        style=externalgraph_colstyling), # External 10-column
+        html.Div([],className='col-1'), # Blank 1 column
+    ],className='row',
+    style=externalgraph_rowstyling
     ), # External row
 
 ])

@@ -6,7 +6,6 @@ from dash_create import app
 from dash_create import server
 from layouts import page1, page2, page3
 import callbacks
-# import callbacks_my_team_perf
 
 app.layout = html.Div([
     dcc.Location(id='url', refresh=False),

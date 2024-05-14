@@ -118,6 +118,10 @@ def apply_calculation(calculation_type:str,
                     cols:list)->pd.DataFrame:
     if calculation_type=='weights':
         output_df=df.groupby(['name']).apply(lambda x: pd.Series([sum(x[v]*x.minutes_played)/sum(x.minutes_played) if sum(x.minutes_played) != 0 else 0 for v in imps]))
+        
+        # print(f'output_df.shape: {output_df.shape}')
+        # print(f'len(imps): {len(imps)}')
+        
         output_df.columns=imps
         output_df=output_df[display_field]
         output_df=output_df.sort_values(by=[focus_field],ascending=False).head(player_sample)
@@ -136,8 +140,9 @@ def update_fig_with_calculation(df:pd.DataFrame,
     else:
         fig=px.imshow(df[display_field],text_auto='.2f')
     fig.update_xaxes(side='top')
-    fig.layout.height=750
-    fig.layout.width=750
+    fig.update_layout(height=1200, width=1600)
+    # fig.layout.height=750
+    # fig.layout.width=750
     return fig
 
 
@@ -212,7 +217,7 @@ def graph_update(input_value:str,
 
 
 
-# my_safe_players=['Jayson Tatum', 'Kyrie Irving','Jaylen Brown']
+
 
 current_players=my_live_espn_df['name'].values.tolist()
 

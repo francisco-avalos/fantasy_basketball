@@ -214,9 +214,6 @@ FROM basketball.player_historical_web_app_display HWAD
 ####################################################################################################
 
 
-my_safe_players=['Jayson Tatum', 'Kyrie Irving','Jaylen Brown']
-
-
 def add_new_fields(df:pd.DataFrame)->pd.DataFrame:
     new_columns=['total_rebounds','minutes_played']
     df[new_columns[0]]=df['offensive_rebounds']+df['defensive_rebounds']
