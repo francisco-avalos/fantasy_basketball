@@ -191,9 +191,13 @@ FROM basketball.myteam_next_5_games
 
 
 inj_prob_qry="""
-SELECT *
+SELECT 
+    injury,
+    days,
+    CONCAT(ROUND(probabilities * 100,2),'%') AS probabilities
 FROM basketball.injury_probabilities;
 """
+
 
 historicals_query='''
 SELECT 

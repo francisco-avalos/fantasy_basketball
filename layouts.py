@@ -169,10 +169,6 @@ def player_stats():
 
 injury_probabilities_df=injury_probabilities()
 
-
-
-
-
 model_eval_pred_df_copy=model_eval_pred_df[['day','predictions']].copy()
 merged_table_1=pd.merge(model_eval_pred_df,next_5_players_df,on=['slug','day'],how='inner')
 merged_table_1=merged_table_1[['day','opponent_location','predictions','league','slug','model_type']]

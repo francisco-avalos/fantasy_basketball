@@ -252,9 +252,10 @@ def execute_query_and_fetch_df(query, connection):
 
 
 def convert_fields_to_float(df:pd.DataFrame,fields:list)->pd.DataFrame:
+	df_copy=df.copy()
 	for field in fields:
-		df[field]=df[field].astype(float)
-	return df
+		df_copy[field]=df_copy[field].astype(float)
+	return df_copy
 
 
 

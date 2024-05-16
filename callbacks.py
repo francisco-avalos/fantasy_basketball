@@ -13,6 +13,11 @@ from config import get_creds
 from dash.dependencies import Input, Output
 from dash import dash_table
 from dash_create import app
+# import dash_table.FormatTemplate as FormatTemplate
+# from dash.dash_table.Format import FormatTemplate
+# from dash.dash_table import FormatTemplate
+
+
 
 # plot outlay
 import plotly.express as px
@@ -78,11 +83,35 @@ model_eval_pred_df_table2_copy=model_eval_pred_df[['league','slug','model_type',
 def create_data_table(df,table_id,columns):
     return dash_table.DataTable(
             id=table_id,
-            data=df.to_dict('records'),
             columns=[{'name':col,'id':col} for col in columns],
             style_cell=dict(textAlign='center'),
             style_header=dict(backgroundColor='paleturquoise'),
             style_table={'overflowX':'auto','minwidth':'100%'}
+            # columns=[
+            #     {'name':col,'id':col,"type":"text" if col == 'probabilities' else 'numeric',
+            #      'format':FormatTemplate.percentage(2) if col == 'probabilities' else None
+            #     } for col in columns
+            # ],
+            # data=df.to_dict('records'),
+            # style_cell={
+            #     'textAlign':'left',
+            #     'padding':'5px',
+            #     'whiteSpace':'normal'
+            # },
+            # style_data_conditional=[
+            #     {
+            #         'if':{'column_id':'probabilities'},
+            #         'textAlign':'right',
+            #         'paddingRight':'10px'
+            #     }
+            # ],
+            # style_header={
+            #     'backgroundColor':'rgb(230,230,230)',
+            #     'fontWeight':'bold',
+            #     'textAlign':'center'
+            # },
+            # style_table={'overflowX':'auto'},
+            # page_size=10
         )
 
 
@@ -516,8 +545,10 @@ def boxplot_by_player_weekday_class(metric='points',leagueid='ESPN'):
 ####################################################################################################
 
 def injury_probabilities(searched_injury='flu'):
-    injury_probabilities_df_temp=injury_probabilities_df[injury_probabilities_df['injury'].str.contains(searched_injury,case=False)]
-    return injury_probabilities_df_temp
+    df=injury_probabilities_df.copy()
+    df=df[df['injury'].str.contains(searched_injury,case=False)]
+    return df
+    
 
 
 @app.callback(
