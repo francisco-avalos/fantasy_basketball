@@ -773,6 +773,10 @@ def update_model_picked_comment(selected_value):
             return 'Repeat'
         elif selected_value == 'LAST':
             return 'Last'
+        elif selected_value == 'AR':
+            return 'Autoregressive'
+        elif selected_value == 'MA':
+            return 'Moving Average'
     else:
         return 'Please select a value'
 

@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 from my_time_series import stationary_check, difference, optimize_ARMA, optimize_ARIMA
 import my_functions
 import my_time_series as mts
+from config import get_creds
 
 from itertools import product
 import warnings
@@ -82,20 +83,22 @@ JOIN basketball.basketball_references_players BREF ON MT.name = BREF.BBRefName
 """
 
 
-sports_db_admin_host=os.environ.get('sports_db_admin_host')
-sports_db_admin_db=os.environ.get('sports_db_admin_db')
-sports_db_admin_user=os.environ.get('sports_db_admin_user')
-sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
-sports_db_admin_port=os.environ.get('sports_db_admin_port')
+# sports_db_admin_host=os.environ.get('sports_db_admin_host')
+# sports_db_admin_db=os.environ.get('sports_db_admin_db')
+# sports_db_admin_user=os.environ.get('sports_db_admin_user')
+# sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
+# sports_db_admin_port=os.environ.get('sports_db_admin_port')
 
-config={
-	'host':sports_db_admin_host,
-	'database':sports_db_admin_db,
-	'user':sports_db_admin_user,
-	'password':sports_db_admin_pw,
-	'port':sports_db_admin_port,
-	'allow_local_infile':True
-}
+# config={
+# 	'host':sports_db_admin_host,
+# 	'database':sports_db_admin_db,
+# 	'user':sports_db_admin_user,
+# 	'password':sports_db_admin_pw,
+# 	'port':sports_db_admin_port,
+# 	'allow_local_infile':True
+# }
+config=get_creds()
+config['allow_local_infile']=True
 
 connection=mysql.connect(**config)
 
