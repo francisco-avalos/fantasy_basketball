@@ -33,6 +33,24 @@ from bs4 import BeautifulSoup
 import requests
 
 
+
+
+#### AUTOMATIC SEASON DATE GRABBING
+# basketball_seasons=pd.read_csv('/Users/franciscoavalosjr/Desktop/basketball-folder/season_dates-2.csv')
+# basketball_seasons['start'] = pd.to_datetime(basketball_seasons['start'])
+# basketball_seasons['end'] = pd.to_datetime(basketball_seasons['end'])
+
+# # today=datetime.today()
+# # today=pd.to_datetime(today)
+
+# begin_date=basketball_seasons.tail(1).start.iloc[0].strftime('%Y-%m-%d')
+# end_date=basketball_seasons.tail(1).end.iloc[0].strftime('%Y-%m-%d')
+# print(begin_date)
+# print(end_date)
+# # end_date=today
+
+
+
 # out_players=['https://www.rotowire.com/basketball/player/kristaps-porzingis-3669',
 # 'https://www.rotowire.com/basketball/player/chris-paul-2584',
 # 'https://www.rotowire.com/basketball/player/markelle-fultz-4100'
@@ -87,16 +105,31 @@ pd.set_option('display.max_rows', None)
 # sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
 # sports_db_admin_port=os.environ.get('sports_db_admin_port')
 
-# # leagueid=os.environ.get('leagueid')
-# # espn_s2=os.environ.get('espn_s2')
-# # swid=os.environ.get('swid')
+# leagueid=os.environ.get('leagueid')
+# espn_s2=os.environ.get('espn_s2')
+# swid=os.environ.get('swid')
+
+
+### USE MEEEEEEE FOR START OF BASKETBALL SEASON YAHOO LEAGUE DATA ACCESSS!!
+# import json
+# creds = {'consumer_key': 'dj0yJmk9UjduOGFFSXczVGJ3JmQ9WVdrOVRtUnpTblZVYm1rbWNHbzlNQT09JnM9Y29uc3VtZXJzZWNyZXQmc3Y9MCZ4PTlj',\
+#          'consumer_secret': '839dfe42e2566c927749979d74056c0500d295a4'}
+# with open('oauth2.json', "w") as f:
+#     f.write(json.dumps(creds))
+# oauth = OAuth2(None, None, from_file='oauth2.json')
+# if not oauth.token_is_valid():
+#     oauth.refresh_access_token()
+
+# gm = yfa.game.Game(oauth, 'nba')
+# print(gm.league_ids(year=2024))
+### USE MEEEEEEE FOR START OF BASKETBALL SEASON YAHOO LEAGUE DATA ACCESSS!!
 
 
 
 # sc=OAuth2(None,None,from_file='oauth2.json')
 # gm=yfa.Game(sc, 'nba')
-# league_id=gm.league_ids(year=2024)
-# lg=gm.to_league('428.l.18598')
+# league_id=gm.league_ids(year=2025)
+# lg=gm.to_league('454.l.6397')
 # tk=lg.free_agents('PG')
 # tk_df=pd.DataFrame(tk)
 # print(tk_df.head(20))
@@ -118,8 +151,8 @@ pd.set_option('display.max_rows', None)
 
 # print(yfa.__file__)
 
-
-# tm=lg.to_team('428.l.18598.t.4')
+# my_team_key='454.l.6397.t.4'
+# tm=lg.to_team(my_team_key)
 # my_tm=pd.DataFrame(tm.roster())
 # print(my_tm)
 
@@ -136,20 +169,24 @@ leagueid=os.environ.get('leagueid')
 espn_s2=os.environ.get('espn_s2')
 swid=os.environ.get('swid')
 
-# fa_size=5
-# season_end_year=2024
-# league=League(league_id=leagueid, 
-# 				year=season_end_year,
-# 				espn_s2=espn_s2,
-# 				swid=swid, 
-# 				debug=False)
+print(f'leagueid: {leagueid}')
+print(f'espn_s2: {espn_s2}')
+print(f'swid: {swid}')
 
-# FA=league.free_agents(size=fa_size)
-# FA=pd.DataFrame(FA)
-# FA=clean_string(FA)#.split(',')
-# FA=remove_name_suffixes(FA)
-# FA=FA.lstrip().rstrip()
-# print(FA)
+fa_size=5
+season_end_year=2025
+league=League(league_id=leagueid, 
+				year=season_end_year,
+				espn_s2=espn_s2,
+				swid=swid, 
+				debug=False)
+
+FA=league.free_agents(size=fa_size)
+FA=pd.DataFrame(FA)
+FA=clean_string(FA)#.split(',')
+FA=remove_name_suffixes(FA)
+FA=FA.lstrip().rstrip()
+print(FA)
 
 
 
@@ -225,23 +262,24 @@ swid=os.environ.get('swid')
 
 
 
-league=League(league_id=leagueid, 
-				year=2024,
-				espn_s2=espn_s2,
-				swid=swid, 
-				debug=False)
+# league=League(league_id=leagueid, 
+# 				year=2025,
+# 				espn_s2=espn_s2,
+# 				swid=swid, 
+# 				debug=False)
 
 
+# print(league.teams)
 
-# myteam=league.teams[10]
+# myteam=league.teams[8]
 # my_players=clean_string(myteam.roster).split(',')
 # print(my_players)
 
-myteam=league.teams[10]
-current_players=clean_string(myteam.roster).split(',')
-current_players=[remove_name_suffixes(x) for x in current_players]
-current_players=[x.strip(' ') for x in current_players]
-print(current_players)
+# myteam=league.teams[9]
+# current_players=clean_string(myteam.roster).split(',')
+# current_players=[remove_name_suffixes(x) for x in current_players]
+# current_players=[x.strip(' ') for x in current_players]
+# print(current_players)
 
 
 
@@ -293,16 +331,16 @@ print(current_players)
 
 # print(league.free_agents(size=5))
 
-player_position_df=pd.DataFrame(columns=['Player_Name','Player_Roles'])
-for fa in league.free_agents(size=15):
-    fa=str(fa)
-    fa=remove_player_string(fa)
-    pi=league.player_info(fa)
-    # print(f'{fa} - {pi.eligibleSlots} - {pi.position}')
-    new_row={'Player_Name':fa,'Player_Roles':pi.eligibleSlots}
-    player_position_df=player_position_df.append(new_row,ignore_index=True)
-    time.sleep(4)
-print(player_position_df)
+# player_position_df=pd.DataFrame(columns=['Player_Name','Player_Roles'])
+# for fa in league.free_agents(size=15):
+#     fa=str(fa)
+#     fa=remove_player_string(fa)
+#     pi=league.player_info(fa)
+#     # print(f'{fa} - {pi.eligibleSlots} - {pi.position}')
+#     new_row={'Player_Name':fa,'Player_Roles':pi.eligibleSlots}
+#     player_position_df=player_position_df.append(new_row,ignore_index=True)
+#     time.sleep(4)
+# print(player_position_df)
 
 
 # basketball.espn_player_positions
@@ -444,8 +482,8 @@ print(player_position_df)
 # ###################################################
 
 
-# p=client.player_box_scores(day=21,month=12,year=2022)
-# # print(type(p))
+# p=client.player_box_scores(day=25,month=10,year=2024)
+# print(type(p))
 # df=pd.DataFrame(p)
 # # df=df[df['name']=='Anthony Davis']
 # print(df.head())
@@ -822,9 +860,9 @@ print(player_position_df)
 
 
 
-# season_end_year=2023
+# season_end_year=2025
 # df=pd.DataFrame(client.players_advanced_season_totals(season_end_year=season_end_year))
-# df=df[df['name']=='Mo Bamba']
+# # df=df[df['name']=='Mo Bamba']
 # print(df.head())
 
 # print(help(client))

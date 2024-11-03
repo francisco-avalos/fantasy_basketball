@@ -37,6 +37,7 @@ sports_db_admin_db='basketball'
 sports_db_admin_user=os.environ.get('sports_db_admin_user')
 sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
 sports_db_admin_port=os.environ.get('sports_db_admin_port')
+season_year=os.environ.get('season_year')
 
 config={
 	'host':sports_db_admin_host,
@@ -52,14 +53,14 @@ espn_s2=os.environ.get('espn_s2')
 swid=os.environ.get('swid')
 
 league=League(league_id=leagueid, 
-				year=2024,
+				year=season_year,
 				espn_s2=espn_s2,
 				swid=swid, 
 				debug=False)
 
 
 
-myteam=league.teams[10]
+myteam=league.teams[9]
 my_players=clean_string(myteam.roster).split(',')
 
 espn_current_players=[remove_name_suffixes(x) for x in my_players]
@@ -72,9 +73,10 @@ espn_current_players.columns=['name']
 sc=OAuth2(None,None,from_file='oauth2.json')
 gm=yfa.Game(sc, 'nba')
 # league_id=gm.league_ids(year=2024)
-lg=gm.to_league('428.l.18598')
+# lg=gm.to_league('428.l.18598') # 2023-24 season
+lg=gm.to_league('454.l.6397') # 2024-25 season
 
-tm=lg.to_team('428.l.18598.t.4')
+tm=lg.to_team('454.l.6397.t.4')
 my_tm=pd.DataFrame(tm.roster())
 my_players_yh=my_tm.name.tolist()
 
@@ -133,7 +135,7 @@ try:
 		# 	connection.close()
 
 		if output[0] is None:
-			season_begin='2023-10-24'
+			season_begin='2024-10-22'
 			last_data_date=datetime.strptime(season_begin, '%Y-%m-%d')
 			today=datetime.now()-timedelta(days=1)
 			today=today.strftime('%Y-%m-%d')
@@ -233,6 +235,12 @@ try:
 					year=int(datetime.strftime(day.date(), '%Y'))
 					month=int(datetime.strftime(day.date(), '%m'))
 					date=int(datetime.strftime(day.date(), '%d'))
+					# print(f'year - {year}')
+					# print(f'month - {month}')
+					# print(f'date - {date}') #imhere
+					# print('IMHERE!!!')
+					# p=client.player_box_scores(day=date,month=month,year=year)
+					# print(p)
 
 					try:
 						p=client.player_box_scores(day=date,month=month,year=year)
@@ -302,7 +310,7 @@ try:
 				print('New data not available yet')
 		# for my yahoo league
 		if output_yh[0] is None:
-			season_begin='2023-10-24'
+			season_begin='2024-10-22'
 			last_data_date=datetime.strptime(season_begin, '%Y-%m-%d')
 			today=datetime.now()-timedelta(days=1)
 			today=today.strftime('%Y-%m-%d')

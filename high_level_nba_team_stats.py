@@ -30,6 +30,7 @@ sports_db_admin_db='basketball'
 sports_db_admin_user=os.environ.get('sports_db_admin_user')
 sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
 sports_db_admin_port=os.environ.get('sports_db_admin_port')
+season_year=os.environ.get('season_year')
 
 config={
 	'host':sports_db_admin_host,
@@ -46,7 +47,7 @@ espn_s2=os.environ.get('espn_s2')
 swid=os.environ.get('swid')
 
 league=League(league_id=leagueid, 
-				year=2024,
+				year=season_year,
 				espn_s2=espn_s2,
 				swid=swid, 
 				debug=False)
@@ -131,7 +132,7 @@ try:
 	if output[0] is None:
 
 		### new true stuff
-		season_begin='2022-10-24'
+		season_begin='2024-10-24'
 		last_data_date=datetime.strptime(season_begin, '%Y-%m-%d')
 		today=datetime.now()-timedelta(days=1)
 		today=today.strftime('%Y-%m-%d')

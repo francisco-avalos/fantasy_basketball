@@ -53,7 +53,7 @@ swid=os.environ.get('swid')
 
 # espn connect
 league=League(league_id=leagueid, 
-                year=2024,
+                year=2025,
                 espn_s2=espn_s2,
                 swid=swid, 
                 debug=False)

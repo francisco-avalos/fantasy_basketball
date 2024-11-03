@@ -48,7 +48,19 @@ config={
     'allow_local_infile':True
 }
 
-basketball_seasons=pd.read_csv('/Users/franciscoavalosjr/Desktop/basketball-folder/season_dates.csv')
+basketball_seasons=pd.read_csv('/Users/franciscoavalosjr/Desktop/basketball-folder/season_dates-2.csv')
+basketball_seasons['start'] = pd.to_datetime(basketball_seasons['start'])
+# print(basketball_seasons.tail(1))
+# print(basketball_seasons.tail(1).start.iloc[0].strftime('%Y-%m-%d'))
+
+
+today=datetime.today()
+today=pd.to_datetime(today)
+
+begin_date=basketball_seasons.tail(1).start.iloc[0].strftime('%Y-%m-%d')
+end_date=today
+# print(begin_date)
+# print(end_date)
 
 
 try:
@@ -88,6 +100,7 @@ try:
     # block me out below 
     if return_date is not None: # regular trigger
         max_date=return_date.iloc[0,0].strftime('%Y-%m-%d')
+        # max_date='2024-10-22'
         print(f'not starting from scratch... starting from after {max_date}')
         # season_parsed=basketball_seasons[basketball_seasons['start']>max_date]
 
@@ -97,24 +110,13 @@ try:
         # season_parsed=basketball_seasons[basketball_seasons['start']>=latest_season_date.iloc[0]['backfill_since_current_season_begins']].copy()
         season_parsed=basketball_seasons[(basketball_seasons['start']<=latest_season_date.iloc[0]['backfill_since_current_season_begins']) &
                                             (basketball_seasons['end']>=latest_season_date.iloc[0]['backfill_since_current_season_begins'])].copy()
-        # print('season_parsed::',season_parsed)
 
-        # print('season_parsed::',season_parsed)
-        # print('max_date::',max_date)
-        # print('latest_season_date::', latest_season_date)
-        # print(basketball_seasons.head(100))
-        # print(season_parsed.head())
-        # print(max_date)
         # season_parsed=season_parsed[season_parsed['start']<'2019-10-22'] # doing covid season manually
 
         #use below 2 lines for runinng covid season
         # del basketball_seasons['start'], basketball_seasons['end']
         # basketball_seasons.dropna(how='all', inplace=True)
         # season_parsed=basketball_seasons.copy(deep=True)
-        # print('im here')
-        # print('this here:: ',latest_season_date.loc[0,'backfill_since_current_season_latest_data_entry'])
-        # print('season_parsed:: ', season_parsed)
-        # print(f'hello - \n {season_parsed}')
 
         ## below is testing - 2023-23 bug fix
         og_start=pd.to_datetime(season_parsed.start)
@@ -125,24 +127,18 @@ try:
         today=datetime.today()
         today=pd.to_datetime(today)
         season_parsed.loc[-1:,'end']=today.date()
-        ## above is testing - 2023-23 bug fix
+
 
         n=2
         # for i in season_parsed.index:
         for i in season_parsed.index:
             start_time=time.perf_counter()
             df=pd.DataFrame()
-            season_year_start=int(datetime.strftime(season_parsed.loc[i,:]['start'],'%Y'))
-            season_year_end=int(datetime.strftime(season_parsed.loc[i,:]['end'],'%Y'))
-            # season_year_start=int(datetime.strftime(season_parsed.loc[i,:]['special_start'],'%Y'))
-            # season_year_end=int(datetime.strftime(season_parsed.loc[i,:]['special_end'],'%Y'))
-            length=len(str(season_year_start))
-            # season='20'+str(season_year_start)[length-n:]+'-'+str(season_year_end)[length-n:] # og before 2023-23 bug
-            season=og_start+'-'+str(season_year_end)[length-n:]
-            # season='20'+str(og_start)+'-'+str(season_year_end)[length-n:]
-            day_range=pd.date_range(start=season_parsed.loc[i,'start'], end=season_parsed.loc[i,'end'])
-            # day_range=pd.date_range(start=season_parsed.loc[i,'special_start'], end=season_parsed.loc[i,'special_end'])
-            # print('im here::',day_range)
+            if max_date > begin_date:
+                begin_date=max_date
+
+            day_range=pd.date_range(start=begin_date,end=end_date)
+            
             for day in day_range:
                 year=int(day.year)
                 month=int(day.month)
@@ -173,7 +169,6 @@ try:
                 cursor=connection.cursor()
                 print('Connection to database established... Begin insertion into historical table.')
                 start_time=time.perf_counter()
-                
                 file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/historical_player_extract.csv'
                 df.to_csv(file_path,index=False)
                 qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.historical_player_data FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' IGNORE 1 ROWS;"
@@ -181,11 +176,6 @@ try:
                 connection.commit()
                 del df
                 os.remove(file_path)
-
-                # for i,row in df.iterrows():
-                #     sql='REPLACE INTO `historical_player_data` (`'+cols+'`) VALUES ('+'%s,'*(len(row)-1)+'%s)'
-                #     cursor.execute(sql, tuple(row))
-                #     connection.commit()
 
                 end_time=time.perf_counter()
                 lapsed_time_min=(end_time-start_time)/60

@@ -69,16 +69,15 @@ FROM
         FROM basketball.historical_player_data BBREF
         WHERE BBREF.slug IN (SELECT DISTINCT name_code FROM basketball.live_free_agents)
             AND BBREF.date NOT BETWEEN LAST_DAY(DATE_FORMAT(BBREF.date, '%Y-04-%d')) AND LAST_DAY(DATE_FORMAT(BBREF.date, '%Y-09-%d'))
-            AND BBREF.date < '2023-10-24'
-            AND BBREF.date <= '2024-04-04'
+            AND BBREF.date < '2024-10-22'
     ) A
 ;'''
 
 yahoo_query='''
 SELECT 
     CASE
-        WHEN BBREF.date BETWEEN '2023-10-24' AND '2024-04-14' THEN 'current_season_only'
-        WHEN BBREF.date < '2023-10-24' THEN 'historicals_only'
+        WHEN BBREF.date BETWEEN '2024-10-22' AND '2025-04-13' THEN 'current_season_only'
+        WHEN BBREF.date < '2024-10-22' THEN 'historicals_only'
     END current_season_vs_historicals,
     'history_plus_current' AS all_history,
     YP.name,
@@ -109,7 +108,7 @@ JOIN basketball.master_names_list_temp MNL ON SUBSTRING_INDEX(YP.name, ' ',1) = 
     AND (CASE WHEN LENGTH(YP.name)-LENGTH(REPLACE(YP.name, ' ', ''))+1 > 2 THEN SUBSTRING_INDEX(SUBSTRING_INDEX(YP.name, ' ',-2), ' ', -1) ELSE '' END) = MNL.suffix
 JOIN basketball.historical_player_data BBREF ON MNL.bbrefid = BBREF.slug
 WHERE BBREF.date NOT BETWEEN LAST_DAY(DATE_FORMAT(BBREF.date, '%Y-04-%d')) AND LAST_DAY(DATE_FORMAT(BBREF.date, '%Y-09-%d'))
-    AND BBREF.date <= '2024-04-04'
+    -- AND BBREF.date <= '2025-04-13'
 ;'''
 
 

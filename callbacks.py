@@ -330,7 +330,7 @@ def line_plot(metric='points',leagueid='ESPN'):
     return line_plot
 
 
-def line_plot_preds(leagueid='espn',player_slug='brownja02',model_type=None):
+def line_plot_preds(leagueid='espn',player_slug='aldamsa01',model_type=None):
     if leagueid=='Yahoo':
         leagueid='yahoo'
     elif leagueid=='ESPN':

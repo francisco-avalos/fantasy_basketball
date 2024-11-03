@@ -31,13 +31,15 @@ sports_db_admin_db='basketball'
 sports_db_admin_user=os.environ.get('sports_db_admin_user')
 sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
 sports_db_admin_port=os.environ.get('sports_db_admin_port')
+season_year=os.environ.get('season_year')
 
 leagueid=os.environ.get('leagueid')
 espn_s2=os.environ.get('espn_s2')
 swid=os.environ.get('swid')
 
+
 league=League(league_id=leagueid, 
-				year=2024,
+				year=season_year,
 				espn_s2=espn_s2,
 				swid=swid, 
 				debug=False)
@@ -50,15 +52,7 @@ league=League(league_id=leagueid,
 # my_players=clean_string(myteam.roster).split(',')
 
 
-keep_out=['anthoca01', 'whiteha01', 
-		  'aldrila01', #'walkeke02',
-		  #'couside01', 
-		  #'howardw01',
-		  #'fallta01', 
-		  'bledser01', 
-		  'rondora01', #'thomptr01', 
-		  'thomais02', 'hoardja01']
-season_end_year=2024
+keep_out=['tatumja01','moranja01','banede01']
 fa_size=700
 non_shows=[]
 
@@ -89,7 +83,7 @@ try:
 	main_free_agents_df=pd.DataFrame()
 	FA=clean_string(FA).split(',')
 
-	advanced_df=pd.DataFrame(client.players_advanced_season_totals(season_end_year=season_end_year))
+	advanced_df=pd.DataFrame(client.players_advanced_season_totals(season_end_year=season_year))
 	# row=0
 
 	for fa in FA:

@@ -550,6 +550,10 @@ for league,info in data_structure.items():
 						os.remove(export_import_data_file_path)
 						print(f'Finished inserting predictions for {bbrefid} - {is_stats_model_type}')
 
+# if connection.is_connected():
+# 	cursor=connection.cursor()
+# 	cursor.callproc('basketball.player_app_display')
+# CALL basketball.player_app_display();
 
 if(connection.is_connected()):
 	cursor.close()

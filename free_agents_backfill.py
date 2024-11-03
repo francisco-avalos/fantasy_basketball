@@ -30,6 +30,7 @@ sports_db_admin_db='basketball'
 sports_db_admin_user=os.environ.get('sports_db_admin_user')
 sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
 sports_db_admin_port=os.environ.get('sports_db_admin_port')
+season_year=os.environ.get('season_year')
 
 config={
 	'host':sports_db_admin_host,
@@ -44,9 +45,8 @@ leagueid=os.environ.get('leagueid')
 espn_s2=os.environ.get('espn_s2')
 swid=os.environ.get('swid')
 
-season_end_year=2024
 league=League(league_id=leagueid, 
-				year=season_end_year,
+				year=season_year,
 				espn_s2=espn_s2,
 				swid=swid, 
 				debug=False)
@@ -97,7 +97,7 @@ try:
 				# if (fa in full_name) & (name_code not in keep_out) & (name_code is not None):
 					try:
 						fa_output=client.regular_season_player_box_scores(player_identifier=name_code, 
-																		season_end_year=season_end_year)
+																		season_end_year=season_year)
 						df=pd.DataFrame(fa_output)
 						df.insert(0, 'name', fa)
 						name_code_list=[name_code] * df.shape[0]
@@ -115,7 +115,7 @@ try:
 				# if (fa in full_name) & (name_code not in keep_out) & (name_code is not None):
 					try:
 						fa_output=client.regular_season_player_box_scores(player_identifier=name_code,
-																		season_end_year=season_end_year)
+																		season_end_year=season_year)
 						df=pd.DataFrame(fa_output)
 						df.insert(0, 'name', fa)
 						name_code_list=[name_code] * df.shape[0]

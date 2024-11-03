@@ -30,6 +30,7 @@ sports_db_admin_db='basketball'
 sports_db_admin_user=os.environ.get('sports_db_admin_user')
 sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
 sports_db_admin_port=os.environ.get('sports_db_admin_port')
+season_year=os.environ.get('season_year')
 
 config={
 	'host':sports_db_admin_host,
@@ -45,12 +46,11 @@ espn_s2=os.environ.get('espn_s2')
 swid=os.environ.get('swid')
 
 league=League(league_id=leagueid, 
-				year=2024,
+				year=season_year,
 				espn_s2=espn_s2,
 				swid=swid, 
 				debug=False)
 
-season_end_year=2024
 
 try:
 	connection=mysql.connect(**config)
@@ -60,7 +60,7 @@ try:
 		cursor.execute(sql)
 		output=cursor.fetchone()
 
-	df=client.season_schedule(season_end_year=season_end_year)
+	df=client.season_schedule(season_end_year=season_year)
 	df=pd.DataFrame(df)
 	df['start_time']=df['start_time'].astype(str)
 	df['away_team']=df['away_team'].astype(str)

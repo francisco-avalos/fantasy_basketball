@@ -29,6 +29,7 @@ sports_db_admin_db='basketball'
 sports_db_admin_user=os.environ.get('sports_db_admin_user')
 sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
 sports_db_admin_port=os.environ.get('sports_db_admin_port')
+season_year=os.environ.get('season_year')
 
 config={
 	'host':sports_db_admin_host,
@@ -41,7 +42,7 @@ config={
 
 sc=OAuth2(None,None,from_file='oauth2.json')
 gm=yfa.Game(sc, 'nba')
-league_id=gm.league_ids(year=2024)
+league_id=gm.league_ids(year=season_year)
 lg=gm.to_league('428.l.18598')
 # lg=gm.to_league('402.l.18598') # tried to use as fix with bug
 
