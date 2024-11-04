@@ -3,12 +3,13 @@ import pandas as pd
 
 # own functions
 from my_functions import execute_query_and_fetch_df
-
+from config import get_season_dates
 
 ####################################################################################################
 # 000 - QUERIES
 ####################################################################################################
 
+season_start,season_end=get_season_dates()
 
 espn_query='''
 SELECT 
@@ -69,16 +70,20 @@ FROM
         FROM basketball.historical_player_data BBREF
         WHERE BBREF.slug IN (SELECT DISTINCT name_code FROM basketball.live_free_agents)
             AND BBREF.date NOT BETWEEN LAST_DAY(DATE_FORMAT(BBREF.date, '%Y-04-%d')) AND LAST_DAY(DATE_FORMAT(BBREF.date, '%Y-09-%d'))
-            AND BBREF.date < '2024-10-22'
+            AND BBREF.date < %s #'2024-10-22'
     ) A
 ;'''
 
 yahoo_query='''
 SELECT 
     CASE
-        WHEN BBREF.date BETWEEN '2024-10-22' AND '2025-04-13' THEN 'current_season_only'
-        WHEN BBREF.date < '2024-10-22' THEN 'historicals_only'
+        WHEN BBREF.date BETWEEN %s AND %s THEN 'current_season_only'
+        WHEN BBREF.date < %s THEN 'historicals_only'
     END current_season_vs_historicals,
+    -- CASE
+    --     WHEN BBREF.date BETWEEN '2024-10-22' AND '2025-04-13' THEN 'current_season_only'
+    --     WHEN BBREF.date < '2024-10-22' THEN 'historicals_only'
+    -- END current_season_vs_historicals,
     'history_plus_current' AS all_history,
     YP.name,
     BBREF.date,
@@ -229,8 +234,8 @@ def add_new_fields(df:pd.DataFrame)->pd.DataFrame:
 def optimize_code(connection):
     dfs={}
     if connection.is_connected():
-        fa_espn_df=execute_query_and_fetch_df(espn_query,connection)
-        fa_yahoo_df=execute_query_and_fetch_df(yahoo_query, connection)
+        fa_espn_df=execute_query_and_fetch_df(espn_query,connection,season_start)
+        fa_yahoo_df=execute_query_and_fetch_df(yahoo_query, connection,season_start,season_end)
         dfs['fa_espn_df']=fa_espn_df
         dfs['fa_yahoo_df']=fa_yahoo_df
 
@@ -264,7 +269,7 @@ def optimize_code(connection):
 def optimize_code_layouts(connection):
     dfs={}
     if connection.is_connected():
-        fa_espn_df=execute_query_and_fetch_df(espn_query,connection)
+        fa_espn_df=execute_query_and_fetch_df(espn_query,connection,season_start)
         dfs['fa_espn_df']=fa_espn_df
         my_live_espn_df=execute_query_and_fetch_df(my_live_espn_qry,connection)
         

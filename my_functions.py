@@ -244,11 +244,20 @@ def date_extract(file_name:str):
 	else:
 		return None
 
-def execute_query_and_fetch_df(query, connection):
-    with connection.cursor() as cursor:
-        cursor.execute(query)
-        result = cursor.fetchall()
-    return pd.DataFrame(result, columns=cursor.column_names)
+def execute_query_and_fetch_df(query, connection,*params):
+    # with connection.cursor() as cursor:
+    #     cursor.execute(query)
+    #     result = cursor.fetchall()
+    # return pd.DataFrame(result, columns=cursor.column_names)
+    if params:
+    	formatted_query=query.format(*(['%s']*len(params)))
+    	with connection.cursor() as cursor:
+    		cursor.execute(formatted_query,params)
+    else:
+    	with connection.cursor() as cursor:
+    		cursor.execute(query)
+    result = cursor.fetchall()
+    return pd.DataFrame(result, columns=[col[0] for col in cursor.description])
 
 
 def convert_fields_to_float(df:pd.DataFrame,fields:list)->pd.DataFrame:
