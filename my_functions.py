@@ -245,19 +245,14 @@ def date_extract(file_name:str):
 		return None
 
 def execute_query_and_fetch_df(query, connection,*params):
-    # with connection.cursor() as cursor:
-    #     cursor.execute(query)
-    #     result = cursor.fetchall()
-    # return pd.DataFrame(result, columns=cursor.column_names)
-    if params:
-    	formatted_query=query.format(*(['%s']*len(params)))
-    	with connection.cursor() as cursor:
-    		cursor.execute(formatted_query,params)
-    else:
-    	with connection.cursor() as cursor:
-    		cursor.execute(query)
-    result = cursor.fetchall()
-    return pd.DataFrame(result, columns=[col[0] for col in cursor.description])
+	try:
+		with connection.cursor() as cursor:
+			cursor.execute(query, params)
+			result = cursor.fetchall()
+		return pd.DataFrame(result, columns=[col[0] for col in cursor.description])
+	except Exception as e: 
+		print(f"An error occurred: {e}")
+
 
 
 def convert_fields_to_float(df:pd.DataFrame,fields:list)->pd.DataFrame:

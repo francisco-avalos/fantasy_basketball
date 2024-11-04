@@ -4,12 +4,18 @@ import pandas as pd
 # own functions
 from my_functions import execute_query_and_fetch_df
 from config import get_season_dates
+from datetime import datetime
 
 ####################################################################################################
 # 000 - QUERIES
 ####################################################################################################
 
-season_start,season_end=get_season_dates()
+season_start_str,season_end_str=get_season_dates()
+
+# season_start_str = season_start.strftime('%Y-%m-%d')
+# season_end_str = season_end.strftime('%Y-%m-%d')
+# season_start_str = datetime.strptime(season_start,'%Y-%m-%d')
+# season_end_str = datetime.strptime(season_end,'%Y-%m-%d')
 
 espn_query='''
 SELECT 
@@ -113,7 +119,7 @@ JOIN basketball.master_names_list_temp MNL ON SUBSTRING_INDEX(YP.name, ' ',1) = 
     AND (CASE WHEN LENGTH(YP.name)-LENGTH(REPLACE(YP.name, ' ', ''))+1 > 2 THEN SUBSTRING_INDEX(SUBSTRING_INDEX(YP.name, ' ',-2), ' ', -1) ELSE '' END) = MNL.suffix
 JOIN basketball.historical_player_data BBREF ON MNL.bbrefid = BBREF.slug
 WHERE BBREF.date NOT BETWEEN LAST_DAY(DATE_FORMAT(BBREF.date, '%Y-04-%d')) AND LAST_DAY(DATE_FORMAT(BBREF.date, '%Y-09-%d'))
-    -- AND BBREF.date <= '2025-04-13'
+    AND BBREF.date <= %s
 ;'''
 
 
@@ -230,12 +236,11 @@ def add_new_fields(df:pd.DataFrame)->pd.DataFrame:
 
 
 
-
 def optimize_code(connection):
     dfs={}
     if connection.is_connected():
-        fa_espn_df=execute_query_and_fetch_df(espn_query,connection,season_start)
-        fa_yahoo_df=execute_query_and_fetch_df(yahoo_query, connection,season_start,season_end)
+        fa_espn_df=execute_query_and_fetch_df(espn_query,connection,season_start_str)
+        fa_yahoo_df=execute_query_and_fetch_df(yahoo_query, connection,season_start_str,season_end_str,season_start_str,season_end_str)
         dfs['fa_espn_df']=fa_espn_df
         dfs['fa_yahoo_df']=fa_yahoo_df
 
@@ -269,7 +274,7 @@ def optimize_code(connection):
 def optimize_code_layouts(connection):
     dfs={}
     if connection.is_connected():
-        fa_espn_df=execute_query_and_fetch_df(espn_query,connection,season_start)
+        fa_espn_df=execute_query_and_fetch_df(espn_query,connection,season_start_str)
         dfs['fa_espn_df']=fa_espn_df
         my_live_espn_df=execute_query_and_fetch_df(my_live_espn_qry,connection)
         
