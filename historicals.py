@@ -137,12 +137,18 @@ try:
             if max_date > begin_date:
                 begin_date=max_date
 
+            season_year_start=int(datetime.strftime(season_parsed.loc[i,:]['start'],'%Y'))
+            season_year_end=int(datetime.strftime(season_parsed.loc[i,:]['end'],'%Y'))
+            length=len(str(season_year_start))
+            season=og_start+'-'+str(season_year_end)[length-n:]
+
             day_range=pd.date_range(start=begin_date,end=end_date)
             
             for day in day_range:
                 year=int(day.year)
                 month=int(day.month)
                 date=int(day.day)
+                # print('IM HERE')
                 try:
                     p=client.player_box_scores(day=date,month=month,year=year)
                     p=pd.DataFrame(p)

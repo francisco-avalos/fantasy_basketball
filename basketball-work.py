@@ -482,11 +482,11 @@ print(FA)
 # ###################################################
 
 
-# p=client.player_box_scores(day=25,month=10,year=2024)
-# print(type(p))
-# df=pd.DataFrame(p)
-# # df=df[df['name']=='Anthony Davis']
-# print(df.head())
+p=client.player_box_scores(day=1,month=11,year=2024)
+print(type(p))
+df=pd.DataFrame(p)
+# df=df[df['name']=='Anthony Davis']
+print(df.head())
 
 
 
