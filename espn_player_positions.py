@@ -32,6 +32,7 @@ sports_db_admin_db='basketball'
 sports_db_admin_user=os.environ.get('sports_db_admin_user')
 sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
 sports_db_admin_port=os.environ.get('sports_db_admin_port')
+season_year=os.environ.get('season_year')
 
 config={
 	'host':sports_db_admin_host,
@@ -47,12 +48,12 @@ config={
 # swid=os.environ.get('swid')
 
 
-season_end_year=2024
+# season_end_year=202
 espn_league_config={
 	'league_id':os.environ.get('leagueid'),
 	'espn_s2':os.environ.get('espn_s2'),
 	'swid':os.environ.get('swid'),
-	'year':season_end_year,
+	'year':season_year,
 	'debug':False
 }
 league=League(**espn_league_config)
@@ -62,7 +63,7 @@ league=League(**espn_league_config)
 
 
 
-fa_size=10
+fa_size=1000
 non_shows=[]
 file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/espn_fa_players_roles.csv'
 
@@ -79,9 +80,33 @@ player_position_df=pd.DataFrame(columns=['Player_Name','Player_Roles'])
 
 
 
+
+current_season_players_qry="""
+SELECT DISTINCT name
+FROM basketball.historical_player_data
+WHERE season = (SELECT DISTINCT season FROM basketball.historical_player_data ORDER BY date DESC LIMIT 1)
+;
+"""
+
+connection=mysql.connect(**config)
+
+if connection.is_connected():
+	cursor=connection.cursor()
+	cursor.execute(current_season_players_qry)
+	current_season_players=cursor.fetchall()
+	FA=pd.DataFrame(current_season_players, columns=cursor.column_names)
+
+if(connection.is_connected()):
+	cursor.close()
+	connection.close()
+
+
+# for idx,row in FA.iterrows():
+# 	print(row['name'])
+
 try:
 
-	FA=league.free_agents(size=fa_size)
+	# FA=league.free_agents(size=fa_size)
 
 	# player_position_df=pd.DataFrame(columns=['Player_Name','Player_Roles'])
 	# FA=clean_string(FA).split(',')
@@ -89,9 +114,9 @@ try:
 
 	print('begin process')
 
-	for fa in tqdm(FA):
+	for idx,fa in tqdm(FA.iterrows()):
 		# fa=fa.lstrip().rstrip()
-		fa=str(fa)
+		fa=str(fa['name'])
 		fa=remove_player_string(fa)
 		pi=league.player_info(fa)
 		new_row={'Player_Name':fa,'Player_Roles':pi.eligibleSlots}
@@ -114,9 +139,9 @@ try:
 		# del player_position_df
 		# os.remove(file_path)
 
-	# if(connection.is_connected()):
-	# 	cursor.close()
-	# 	connection.close()
+	if(connection.is_connected()):
+		cursor.close()
+		connection.close()
 
 
 	# for fa in FA:
