@@ -620,4 +620,68 @@ CALL basketball.player_app_display();
 
 
 
+########################################################################################################################
+########################################################################################################################
+
+DROP TABLE IF EXISTS basketball.espn_player_positions_final;
+CREATE TABLE basketball.espn_player_positions_final
+SELECT DISTINCT A.*
+FROM 
+	( 
+		SELECT
+			player_name,
+			TRIM(BOTH "'" FROM SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE(REPLACE(TRIM(player_roles), '[', ''), ']', ''), ',', 1), ',', -1)) AS position
+		FROM basketball.espn_player_positions
+		UNION ALL
+		SELECT
+			player_name,
+			TRIM(BOTH "'" FROM TRIM(TRIM(BOTH "'" FROM SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE(REPLACE(TRIM(player_roles), '[', ''), ']', ''), ',', 2), ',', -1)))) AS position
+		FROM basketball.espn_player_positions
+		UNION ALL
+		SELECT
+			player_name,
+			TRIM(BOTH "'" FROM TRIM(TRIM(BOTH "'" FROM SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE(REPLACE(TRIM(player_roles), '[', ''), ']', ''), ',', 3), ',', -1)))) AS position
+		FROM basketball.espn_player_positions
+		UNION ALL
+		SELECT
+			player_name,
+			TRIM(BOTH "'" FROM TRIM(TRIM(BOTH "'" FROM SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE(REPLACE(TRIM(player_roles), '[', ''), ']', ''), ',', 4), ',', -1)))) AS position
+		FROM basketball.espn_player_positions
+		UNION ALL
+		SELECT
+			player_name,
+			TRIM(BOTH "'" FROM TRIM(TRIM(BOTH "'" FROM SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE(REPLACE(TRIM(player_roles), '[', ''), ']', ''), ',', 5), ',', -1)))) AS position
+		FROM basketball.espn_player_positions
+		UNION ALL
+		SELECT
+			player_name,
+			TRIM(BOTH "'" FROM TRIM(TRIM(BOTH "'" FROM SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE(REPLACE(TRIM(player_roles), '[', ''), ']', ''), ',', 6), ',', -1)))) AS position
+		FROM basketball.espn_player_positions
+		UNION ALL
+		SELECT
+			player_name,
+			TRIM(BOTH "'" FROM TRIM(TRIM(BOTH "'" FROM SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE(REPLACE(TRIM(player_roles), '[', ''), ']', ''), ',', 7), ',', -1)))) AS position
+		FROM basketball.espn_player_positions
+		UNION ALL
+		SELECT
+			player_name,
+			TRIM(BOTH "'" FROM TRIM(TRIM(BOTH "'" FROM SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE(REPLACE(TRIM(player_roles), '[', ''), ']', ''), ',', 8), ',', -1)))) AS position
+		FROM basketball.espn_player_positions
+		UNION ALL
+		SELECT
+			player_name,
+			TRIM(BOTH "'" FROM TRIM(TRIM(BOTH "'" FROM SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE(REPLACE(TRIM(player_roles), '[', ''), ']', ''), ',', 9), ',', -1)))) AS position
+		FROM basketball.espn_player_positions
+		UNION ALL
+		SELECT
+			player_name,
+			TRIM(BOTH "'" FROM TRIM(TRIM(BOTH "'" FROM SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE(REPLACE(TRIM(player_roles), '[', ''), ']', ''), ',', 10), ',', -1)))) AS position
+		FROM basketball.espn_player_positions
+		UNION ALL
+		SELECT
+			player_name,
+			TRIM(BOTH "'" FROM TRIM(TRIM(BOTH "'" FROM SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE(REPLACE(TRIM(player_roles), '[', ''), ']', ''), ',', 11), ',', -1)))) AS position
+		FROM basketball.espn_player_positions
+    ) A;
+
 
