@@ -78,7 +78,7 @@ FROM
             AND BBREF.date NOT BETWEEN LAST_DAY(DATE_FORMAT(BBREF.date, '%Y-04-%d')) AND LAST_DAY(DATE_FORMAT(BBREF.date, '%Y-09-%d'))
             AND BBREF.date < %s #'2024-10-22'
     ) A
-;'''
+LIMIT 1000;'''
 
 yahoo_query='''
 SELECT 
@@ -120,7 +120,7 @@ JOIN basketball.master_names_list_temp MNL ON SUBSTRING_INDEX(YP.name, ' ',1) = 
 JOIN basketball.historical_player_data BBREF ON MNL.bbrefid = BBREF.slug
 WHERE BBREF.date NOT BETWEEN LAST_DAY(DATE_FORMAT(BBREF.date, '%Y-04-%d')) AND LAST_DAY(DATE_FORMAT(BBREF.date, '%Y-09-%d'))
     AND BBREF.date <= %s
-;'''
+LIMIT 1000;'''
 
 
 my_espn_team_qry='''
