@@ -582,7 +582,7 @@ page2=html.Div([
                         ),
                         html.Div(['(Functional for current season only)',
                             dcc.Input(id='my_input',
-                                        value=200,
+                                        value=500,
                                         type='number',
                                         style={'font-size': '12px','display': 'inline-block', 'border-radius' : '2px', 'border' : '1px solid #ccc', 'color': '#333', 'border-spacing' : '0', 'border-collapse' :'separate'}
                                 )
