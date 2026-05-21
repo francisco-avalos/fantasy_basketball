@@ -526,162 +526,164 @@
 
 
 
-DROP PROCEDURE IF EXISTS basketball.player_app_display;
-DELIMITER $$
-CREATE PROCEDURE basketball.player_app_display()
-BEGIN 
-	DROP TEMPORARY TABLE IF EXISTS basketball.temp_player_info;
-	CREATE TEMPORARY TABLE basketball.temp_player_info
-	SELECT DISTINCT X.*
-	FROM
-		(
-			SELECT 
-				LEP.name,
-				BRP.BBRefID AS slug,
-                'espn' AS league
-			FROM basketball.live_espn_players LEP
-			JOIN basketball.basketball_references_players BRP ON LEP.name = BRP.BBRefName
-			UNION ALL
-			SELECT 
-				LYP.name,
-				BRP.BBRefID AS slug,
-                'yahoo' AS league
-			FROM basketball.live_yahoo_players LYP
-			JOIN basketball.basketball_references_players BRP ON LYP.name = BRP.BBRefName
-		) X
-	;
-	DROP TABLE IF EXISTS basketball.player_historical_web_app_display;
-	CREATE TABLE basketball.player_historical_web_app_display
-	(
-	  `date` date NOT NULL,
-	  `slug` varchar(50) NOT NULL,
-      `name` varchar(150) NOT NULL,
-	  `team` varchar(100) NOT NULL DEFAULT '',
-	  `opponent` varchar(100) NOT NULL DEFAULT '',
-	  `points` int DEFAULT 0,
-	  `league` varchar(5) NOT NULL,
-	  PRIMARY KEY (date,slug,league)
-	);
-	DROP TABLE IF EXISTS basketball.myteam_next_5_games;
-	CREATE TABLE basketball.myteam_next_5_games
-	(
-	  `date` date NOT NULL,
-	  `day` double DEFAULT NULL,
-	  `slug` varchar(50) NOT NULL,
-	  `team` varchar(100) NOT NULL,
-	  `opponent` varchar(100) NOT NULL,
-	  `location` varchar(100) NOT NULL,
-	  `opponent_location` varchar(101) DEFAULT NULL,
-	  `points` int DEFAULT NULL
-	);
-    SET @slug := (SELECT MIN(slug) AS slug FROM basketball.temp_player_info LIMIT 1);
-    SET @league := (SELECT league FROM basketball.temp_player_info WHERE slug = @slug LIMIT 1);
-    WHILE @slug IS NOT NULL DO
-		REPLACE INTO basketball.player_historical_web_app_display
-		SELECT 
-			HPD.date,
-			HPD.slug,
-            HPD.name,
-			REPLACE(REPLACE(HPD.team,'Team.',''),'_',' ') AS team,
-			REPLACE(REPLACE(HPD.opponent,'Team.',''),'_',' ') AS opponent,
-			HPD.points,
-			@league AS league
-		FROM basketball.historical_player_data HPD
-		WHERE HPD.slug = @slug
-		ORDER BY date DESC;
+-- DROP PROCEDURE IF EXISTS basketball.player_app_display;
+-- DELIMITER $$
+-- CREATE PROCEDURE basketball.player_app_display()
+-- BEGIN 
+-- 	DROP TEMPORARY TABLE IF EXISTS basketball.temp_player_info;
+-- 	CREATE TEMPORARY TABLE basketball.temp_player_info
+-- 	SELECT DISTINCT X.*
+-- 	FROM
+-- 		(
+-- 			SELECT 
+-- 				LEP.name,
+-- 				BRP.BBRefID AS slug,
+--                 'espn' AS league
+-- 			FROM basketball.live_espn_players LEP
+-- 			JOIN basketball.basketball_references_players BRP ON LEP.name = BRP.BBRefName
+-- 			UNION ALL
+-- 			SELECT 
+-- 				LYP.name,
+-- 				BRP.BBRefID AS slug,
+--                 'yahoo' AS league
+-- 			FROM basketball.live_yahoo_players LYP
+-- 			JOIN basketball.basketball_references_players BRP ON LYP.name = BRP.BBRefName
+-- 		) X
+-- 	;
+-- 	DROP TABLE IF EXISTS basketball.player_historical_web_app_display;
+-- 	CREATE TABLE basketball.player_historical_web_app_display
+-- 	(
+-- 	  `date` date NOT NULL,
+-- 	  `slug` varchar(50) NOT NULL,
+--       `name` varchar(150) NOT NULL,
+-- 	  `team` varchar(100) NOT NULL DEFAULT '',
+-- 	  `opponent` varchar(100) NOT NULL DEFAULT '',
+-- 	  `points` int DEFAULT 0,
+-- 	  `league` varchar(5) NOT NULL,
+-- 	  PRIMARY KEY (date,slug,league)
+-- 	);
+-- 	DROP TABLE IF EXISTS basketball.myteam_next_5_games;
+-- 	CREATE TABLE basketball.myteam_next_5_games
+-- 	(
+-- 	  `date` date NOT NULL,
+-- 	  `day` double DEFAULT NULL,
+-- 	  `slug` varchar(50) NOT NULL,
+-- 	  `team` varchar(100) NOT NULL,
+-- 	  `opponent` varchar(100) NOT NULL,
+-- 	  `location` varchar(100) NOT NULL,
+-- 	  `opponent_location` varchar(101) DEFAULT NULL,
+-- 	  `points` int DEFAULT NULL
+-- 	);
+--     SET @slug := (SELECT MIN(slug) AS slug FROM basketball.temp_player_info LIMIT 1);
+--     SET @league := (SELECT league FROM basketball.temp_player_info WHERE slug = @slug LIMIT 1);
+--     WHILE @slug IS NOT NULL DO
+-- 		REPLACE INTO basketball.player_historical_web_app_display
+-- 		SELECT 
+-- 			HPD.date,
+-- 			HPD.slug,
+--             HPD.name,
+-- 			REPLACE(REPLACE(HPD.team,'Team.',''),'_',' ') AS team,
+-- 			REPLACE(REPLACE(HPD.opponent,'Team.',''),'_',' ') AS opponent,
+-- 			HPD.points,
+-- 			@league AS league
+-- 		FROM basketball.historical_player_data HPD
+-- 		WHERE HPD.slug = @slug
+-- 		ORDER BY date DESC;
 
-		REPLACE INTO basketball.myteam_next_5_games
-		SELECT
-			date,
-			@day := @day +1 AS day,
-			slug,
-			team,
-			opponent,
-			location,
-			CASE
-				WHEN SUBSTRING_INDEX(location,'.',-1) = 'HOME' THEN REPLACE(opponent,'Team.','')
-				WHEN SUBSTRING_INDEX(location,'.',-1) = 'AWAY' THEN CONCAT('@',REPLACE(opponent,'Team.',''))
-			END AS opponent_location,
-			points
-		FROM basketball.historical_player_data, (SELECT @day := 0) AS init
-		WHERE slug = @slug
-			AND date > '2024-04-04'
-		LIMIT 5;
-        
-        DELETE FROM basketball.temp_player_info WHERE slug = @slug AND league = @league;
-        SET @slug := (SELECT MIN(slug) AS slug FROM basketball.temp_player_info LIMIT 1);
-        SET @league := (SELECT league FROM basketball.temp_player_info WHERE slug = @slug LIMIT 1);
-	END WHILE;
-END 
-$$
-DELIMITER ;
+-- 		REPLACE INTO basketball.myteam_next_5_games
+-- 		SELECT
+-- 			date,
+-- 			@day := @day +1 AS day,
+-- 			slug,
+-- 			team,
+-- 			opponent,
+-- 			location,
+-- 			CASE
+-- 				WHEN SUBSTRING_INDEX(location,'.',-1) = 'HOME' THEN REPLACE(opponent,'Team.','')
+-- 				WHEN SUBSTRING_INDEX(location,'.',-1) = 'AWAY' THEN CONCAT('@',REPLACE(opponent,'Team.',''))
+-- 			END AS opponent_location,
+-- 			points
+-- 		FROM basketball.historical_player_data, (SELECT @day := 0) AS init
+-- 		WHERE slug = @slug
+-- 			AND date > '2024-04-04'
+-- 		LIMIT 5;
+--         
+--         DELETE FROM basketball.temp_player_info WHERE slug = @slug AND league = @league;
+--         SET @slug := (SELECT MIN(slug) AS slug FROM basketball.temp_player_info LIMIT 1);
+--         SET @league := (SELECT league FROM basketball.temp_player_info WHERE slug = @slug LIMIT 1);
+-- 	END WHILE;
+-- END 
+-- $$
+-- DELIMITER ;
 
-CALL basketball.player_app_display();
+-- CALL basketball.player_app_display();
 
 
 
 ########################################################################################################################
 ########################################################################################################################
 
-DROP TABLE IF EXISTS basketball.espn_player_positions_final;
-CREATE TABLE basketball.espn_player_positions_final
-SELECT DISTINCT A.*
-FROM 
-	( 
-		SELECT
-			player_name,
-			TRIM(BOTH "'" FROM SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE(REPLACE(TRIM(player_roles), '[', ''), ']', ''), ',', 1), ',', -1)) AS position
-		FROM basketball.espn_player_positions
-		UNION ALL
-		SELECT
-			player_name,
-			TRIM(BOTH "'" FROM TRIM(TRIM(BOTH "'" FROM SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE(REPLACE(TRIM(player_roles), '[', ''), ']', ''), ',', 2), ',', -1)))) AS position
-		FROM basketball.espn_player_positions
-		UNION ALL
-		SELECT
-			player_name,
-			TRIM(BOTH "'" FROM TRIM(TRIM(BOTH "'" FROM SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE(REPLACE(TRIM(player_roles), '[', ''), ']', ''), ',', 3), ',', -1)))) AS position
-		FROM basketball.espn_player_positions
-		UNION ALL
-		SELECT
-			player_name,
-			TRIM(BOTH "'" FROM TRIM(TRIM(BOTH "'" FROM SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE(REPLACE(TRIM(player_roles), '[', ''), ']', ''), ',', 4), ',', -1)))) AS position
-		FROM basketball.espn_player_positions
-		UNION ALL
-		SELECT
-			player_name,
-			TRIM(BOTH "'" FROM TRIM(TRIM(BOTH "'" FROM SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE(REPLACE(TRIM(player_roles), '[', ''), ']', ''), ',', 5), ',', -1)))) AS position
-		FROM basketball.espn_player_positions
-		UNION ALL
-		SELECT
-			player_name,
-			TRIM(BOTH "'" FROM TRIM(TRIM(BOTH "'" FROM SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE(REPLACE(TRIM(player_roles), '[', ''), ']', ''), ',', 6), ',', -1)))) AS position
-		FROM basketball.espn_player_positions
-		UNION ALL
-		SELECT
-			player_name,
-			TRIM(BOTH "'" FROM TRIM(TRIM(BOTH "'" FROM SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE(REPLACE(TRIM(player_roles), '[', ''), ']', ''), ',', 7), ',', -1)))) AS position
-		FROM basketball.espn_player_positions
-		UNION ALL
-		SELECT
-			player_name,
-			TRIM(BOTH "'" FROM TRIM(TRIM(BOTH "'" FROM SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE(REPLACE(TRIM(player_roles), '[', ''), ']', ''), ',', 8), ',', -1)))) AS position
-		FROM basketball.espn_player_positions
-		UNION ALL
-		SELECT
-			player_name,
-			TRIM(BOTH "'" FROM TRIM(TRIM(BOTH "'" FROM SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE(REPLACE(TRIM(player_roles), '[', ''), ']', ''), ',', 9), ',', -1)))) AS position
-		FROM basketball.espn_player_positions
-		UNION ALL
-		SELECT
-			player_name,
-			TRIM(BOTH "'" FROM TRIM(TRIM(BOTH "'" FROM SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE(REPLACE(TRIM(player_roles), '[', ''), ']', ''), ',', 10), ',', -1)))) AS position
-		FROM basketball.espn_player_positions
-		UNION ALL
-		SELECT
-			player_name,
-			TRIM(BOTH "'" FROM TRIM(TRIM(BOTH "'" FROM SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE(REPLACE(TRIM(player_roles), '[', ''), ']', ''), ',', 11), ',', -1)))) AS position
-		FROM basketball.espn_player_positions
-    ) A;
+-- DROP TABLE IF EXISTS basketball.espn_player_positions_final;
+-- CREATE TABLE basketball.espn_player_positions_final
+-- SELECT DISTINCT A.*
+-- FROM 
+-- 	( 
+-- 		SELECT
+-- 			player_name,
+-- 			TRIM(BOTH "'" FROM SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE(REPLACE(TRIM(player_roles), '[', ''), ']', ''), ',', 1), ',', -1)) AS position
+-- 		FROM basketball.espn_player_positions
+-- 		UNION ALL
+-- 		SELECT
+-- 			player_name,
+-- 			TRIM(BOTH "'" FROM TRIM(TRIM(BOTH "'" FROM SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE(REPLACE(TRIM(player_roles), '[', ''), ']', ''), ',', 2), ',', -1)))) AS position
+-- 		FROM basketball.espn_player_positions
+-- 		UNION ALL
+-- 		SELECT
+-- 			player_name,
+-- 			TRIM(BOTH "'" FROM TRIM(TRIM(BOTH "'" FROM SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE(REPLACE(TRIM(player_roles), '[', ''), ']', ''), ',', 3), ',', -1)))) AS position
+-- 		FROM basketball.espn_player_positions
+-- 		UNION ALL
+-- 		SELECT
+-- 			player_name,
+-- 			TRIM(BOTH "'" FROM TRIM(TRIM(BOTH "'" FROM SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE(REPLACE(TRIM(player_roles), '[', ''), ']', ''), ',', 4), ',', -1)))) AS position
+-- 		FROM basketball.espn_player_positions
+-- 		UNION ALL
+-- 		SELECT
+-- 			player_name,
+-- 			TRIM(BOTH "'" FROM TRIM(TRIM(BOTH "'" FROM SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE(REPLACE(TRIM(player_roles), '[', ''), ']', ''), ',', 5), ',', -1)))) AS position
+-- 		FROM basketball.espn_player_positions
+-- 		UNION ALL
+-- 		SELECT
+-- 			player_name,
+-- 			TRIM(BOTH "'" FROM TRIM(TRIM(BOTH "'" FROM SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE(REPLACE(TRIM(player_roles), '[', ''), ']', ''), ',', 6), ',', -1)))) AS position
+-- 		FROM basketball.espn_player_positions
+-- 		UNION ALL
+-- 		SELECT
+-- 			player_name,
+-- 			TRIM(BOTH "'" FROM TRIM(TRIM(BOTH "'" FROM SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE(REPLACE(TRIM(player_roles), '[', ''), ']', ''), ',', 7), ',', -1)))) AS position
+-- 		FROM basketball.espn_player_positions
+-- 		UNION ALL
+-- 		SELECT
+-- 			player_name,
+-- 			TRIM(BOTH "'" FROM TRIM(TRIM(BOTH "'" FROM SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE(REPLACE(TRIM(player_roles), '[', ''), ']', ''), ',', 8), ',', -1)))) AS position
+-- 		FROM basketball.espn_player_positions
+-- 		UNION ALL
+-- 		SELECT
+-- 			player_name,
+-- 			TRIM(BOTH "'" FROM TRIM(TRIM(BOTH "'" FROM SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE(REPLACE(TRIM(player_roles), '[', ''), ']', ''), ',', 9), ',', -1)))) AS position
+-- 		FROM basketball.espn_player_positions
+-- 		UNION ALL
+-- 		SELECT
+-- 			player_name,
+-- 			TRIM(BOTH "'" FROM TRIM(TRIM(BOTH "'" FROM SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE(REPLACE(TRIM(player_roles), '[', ''), ']', ''), ',', 10), ',', -1)))) AS position
+-- 		FROM basketball.espn_player_positions
+-- 		UNION ALL
+-- 		SELECT
+-- 			player_name,
+-- 			TRIM(BOTH "'" FROM TRIM(TRIM(BOTH "'" FROM SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE(REPLACE(TRIM(player_roles), '[', ''), ']', ''), ',', 11), ',', -1)))) AS position
+-- 		FROM basketball.espn_player_positions
+--     ) A;
+
+
 
 
