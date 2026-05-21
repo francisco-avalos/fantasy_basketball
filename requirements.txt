@@ -33,7 +33,7 @@ stanio==0.3.0
 pyaml==23.9.7
 
 # Sports APIs
-basketball-reference-web-scraper==4.16.1
+basketball-reference-web-scraper==4.15.4
 espn-api==0.32.0
 yahoo-fantasy-api==2.8.0
 yahoo-oauth==2.0
