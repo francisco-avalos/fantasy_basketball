@@ -33,7 +33,7 @@ stanio==0.3.0
 pyaml==23.9.7
 
 # Sports APIs
-basketball-reference-web-scraper==4.12.1
+basketball-reference-web-scraper==4.16.1
 espn-api==0.32.0
 yahoo-fantasy-api==2.8.0
 yahoo-oauth==2.0
@@ -42,7 +42,6 @@ rauth==0.7.3
 # HTTP & networking
 requests==2.31.0
 urllib3==2.2.1
-chardet==5.2.0
 idna==3.7
 beautifulsoup4==4.11.1
 soupsieve==2.5
