@@ -67,7 +67,7 @@ numpy==1.26.0
 objectpath==0.6.1
 osqp==0.6.3
 packaging==23.1
-pandas==1.3.5
+pandas==2.2.3
 pandocfilters==1.5.0
 parso==0.8.3
 patsy==0.5.3
