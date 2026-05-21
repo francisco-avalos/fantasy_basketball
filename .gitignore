@@ -15,3 +15,7 @@ oauth2.json
 tmp_data/
 
 TEST_ME.py
+__pycache__/
+.ipynb_checkpoints/
+__pycache__/
+.ipynb_checkpoints/
