@@ -54,7 +54,7 @@ page0 = html.Div(
                     children=[
                         html.Span("ARIMA · SARIMAX · LSTM · Neural Network", className="pill-accent"),
                         html.Span("Kaplan-Meier injury modeling",             className="pill"),
-                        html.Span("Minutes-weighted stat ranking",            className="pill"),
+                        html.Span("Minutes-weighted ranking tool",            className="pill"),
                         html.Span("ESPN + Yahoo league integration",          className="pill"),
                         html.Span("MariaDB · Python · Plotly Dash",           className="pill"),
                     ],
@@ -69,11 +69,11 @@ page0 = html.Div(
                             href="/apps/free-agent-screening",
                         ),
                         dcc.Link(
-                            html.Button("View Predictions", className="btn-secondary"),
+                            html.Button("View Player Predictions", className="btn-secondary"),
                             href="/apps/fantasy-predictions",
                         ),
                         dcc.Link(
-                            html.Button("My Team", className="btn-secondary"),
+                            html.Button("My Team Performance", className="btn-secondary"),
                             href="/apps/team-performance",
                         ),
                     ],
@@ -124,7 +124,7 @@ page0 = html.Div(
                     description=(
                         "Minutes-weighted production heatmaps, weekly contribution "
                         "trend lines, per-player box plots, and weekday vs. weekend "
-                        "performance splits for your current roster."
+                        "performance splits for my current roster."
                     ),
                 ),
                 _feature_card(
