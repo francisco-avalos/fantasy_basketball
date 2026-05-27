@@ -11,13 +11,11 @@ from config import get_creds
 
 # dash outlay
 from dash.dependencies import Input, Output
-from dash import dash_table
+from dash import dash_table, Input, Output, State, html
 from dash_create import app
 # import dash_table.FormatTemplate as FormatTemplate
 # from dash.dash_table.Format import FormatTemplate
 # from dash.dash_table import FormatTemplate
-
-
 
 # plot outlay
 import plotly.express as px
@@ -26,6 +24,10 @@ import plotly.graph_objects as go
 # own functions/connections
 from my_functions import clean_string,remove_name_suffixes,convert_fields_to_float
 from data_imports import optimize_code,add_new_fields
+
+# ai chat
+from ai_chatbox import ask_ai, build_context
+
 
 
 ####################################################################################################
@@ -808,6 +810,137 @@ def update_player_models_table(leagueid,player_slug):
     columns=[{"name":i,"id":i} for i in df.columns]
 
     return data, columns
+
+
+
+####################################################################################################
+# 001 - AI chatbox wiring
+####################################################################################################
+
+
+def _make_bubble(role: str, text: str) -> html.Div:
+    """Return a styled chat bubble for a given role."""
+    is_user = role == "user"
+    return html.Div(
+        text,
+        style={
+            "background-color": "rgb(57, 81, 85)" if is_user else "#2a2a3a",
+            "color":            "rgb(251, 251, 252)",
+            "border-radius":    "12px 12px 0px 12px" if is_user else "12px 12px 12px 0px",
+            "padding":          "10px 14px",
+            "margin":           "6px 0px 6px 40px" if is_user else "6px 40px 6px 0px",
+            "max-width":        "80%",
+            "align-self":       "flex-end" if is_user else "flex-start",
+            "word-wrap":        "break-word",
+            "white-space":      "pre-wrap",
+        },
+    )
+
+
+# ── Callback 1: Send message & call Claude ────────────────────────────────────
+
+@app.callback(
+    Output("ai-chat-history",  "data"),
+    Output("ai-input",         "value"),
+    Output("ai-thinking",      "style"),
+    Input("ai-send-btn",       "n_clicks"),
+    State("ai-input",          "value"),
+    State("ai-chat-history",   "data"),
+    State("ai-days-back",      "value"),
+    prevent_initial_call=True,
+)
+def ai_send(n_clicks, user_text, history, days_back):
+    """
+    On Send click:
+      • Build live context from the DataFrames already loaded in callbacks.py
+      • Call Claude via ai_chatbox.ask_ai()
+      • Append user + assistant turns to history
+      • Clear the input box
+    """
+    hiding   = {"display": "none"}
+    showing  = {"color": "rgb(255,211,67)", "font-style": "italic",
+                 "margin-bottom": "8px", "display": "block"}
+
+    if not user_text or not user_text.strip():
+        return history, "", hiding
+
+    user_text = user_text.strip()
+    history   = history or []
+
+    # Build context from live DataFrames (globals in callbacks.py scope)
+    # When pasted into callbacks.py these names resolve to the module-level vars.
+    try:
+        context = build_context(
+            fa_espn_df            = fa_espn_df,
+            fa_yahoo_df           = fa_yahoo_df,
+            myteam_df             = myteam_df,
+            my_live_espn_df       = my_live_espn_df,
+            my_live_yahoo_df      = my_live_yahoo_df,
+            model_eval_pred_df    = model_eval_pred_df,
+            injury_probabilities_df = injury_probabilities_df,
+            days_back             = int(days_back or 14),
+        )
+    except Exception as e:
+        context = f"(Context unavailable: {e})"
+
+    # Call Claude — pass prior turns so conversation is multi-turn aware
+    try:
+        reply = ask_ai(
+            user_message  = user_text,
+            context       = context,
+            chat_history  = history,
+        )
+    except Exception as e:
+        reply = f"⚠️ Error calling AI: {e}"
+
+    # Append both turns to history
+    updated_history = history + [
+        {"role": "user",      "content": user_text},
+        {"role": "assistant", "content": reply},
+    ]
+
+    return updated_history, "", hiding
+
+
+# ── Callback 2: Re-render chat display ───────────────────────────────────────
+
+@app.callback(
+    Output("ai-chat-display", "children"),
+    Input("ai-chat-history",  "data"),
+)
+def ai_render(history):
+    """Convert stored history list into styled bubble components."""
+    if not history:
+        return [
+            html.P(
+                "No messages yet. Ask me something! 🏀",
+                style={"color": "rgb(186, 218, 212)", "font-style": "italic"},
+            )
+        ]
+    bubbles = []
+    for turn in history:
+        role = turn.get("role", "user")
+        text = turn.get("content", "")
+        bubbles.append(_make_bubble(role, text))
+    return bubbles
+
+
+# ── Callback 3: Clear chat ────────────────────────────────────────────────────
+
+@app.callback(
+    Output("ai-chat-history", "data",    allow_duplicate=True),
+    Output("ai-chat-display", "children", allow_duplicate=True),
+    Input("ai-clear-btn",     "n_clicks"),
+    prevent_initial_call=True,
+)
+def ai_clear(n_clicks):
+    """Wipe the chat when the user clicks 'Clear chat'."""
+    empty_msg = html.P(
+        "Chat cleared. Ask me something! 🏀",
+        style={"color": "rgb(186, 218, 212)", "font-style": "italic"},
+    )
+    return [], [empty_msg]
+
 
 
 

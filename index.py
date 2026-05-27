@@ -17,7 +17,7 @@ from dash.dependencies import Input, Output
 
 from dash_create import app, server          # noqa: F401 — server used by gunicorn
 from landing import page0
-from layouts import page1, page2, page3
+from layouts import page1, page2, page3, page4
 import callbacks                             # noqa: F401 — registers all @app.callback decorators
 
 
@@ -45,6 +45,7 @@ def display_page(pathname: str):
         "/apps/fantasy-predictions":  page1,
         "/apps/free-agent-screening": page2,
         "/apps/team-performance":     page3,
+        "/apps/ai-assistant":         page4
     }
     # Root path ("/") and anything unrecognised -> landing page
     return routes.get(pathname, page0)

@@ -9,7 +9,7 @@ from mysql.connector import pooling
 from config import get_creds
 
 # dash outlay
-from dash import dcc, html, Input, Output, dash_table
+from dash import dcc, html, Input, Output, dash_table, State
 from dash_create import app
 
 
@@ -233,6 +233,13 @@ def get_navbar(p='page1'):
                             href='/apps/team-performance'
                         )
                     ],className='col-2'),
+                    html.Div([
+                      dcc.Link(
+                          html.H4(children='AI Assistant',
+                                  style={'color': corporate_colors['white']}),
+                          href='/apps/ai-assistant'
+                      )
+                    ], className='col-2'),
                     html.Div([], className='col-')
                 ],className='row',
                 style={'background-color' : corporate_colors['dark-green'],
@@ -262,6 +269,13 @@ def get_navbar(p='page1'):
                             href='/apps/team-performance'
                         )
                     ],className='col-2'),
+                    html.Div([
+                      dcc.Link(
+                          html.H4(children='AI Assistant',
+                                  style={'color': corporate_colors['white']}),
+                          href='/apps/ai-assistant'
+                      )
+                    ], className='col-2'),
                     html.Div([], className='col-3')
                 ],className='row',
                 style={'background-color' : corporate_colors['dark-green'],
@@ -291,17 +305,63 @@ def get_navbar(p='page1'):
                             href='/apps/team-performance'
                         )
                     ],className='col-2'),
+                    html.Div([
+                      dcc.Link(
+                          html.H4(children='AI Assistant',
+                                  style={'color': corporate_colors['white']}),
+                          href='/apps/ai-assistant'
+                      )
+                    ], className='col-2'),
                     html.Div([], className='col-3')
                 ],className='row',
                 style={'background-color' : corporate_colors['dark-green'],
                         'box-shadow': '2px 5px 5px 1px rgba(255, 101, 131, .5)'}
             )
+
+    navbar_page4=html.Div([
+                    html.Div([], className='col-3'),
+                    html.Div([
+                        dcc.Link(
+                            html.H4(children='Predictive Modeling', 
+                                style={'color':corporate_colors['white']}),
+                            href='/apps/fantasy-predictions'
+                        )
+                    ],className='col-2'),
+                    html.Div([
+                        dcc.Link(
+                            html.H4(children='Free Agent Screening Tool', 
+                                style={'color':corporate_colors['white']}),
+                            href='/apps/free-agent-screening'
+                        )
+                    ],className='col-2'),
+                    html.Div([
+                        dcc.Link(
+                            html.H4(children='Current Team Performance',
+                                    style={'color': corporate_colors['white']}), 
+                            href='/apps/team-performance'
+                        )
+                    ],className='col-2'),
+                    html.Div([
+                      dcc.Link(
+                          html.H4(children='AI Assistant',
+                                  style=navbarcurrentpage),
+                          href='/apps/ai-assistant'
+                      )
+                    ], className='col-2'),
+                    html.Div([], className='col-3')
+                ],className='row',
+                style={'background-color' : corporate_colors['dark-green'],
+                        'box-shadow': '2px 5px 5px 1px rgba(255, 101, 131, .5)'}
+            )
+
     if p == 'page1':
         return navbar_page1
     elif p == 'page2':
         return navbar_page2
-    else:
+    elif p == 'page3':
         return navbar_page3
+    else:
+        return navbar_page4
 
 
 
@@ -923,3 +983,226 @@ page3=html.Div([
     ), # External row
 
 ])
+
+
+####################################################################################################
+# 004 - page4 (AI chatbot)
+####################################################################################################
+
+page4 = html.Div(
+    [
+        # ── Row 1: Header (reuse from layouts.py) ──────────────────────────
+        get_header(),
+
+        # ── Row 2: Nav bar ─────────────────────────────────────────────────
+        get_navbar('page4'),
+
+        # ── Row 3: Filters bar (league + days-back context window) ─────────
+        html.Div(
+            [
+                html.Div(
+                    [
+                        html.Div(
+                            [
+                                # League selector
+                                html.Div(
+                                    [
+                                        html.H5(
+                                            "Data context – League:",
+                                            style={
+                                                "text-align": "left",
+                                                "color": corporate_colors["medium-blue-grey"],
+                                            },
+                                        ),
+                                        dcc.Dropdown(
+                                            id="ai-league-select",
+                                            options=[
+                                                {"label": "ESPN",  "value": "espn"},
+                                                {"label": "Yahoo", "value": "yahoo"},
+                                                {"label": "Both",  "value": "both"},
+                                            ],
+                                            value="both",
+                                            clearable=False,
+                                            style={"margin-top": "5px"},
+                                        ),
+                                    ],
+                                    className="col-4",
+                                    style={"padding-left": "5px", "margin-top": "10px"},
+                                ),
+                                # Days-back slider
+                                html.Div(
+                                    [
+                                        html.H5(
+                                            "Data context – Days back:",
+                                            style={
+                                                "text-align": "left",
+                                                "color": corporate_colors["medium-blue-grey"],
+                                            },
+                                        ),
+                                        dcc.Slider(
+                                            id="ai-days-back",
+                                            min=7,
+                                            max=60,
+                                            step=7,
+                                            value=14,
+                                            marks={7: "7d", 14: "14d", 30: "30d", 60: "60d"},
+                                        ),
+                                    ],
+                                    className="col-4",
+                                    style={"padding-left": "5px", "margin-top": "10px"},
+                                ),
+                                # Clear chat button
+                                html.Div(
+                                    [
+                                        html.H5(
+                                            "\u00a0",   # spacer
+                                            style={"color": corporate_colors["medium-blue-grey"]},
+                                        ),
+                                        html.Button(
+                                            "🗑  Clear chat",
+                                            id="ai-clear-btn",
+                                            n_clicks=0,
+                                            style={
+                                                "margin-top": "5px",
+                                                "background-color": corporate_colors["dark-green"],
+                                                "color":            corporate_colors["white"],
+                                                "border":           "none",
+                                                "border-radius":    "6px",
+                                                "padding":          "8px 16px",
+                                                "cursor":           "pointer",
+                                            },
+                                        ),
+                                    ],
+                                    className="col-4",
+                                    style={"padding-left": "5px", "margin-top": "10px"},
+                                ),
+                            ],
+                            className="row",
+                        )
+                    ],
+                    className="col-12",
+                    style=filterdiv_borderstyling,
+                )
+            ],
+            className="row sticky-top",
+        ),
+
+        # ── Row 4: Chat window ─────────────────────────────────────────────
+        html.Div(
+            [
+                html.Div([], className="col-1"),
+                html.Div(
+                    [
+                        html.H4(
+                            "🏀 Fantasy Basketball AI Assistant",
+                            style={
+                                "color":      corporate_colors["white"],
+                                "margin-top": "20px",
+                            },
+                        ),
+                        html.P(
+                            "Ask me anything: start/sit decisions, waiver pickups, "
+                            "injury risk, matchup strategy, or model explanations.",
+                            style={"color": corporate_colors["light-green"], "font-size": "0.9rem"},
+                        ),
+
+                        # Chat message history display
+                        html.Div(
+                            id="ai-chat-display",
+                            children=[],
+                            style={
+                                "display":          "flex",
+                                "flex-direction":   "column",
+                                "background-color": corporate_colors["dark-blue-grey"],
+                                "border-radius":    "10px",
+                                "padding":          "16px",
+                                "min-height":       "400px",
+                                "max-height":       "550px",
+                                "overflow-y":       "auto",
+                                "margin-bottom":    "12px",
+                            },
+                        ),
+
+                        # Thinking indicator (hidden by default)
+                        html.Div(
+                            "⏳ Thinking…",
+                            id="ai-thinking",
+                            style={
+                                "color":         corporate_colors["yellow"],
+                                "font-style":    "italic",
+                                "margin-bottom": "8px",
+                                "display":       "none",
+                            },
+                        ),
+
+                        # Input row
+                        html.Div(
+                            [
+                                dcc.Textarea(
+                                    id="ai-input",
+                                    placeholder="e.g. 'Who should I start at PG this week?' or "
+                                                "'Which free agent will help my steals the most?'",
+                                    style={
+                                        "width":         "85%",
+                                        "height":        "70px",
+                                        "border-radius": "8px",
+                                        "padding":       "8px",
+                                        "font-size":     "0.95rem",
+                                        "resize":        "vertical",
+                                    },
+                                ),
+                                html.Button(
+                                    "Send ▶",
+                                    id="ai-send-btn",
+                                    n_clicks=0,
+                                    style={
+                                        "margin-left":    "10px",
+                                        "padding":        "10px 20px",
+                                        "background-color": corporate_colors["dark-green"],
+                                        "color":          corporate_colors["white"],
+                                        "border":         "none",
+                                        "border-radius":  "8px",
+                                        "cursor":         "pointer",
+                                        "font-size":      "1rem",
+                                        "vertical-align": "top",
+                                    },
+                                ),
+                            ],
+                            style={"display": "flex", "align-items": "flex-start"},
+                        ),
+
+                        html.P(
+                            "Tip: press Send or use Ctrl+Enter (after adding the clientside callback below).",
+                            style={
+                                "color":     corporate_colors["light-green"],
+                                "font-size": "0.75rem",
+                                "margin-top":"6px",
+                            },
+                        ),
+                    ],
+                    className="col-10",
+                ),
+                html.Div([], className="col-1"),
+            ],
+            className="row",
+            style={"margin-top": "20px"},
+        ),
+
+        # ── Hidden stores ──────────────────────────────────────────────────
+        # Stores the full chat history as a JSON-serialisable list of dicts
+        dcc.Store(id="ai-chat-history", data=[]),
+    ]
+)
+
+
+
+
+
+
+
+
+
+
+
+
+
