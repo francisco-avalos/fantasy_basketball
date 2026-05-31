@@ -524,8 +524,7 @@ page1=html.Div([
                     create_data_table(df=model_eval_pred_df_table2_copy,table_id='id-model-mae',columns=model_eval_pred_df_table2_copy.columns)
                 ],className='col-6',style={'overflowX':'auto'})
         ],className='row'),
-    ],className='container')
-],
+    ],className='container'),
 # ── AI Assistant promo section ─────────────────────────────────────
         html.Div(
             [
@@ -611,7 +610,7 @@ page1=html.Div([
             className="row",
             style={"margin-top": "40px", "margin-bottom": "40px"},
         ),
-)
+])
 
 
 ####################################################################################################
