@@ -525,7 +525,93 @@ page1=html.Div([
                 ],className='col-6',style={'overflowX':'auto'})
         ],className='row'),
     ],className='container')
-])
+],
+# ── AI Assistant promo section ─────────────────────────────────────
+        html.Div(
+            [
+                html.Div([], className="col-1"),
+                html.Div(
+                    [
+                        html.Div(
+                            [
+                                html.Div(
+                                    [
+                                        html.H3(
+                                            "🤖 NEW: AI Assistant",
+                                            style={
+                                                "color": corporate_colors["white"],
+                                                "margin-bottom": "10px",
+                                            },
+                                        ),
+                                        html.P(
+                                            "Ask questions about your fantasy team in plain English. "
+                                            "Get AI-powered recommendations for start/sit decisions, "
+                                            "waiver wire pickups, injury risk analysis, and stat "
+                                            "category strategy — all grounded in your live ESPN "
+                                            "and Yahoo league data.",
+                                            style={
+                                                "color": corporate_colors["light-green"],
+                                                "font-size": "0.95rem",
+                                                "margin-bottom": "15px",
+                                            },
+                                        ),
+                                        html.Ul(
+                                            [
+                                                html.Li("\"Who should I pick up to help my steals?\"",
+                                                        style={"color": corporate_colors["white"],
+                                                               "margin-bottom": "5px"}),
+                                                html.Li("\"Which of my players has the highest injury risk?\"",
+                                                        style={"color": corporate_colors["white"],
+                                                               "margin-bottom": "5px"}),
+                                                html.Li("\"My team is weak in 3-pointers — which free agent helps most?\"",
+                                                        style={"color": corporate_colors["white"],
+                                                               "margin-bottom": "5px"}),
+                                            ],
+                                            style={
+                                                "list-style-type": "none",
+                                                "padding-left": "0px",
+                                                "font-style": "italic",
+                                                "font-size": "0.9rem",
+                                                "margin-bottom": "20px",
+                                            },
+                                        ),
+                                        dcc.Link(
+                                            html.Button(
+                                                "Try the AI Assistant →",
+                                                style={
+                                                    "background-color": corporate_colors["yellow"],
+                                                    "color": corporate_colors["superdark-green"],
+                                                    "border": "none",
+                                                    "border-radius": "8px",
+                                                    "padding": "12px 28px",
+                                                    "font-size": "1rem",
+                                                    "font-weight": "bold",
+                                                    "cursor": "pointer",
+                                                },
+                                            ),
+                                            href="/apps/ai-assistant",
+                                        ),
+                                    ],
+                                    style={
+                                        "background-color": corporate_colors["dark-green"],
+                                        "border-radius": "10px",
+                                        "padding": "30px",
+                                        "border": "1px solid " + corporate_colors["light-green"],
+                                        "box-shadow": "2px 5px 5px 1px rgba(255, 101, 131, .5)",
+                                    },
+                                ),
+                            ],
+                            className="col-12",
+                        ),
+                    ],
+                    className="col-10",
+                ),
+                html.Div([], className="col-1"),
+            ],
+            className="row",
+            style={"margin-top": "40px", "margin-bottom": "40px"},
+        ),
+)
 
 
 ####################################################################################################
