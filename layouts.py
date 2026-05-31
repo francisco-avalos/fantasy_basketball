@@ -1000,6 +1000,7 @@ page4 = html.Div(
         # ── Row 3: Filters bar (league + days-back context window) ─────────
         html.Div(
             [
+                html.Div([], className="col-1"),
                 html.Div(
                     [
                         html.Div(
@@ -1080,9 +1081,10 @@ page4 = html.Div(
                             className="row",
                         )
                     ],
-                    className="col-12",
+                    className="col-10",
                     style=filterdiv_borderstyling,
-                )
+                ),
+                html.Div([], className="col-1"),
             ],
             className="row sticky-top",
         ),
