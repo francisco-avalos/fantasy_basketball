@@ -76,6 +76,10 @@ page0 = html.Div(
                             html.Button("My Team Performance", className="btn-secondary"),
                             href="/apps/team-performance",
                         ),
+                        dcc.Link(
+                            html.Button("My Team Performance", className="btn-secondary"),
+                            href="/apps/ai-assistant",
+                        ),
                     ],
                 ),
             ],
