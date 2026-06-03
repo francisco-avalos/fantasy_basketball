@@ -2,8 +2,8 @@
 import pandas as pd
 
 # own functions
-from my_functions import execute_query_and_fetch_df
-from config import get_season_dates
+from shared.my_functions import execute_query_and_fetch_df
+from shared.config import get_season_dates
 from datetime import datetime
 
 ####################################################################################################
