@@ -729,9 +729,9 @@ page2=html.Div([
                             dcc.Input(id='my_input',
                                         value=500,
                                         type='number',
-                                        style={'font-size': '12px','display': 'inline-block', 'border-radius' : '2px', 'border' : '1px solid #ccc', 'color': corporate_colors["superdark-green"], 'border-spacing' : '0', 'border-collapse' :'separate'}
+                                        style={'font-size': '12px','display': 'inline-block', 'border-radius' : '2px', 'border' : '1px solid #ccc', 'color' : corporate_colors["superdark-green"], 'border-spacing' : '0', 'border-collapse' :'separate'}
                                 )
-                        ], style={'margin-top' : '5px'})
+                        ], style={'margin-top' : '5px', 'color' : corporate_colors["superdark-green"]})
                     ],style={'margin-top' : '10px','margin-bottom' : '5px','text-align' : 'left','paddingLeft': 5})
                 ],className='col-4'), # Filter part 3
                 #######################################################################################
