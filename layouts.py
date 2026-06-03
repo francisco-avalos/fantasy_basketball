@@ -480,7 +480,7 @@ page1=html.Div([
                                 id='id-model'
                             ),
                             html.Div(id='model-output'),
-                        ], style={'margin-top' : '5px'}
+                        ], style={'margin-top' : '5px', 'color' : corporate_colors['superdark-green']}
                         ),
                     ],
                     style={'margin-top' : '10px',
