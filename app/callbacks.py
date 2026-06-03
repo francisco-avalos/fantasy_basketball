@@ -12,7 +12,7 @@ from config import get_creds
 # dash outlay
 from dash.dependencies import Input, Output
 from dash import dash_table, Input, Output, State, html
-from dash_create import app
+from app.dash_create import app_inst
 # import dash_table.FormatTemplate as FormatTemplate
 # from dash.dash_table.Format import FormatTemplate
 # from dash.dash_table import FormatTemplate
@@ -22,11 +22,11 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 # own functions/connections
-from my_functions import clean_string,remove_name_suffixes,convert_fields_to_float
-from data_imports import optimize_code,add_new_fields
+from shared.my_functions import clean_string,remove_name_suffixes,convert_fields_to_float
+from shared.data_imports import optimize_code,add_new_fields
 
 # ai chat
-from ai_chatbox import ask_ai, build_context
+from app.ai_chatbox import ask_ai, build_context
 
 
 
@@ -177,7 +177,7 @@ def update_fig_with_calculation(df:pd.DataFrame,
     return fig
 
 
-@app.callback(Output(component_id='player_stats', component_property='figure'),
+@app_inst.callback(Output(component_id='player_stats', component_property='figure'),
              Input(component_id='my_input', component_property='value'),
              Input(component_id='dropdown', component_property='value'),
              Input(component_id='calculation', component_property='value'),
@@ -553,7 +553,7 @@ def injury_probabilities(searched_injury='flu'):
     
 
 
-@app.callback(
+@app_inst.callback(
     Output(component_id='line_plot', component_property='figure'),
     Output(component_id='bar-plot', component_property='figure'),
     Output(component_id='heat-map', component_property='figure'),
@@ -619,7 +619,7 @@ def update_plots(metric_value,league_id):
 #     return data,columns
 
 
-@app.callback(
+@app_inst.callback(
     Output('id-inj-prob-table','data'),
     Input('id-inj-prob', 'value')
 )
@@ -631,7 +631,7 @@ def update_probabilities_seach_table(searched_injury):
 
 
 
-@app.callback(
+@app_inst.callback(
     Output(component_id='preds-line',component_property='figure'),
     Input(component_id='id-league',component_property='value'),
     Input(component_id='League-Players',component_property='value'),
@@ -643,7 +643,7 @@ def update_pred_plot(leagueid,player_slug,model_type):
     return fig_line_pred
 
 
-@app.callback(
+@app_inst.callback(
     Output(component_id='id-preds-table',component_property='data'),
     Output(component_id='id-preds-table',component_property='columns'),
     Input(component_id='id-league',component_property='value'),
@@ -680,7 +680,7 @@ def update_preds_table(leagueid,player_slug,model_type):
 
 
 
-@app.callback(
+@app_inst.callback(
     [Output('League-Players', 'options'),
      Output('League-Players', 'value')],
     [Input('id-league', 'value')]
@@ -699,7 +699,7 @@ def update_player_list(selected_value):
         default_val = None
     return options, default_val
 
-@app.callback(
+@app_inst.callback(
     Output('output', 'children'),
     [Input('League-Players', 'value')]
 )
@@ -723,7 +723,7 @@ dropdown_model_name_display_dict={
 sorted_model_list=['ARIMA','SGL_EXP','DBL_EXP','NEURAL_NETWORK','LSTM','REPEAT','LINEAR','LAST']
 
 
-@app.callback(
+@app_inst.callback(
     [Output('id-model', 'options'),
      Output('id-model', 'value')],
     [Input('League-Players', 'value'),
@@ -751,7 +751,7 @@ def update_model_list(selected_player, selected_league):
     return [], None
 
 
-@app.callback(
+@app_inst.callback(
     Output('model-output', 'children'),
     Input('id-model', 'value')
 )
@@ -784,7 +784,7 @@ def update_model_picked_comment(selected_value):
 
 
 
-@app.callback(
+@app_inst.callback(
     Output(component_id='id-model-mae',component_property='data'),
     Output(component_id='id-model-mae',component_property='columns'),
     Input(component_id='id-league',component_property='value'),
@@ -839,7 +839,7 @@ def _make_bubble(role: str, text: str) -> html.Div:
 
 # ── Callback 1: Send message & call Claude ────────────────────────────────────
 
-@app.callback(
+@app_inst.callback(
     Output("ai-chat-history",  "data"),
     Output("ai-input",         "value"),
     Output("ai-thinking",      "style"),
@@ -904,7 +904,7 @@ def ai_send(n_clicks, user_text, history, days_back):
 
 # ── Callback 2: Re-render chat display ───────────────────────────────────────
 
-@app.callback(
+@app_inst.callback(
     Output("ai-chat-display", "children"),
     Input("ai-chat-history",  "data"),
 )
@@ -927,7 +927,7 @@ def ai_render(history):
 
 # ── Callback 3: Clear chat ────────────────────────────────────────────────────
 
-@app.callback(
+@app_inst.callback(
     Output("ai-chat-history", "data",    allow_duplicate=True),
     Output("ai-chat-display", "children", allow_duplicate=True),
     Input("ai-clear-btn",     "n_clicks"),

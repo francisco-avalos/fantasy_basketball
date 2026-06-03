@@ -13,7 +13,7 @@ import dash_bootstrap_components as dbc
 
 # DARKLY is Bootstrap's dark theme.  custom.css (in /assets/) patches it
 # further — Dash auto-serves every file in /assets/ with no extra config.
-app = dash.Dash(
+app_inst = dash.Dash(
     __name__,
     suppress_callback_exceptions=True,
     external_stylesheets=[
@@ -28,4 +28,4 @@ app = dash.Dash(
     update_title=None,
 )
 
-server = app.server
+server = app_inst.server

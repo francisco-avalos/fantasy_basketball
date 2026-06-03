@@ -15,17 +15,17 @@ import dash
 from dash import dcc, html
 from dash.dependencies import Input, Output
 
-from dash_create import app, server          # noqa: F401 — server used by gunicorn
-from landing import page0
-from layouts import page1, page2, page3, page4
-import callbacks                             # noqa: F401 — registers all @app.callback decorators
+from app.dash_create import app_inst, server          # noqa: F401 — server used by gunicorn
+from app.landing import page0
+from app.layouts import page1, page2, page3, page4
+import app.callbacks                             # noqa: F401 — registers all @app.callback decorators
 
 
 # ---------------------------------------------------------------------------
 # Root layout — just a URL listener + a content div
 # ---------------------------------------------------------------------------
 
-app.layout = html.Div([
+app_inst.layout = html.Div([
     dcc.Location(id="url", refresh=False),
     html.Div(id="page-content"),
 ])
@@ -35,7 +35,7 @@ app.layout = html.Div([
 # Router callback
 # ---------------------------------------------------------------------------
 
-@app.callback(
+@app_inst.callback(
     Output("page-content", "children"),
     Input("url", "pathname"),
 )

@@ -10,7 +10,7 @@ from config import get_creds
 
 # dash outlay
 from dash import dcc, html, Input, Output, dash_table, State
-from dash_create import app
+from app.dash_create import app_inst
 
 
 # plot outlay
@@ -19,9 +19,9 @@ import plotly.graph_objects as go
 # import matplotlib.pyplot as plt
 
 # own functions/connections
-from callbacks import injury_probabilities,line_plot_preds,create_data_table,heatmap
-from callbacks import heatmap_weights,line_plot,bar_plot,boxplot_by_player,boxplot_by_player_weekday_class
-from data_imports import add_new_fields, optimize_code_layouts
+from app.callbacks import injury_probabilities,line_plot_preds,create_data_table,heatmap
+from app.callbacks import heatmap_weights,line_plot,bar_plot,boxplot_by_player,boxplot_by_player_weekday_class
+from shared.data_imports import add_new_fields, optimize_code_layouts
 
 
 ####################################################################################################
@@ -197,7 +197,7 @@ def get_header():
                     ],className='col-8',style={'padding-top' : '1%'}
                 ),
                 html.Div([
-                    html.Img(src=app.get_asset_url('basketball_hoops.jpg'),
+                    html.Img(src=app_inst.get_asset_url('basketball_hoops.jpg'),
                         height='75 px',
                         width='auto')
                     ],className='col-2',style={'align-items': 'center','padding-top' : '1%','height' : 'auto'}
