@@ -457,7 +457,7 @@ page1=html.Div([
                                 id='League-Players'
                             ),
                             html.Div(id='output'),
-                        ], style={'margin-top' : '5px'}
+                        ], style={'margin-top' : '5px','color' : corporate_colors['superdark-green']}
                         ),
                     ],
                     style={'margin-top' : '10px',
