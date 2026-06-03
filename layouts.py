@@ -729,7 +729,7 @@ page2=html.Div([
                             dcc.Input(id='my_input',
                                         value=500,
                                         type='number',
-                                        style={'font-size': '12px','display': 'inline-block', 'border-radius' : '2px', 'border' : '1px solid #ccc', 'color': '#333', 'border-spacing' : '0', 'border-collapse' :'separate'}
+                                        style={'font-size': '12px','display': 'inline-block', 'border-radius' : '2px', 'border' : '1px solid #ccc', 'color': corporate_colors["superdark-green"], 'border-spacing' : '0', 'border-collapse' :'separate'}
                                 )
                         ], style={'margin-top' : '5px'})
                     ],style={'margin-top' : '10px','margin-bottom' : '5px','text-align' : 'left','paddingLeft': 5})
@@ -763,7 +763,7 @@ page2=html.Div([
                             dcc.Dropdown(id='dropdown',
                                 options=dropdown_options_filter5,
                                 value=dropdown_default_value_filter5)
-                        ], style={'margin-top' : '5px'})
+                        ], style={'margin-top' : '5px', 'color' : corporate_colors["superdark-green"]})
                     ],style={'margin-top' : '10px','margin-bottom' : '5px','text-align' : 'left','paddingLeft': 5})
                 ],className='col-4'), # Filter part 5
                 #######################################################################################
@@ -782,7 +782,7 @@ page2=html.Div([
                             dcc.Checklist(id='displayed_fields', 
                                 options=[{'label':field,'value':field} for field in fields_to_display_filter6],
                                 value=default_displayed_fields_filter6,
-                                style={"overflow-y":"scroll", "height": "100px"})
+                                style={"overflow-y":"scroll", "height": "100px", "color" : corporate_colors["superdark-green"]})
                         ],style={'margin-top' : '5px'})
                     ],style={'margin-top' : '10px','margin-bottom' : '5px','text-align' : 'left','paddingLeft': 5})
                 ],className='col-4'), # Filter part 6
@@ -817,7 +817,7 @@ page2=html.Div([
                             dcc.Checklist(id='player_list', 
                                 options=[{'label':field,'value':field} for field in players_to_display_filter7],
                                 value=players_to_display_filter7,
-                                style={"overflow-y":"scroll", "height": "100px"},inline=True)
+                                style={"overflow-y":"scroll", "height": "100px", 'color' : corporate_colors["superdark-green"]},inline=True)
                         ],style={'margin-top' : '5px'})
                     ],style={'margin-top' : '10px','margin-bottom' : '5px','text-align' : 'left','paddingLeft': 5})
                 ],className='col-4'), # Filter part 7
