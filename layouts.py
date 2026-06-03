@@ -16,7 +16,7 @@ from dash_create import app
 # plot outlay
 import plotly.express as px
 import plotly.graph_objects as go
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
 # own functions/connections
 from callbacks import injury_probabilities,line_plot_preds,create_data_table,heatmap
