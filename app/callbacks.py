@@ -7,7 +7,7 @@ import random
 # db connections
 import mysql.connector as mysql
 from mysql.connector import pooling
-from config import get_creds
+from shared.config import get_creds
 
 # dash outlay
 from dash.dependencies import Input, Output

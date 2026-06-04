@@ -6,7 +6,7 @@ import datetime as dt
 # db connections
 import mysql.connector as mysql
 from mysql.connector import pooling
-from config import get_creds
+from shared.config import get_creds
 
 # dash outlay
 from dash import dcc, html, Input, Output, dash_table, State
