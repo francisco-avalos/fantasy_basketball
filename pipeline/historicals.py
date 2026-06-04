@@ -25,7 +25,7 @@ import time
 from datetime import datetime
 from datetime import date
 from datetime import timedelta
-from my_functions import convert_game_score_to_points
+from shared.my_functions import convert_game_score_to_points
 
 
 ## Preliminaries, set ups & initiators 

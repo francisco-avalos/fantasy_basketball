@@ -21,11 +21,11 @@ import time
 from datetime import datetime
 from datetime import date
 from datetime import timedelta
-from my_functions import clean_string, remove_jr, convert_game_score_to_points
+from shared.my_functions import clean_string, remove_jr, convert_game_score_to_points
 
 from unidecode import unidecode
 
-from my_functions import clean_string, remove_name_suffixes
+from shared.my_functions import clean_string, remove_name_suffixes
 
 ## Preliminaries, set ups & initiators 
 pd.set_option('display.max_columns', None)

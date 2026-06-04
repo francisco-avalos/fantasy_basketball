@@ -11,10 +11,10 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 
-from my_time_series import stationary_check, difference, optimize_ARMA, optimize_ARIMA
-import my_functions
-import my_time_series as mts
-from config import get_creds
+from pipeline.my_time_series import stationary_check, difference, optimize_ARMA, optimize_ARIMA
+import shared.my_functions
+import pipeline.my_time_series as mts
+from shared.config import get_creds
 
 from itertools import product
 import warnings

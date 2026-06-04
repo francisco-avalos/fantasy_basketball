@@ -19,7 +19,7 @@ from datetime import datetime
 from datetime import date
 from datetime import timedelta
 
-from my_basketball_funcs import clean_string, remove_name_suffixes
+from pipeline.my_basketball_funcs import clean_string, remove_name_suffixes
 
 ## Preliminaries, set ups & initiators 
 pd.set_option('display.max_columns', None)
@@ -32,6 +32,7 @@ sports_db_admin_user=os.environ.get('sports_db_admin_user')
 sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
 sports_db_admin_port=os.environ.get('sports_db_admin_port')
 season_year=os.environ.get('season_year')
+season_year = int(season_year)
 
 leagueid=os.environ.get('leagueid')
 espn_s2=os.environ.get('espn_s2')

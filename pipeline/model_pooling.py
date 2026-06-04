@@ -13,9 +13,9 @@ import os
 
 # from my_time_series import stationary_check, difference, optimize_ARMA, optimize_ARIMA
 # import my_functions
-import my_time_series as mts
-import my_functions as mf
-from config import get_creds
+import pipeline.my_time_series as mts
+import shared.my_functions as mf
+from shared.config import get_creds
 
 # from itertools import product
 import warnings

@@ -11,9 +11,9 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 
-from my_time_series import stationary_check, difference, optimize_ARMA, optimize_ARIMA
-import my_functions
-import my_time_series as mts
+from pipeline.my_time_series import stationary_check, difference, optimize_ARMA, optimize_ARIMA
+import shared.my_functions
+import pipeline.my_time_series as mts
 
 from itertools import product
 import warnings
@@ -31,7 +31,7 @@ from tensorflow.keras.metrics import MeanAbsoluteError
 from tensorflow.keras.layers import Dense,Conv1D,LSTM,Lambda,Reshape,RNN,LSTMCell
 
 import datetime
-import my_functions as mf
+import shared.my_functions as mf
 
 warnings.filterwarnings("ignore")
 

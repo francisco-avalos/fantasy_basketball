@@ -15,7 +15,7 @@ from basketball_reference_web_scraper.data import Team
 import mysql.connector as mysql
 from mysql.connector import Error
 
-from my_functions import clean_string, remove_name_suffixes
+from shared.my_functions import clean_string, remove_name_suffixes
 
 import pandas as pd
 import os
@@ -24,9 +24,9 @@ import time
 from datetime import datetime
 from datetime import date
 from datetime import timedelta
-from my_functions import remove_team_string, remove_matchup_string, remove_activity_string, remove_player_string, remove_box_string, clean_string, remove_name_suffixes, convert_game_score_to_points
+from shared.my_functions import remove_team_string, remove_matchup_string, remove_activity_string, remove_player_string, remove_box_string, clean_string, remove_name_suffixes, convert_game_score_to_points
 
-import my_functions as mf
+import shared.my_functions as mf
 
 from bs4 import BeautifulSoup
 

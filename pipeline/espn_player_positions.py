@@ -17,7 +17,7 @@ import unidecode
 import time
 from datetime import date
 from datetime import timedelta
-from my_functions import clean_string, remove_name_suffixes, remove_player_string
+from shared.my_functions import clean_string, remove_name_suffixes, remove_player_string
 # from tqdm import tqdm_notebook
 from tqdm import tqdm
 
@@ -33,6 +33,7 @@ sports_db_admin_user=os.environ.get('sports_db_admin_user')
 sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
 sports_db_admin_port=os.environ.get('sports_db_admin_port')
 season_year=os.environ.get('season_year')
+season_year = int(season_year)
 
 config={
 	'host':sports_db_admin_host,
@@ -119,8 +120,12 @@ try:
 		fa=str(fa['name'])
 		fa=remove_player_string(fa)
 		pi=league.player_info(fa)
-		new_row={'Player_Name':fa,'Player_Roles':pi.eligibleSlots}
-		player_position_df=player_position_df.append(new_row,ignore_index=True)
+		if pi is None:
+			continue
+		else:
+			new_row={'Player_Name':fa,'Player_Roles':pi.eligibleSlots}
+		# player_position_df=player_position_df.append(new_row,ignore_index=True)
+		player_position_df = pd.concat([player_position_df, pd.DataFrame([new_row])], ignore_index=True)
 		# print(new_row)
 		time.sleep(4)
 	player_position_df['Player_Name']=player_position_df['Player_Name'].astype(str)

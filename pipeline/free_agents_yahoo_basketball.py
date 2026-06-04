@@ -16,7 +16,7 @@ import unidecode
 import time
 from datetime import date
 from datetime import timedelta
-from my_functions import clean_string, remove_name_suffixes
+from shared.my_functions import clean_string, remove_name_suffixes
 
 
 ## Preliminaries, set ups & initiators 

@@ -40,7 +40,7 @@ import tensorflow as tf
 
 from statsmodels.tsa.holtwinters import ExponentialSmoothing
 
-from my_functions import create_player_folder, create_model_folder, create_model_scaler_folder
+from shared.my_functions import create_player_folder, create_model_folder, create_model_scaler_folder
 import os
 import pickle
 

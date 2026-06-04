@@ -9,7 +9,7 @@ import mysql.connector as mysql
 from mysql.connector import Error
 
 from bs4 import BeautifulSoup
-from my_functions import day_injuries_basketball
+from shared.my_functions import day_injuries_basketball
 from datetime import datetime
 
 

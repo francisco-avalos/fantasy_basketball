@@ -14,7 +14,7 @@ import os
 from mysql.connector import Error
 from dash import dcc, html, Input, Output, dash_table
 
-from my_functions import clean_string, remove_name_suffixes
+from shared.my_functions import clean_string, remove_name_suffixes
 
 
 
