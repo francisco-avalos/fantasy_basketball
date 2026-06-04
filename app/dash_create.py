@@ -10,6 +10,7 @@ All layout and callback logic belongs in layouts.py / callbacks.py.
 
 import dash
 import dash_bootstrap_components as dbc
+import os
 
 # DARKLY is Bootstrap's dark theme.  custom.css (in /assets/) patches it
 # further — Dash auto-serves every file in /assets/ with no extra config.
