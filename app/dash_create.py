@@ -15,6 +15,7 @@ import dash_bootstrap_components as dbc
 # further — Dash auto-serves every file in /assets/ with no extra config.
 app_inst = dash.Dash(
     __name__,
+    assets_folder=os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets"),
     suppress_callback_exceptions=True,
     external_stylesheets=[
         dbc.themes.DARKLY,
