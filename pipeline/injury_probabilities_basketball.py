@@ -3,7 +3,7 @@ import pandas as pd
 import time
 
 import mysql.connector as mysql
-from my_basketball_funcs import return_parenthesis_contents, contains_number, coalesce
+from pipeline.my_basketball_funcs import return_parenthesis_contents, contains_number, coalesce
 from mysql.connector import Error
 from sksurv.nonparametric import kaplan_meier_estimator
 
