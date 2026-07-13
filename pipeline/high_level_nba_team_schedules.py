@@ -31,6 +31,7 @@ sports_db_admin_user=os.environ.get('sports_db_admin_user')
 sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
 sports_db_admin_port=os.environ.get('sports_db_admin_port')
 season_year=os.environ.get('season_year')
+season_year=int(season_year)
 
 config={
 	'host':sports_db_admin_host,
