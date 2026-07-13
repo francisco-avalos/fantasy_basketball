@@ -48,7 +48,8 @@ config={
     'allow_local_infile':True
 }
 
-basketball_seasons=pd.read_csv('/Users/franciscoavalosjr/Desktop/basketball-folder/season_dates-2.csv')
+# basketball_seasons=pd.read_csv('/Users/franciscoavalosjr/Desktop/basketball-folder/season_dates-2.csv')
+basketball_seasons=pd.read_csv('/Users/franciscoavalosjr/Desktop/basketball-folder/season_dates.csv')
 basketball_seasons['start'] = pd.to_datetime(basketball_seasons['start'])
 # print(basketball_seasons.tail(1))
 # print(basketball_seasons.tail(1).start.iloc[0].strftime('%Y-%m-%d'))
@@ -145,6 +146,7 @@ try:
             day_range=pd.date_range(start=begin_date,end=end_date)
             
             for day in day_range:
+                time.sleep(60)
                 year=int(day.year)
                 month=int(day.month)
                 date=int(day.day)
@@ -159,7 +161,7 @@ try:
                     print('Completed for ', day)
                 except:
                     print('Holiday possibly', day)
-                time.sleep(4)
+                # time.sleep(4)
             df['slug']=df['slug'].astype(str)
             df['name']=df['name'].astype(str)
             df['team']=df['team'].astype(str)
