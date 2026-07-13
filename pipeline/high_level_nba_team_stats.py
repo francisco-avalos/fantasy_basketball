@@ -31,6 +31,7 @@ sports_db_admin_user=os.environ.get('sports_db_admin_user')
 sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
 sports_db_admin_port=os.environ.get('sports_db_admin_port')
 season_year=os.environ.get('season_year')
+season_year=int(season_year)
 
 config={
 	'host':sports_db_admin_host,
@@ -205,14 +206,14 @@ try:
 		# if connection.is_connected():
 		# 	cursor=connection.cursor()
 		for day in day_range:
+			time.sleep(60)
 			try:
-				df=client.team_box_scores(day=day.day, month=day.month, year=day.year)
+				df=client.team_box_scores(year=day.year,month=day.month,day=day.day)
 				df=pd.DataFrame(df)
 				date=day.strftime('%Y-%m-%d')
 				df['date']=date
 				df['team']=df['team'].astype(str)
 				df['outcome']=df['outcome'].astype(str)
-				# print(df.head())
 				connection=mysql.connect(**config)
 				if connection.is_connected():
 					cursor=connection.cursor()
@@ -225,9 +226,10 @@ try:
 					os.remove(file_path)
 				if(connection.is_connected()):
 					cursor.close()
-					connection.close()				
-			except:
-				print(f'No game for {day}')
+					connection.close()
+				print(f'finished for {date}')
+			except Exception as e:
+				print(f'No game for {day} — {type(e).__name__}: {e}')
 
 				# print('MySQL connection closed')
 			# if not df.empty:
@@ -249,8 +251,6 @@ try:
 				# 	sql='REPLACE INTO `high_level_nba_team_stats` (`'+cols+'`) VALUES ('+'%s, '*(len(row)-1)+'%s)'
 				# 	cursor.execute(sql, tuple(row))
 				# 	connection.commit()
-			print(f'finished for {date}')
-			time.sleep(5)
 		# if(connection.is_connected()):
 		# 	cursor.close()
 		# 	connection.close()
