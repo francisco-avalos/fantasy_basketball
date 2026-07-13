@@ -152,6 +152,7 @@
 
 -- SELECT * FROM basketball.basketball_references_players LIMIT 10;
 -- SELECT * FROM basketball.espn_players LIMIT 10;
+-- SELECT COUNT(*) FROM basketball.master_names_list_temp;
 
 -- DROP TABLE IF EXISTS basketball.master_names_list_temp;
 -- CREATE TABLE basketball.master_names_list_temp
@@ -164,6 +165,8 @@
 --   `bday` date DEFAULT NULL,
 --   `age` INT
 -- );
+
+-- TRUNCATE basketball.master_names_list_temp;
 -- REPLACE INTO basketball.master_names_list_temp
 -- SELECT 
 -- 	X.*,
