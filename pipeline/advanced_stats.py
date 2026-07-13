@@ -53,7 +53,8 @@ league=League(league_id=leagueid,
 # my_players=clean_string(myteam.roster).split(',')
 
 
-keep_out=['tatumja01','moranja01','banede01']
+# keep_out=['tatumja01','moranja01','banede01']
+keep_out=['abc']
 fa_size=700
 non_shows=[]
 
@@ -85,6 +86,7 @@ try:
 	FA=clean_string(FA).split(',')
 
 	advanced_df=pd.DataFrame(client.players_advanced_season_totals(season_end_year=season_year))
+	# print("advanced_df columns:", advanced_df.columns.tolist())
 	# row=0
 
 	for fa in FA:
@@ -113,8 +115,8 @@ try:
 			# completion_tracker=row/len(FA)
 			# print()
 			# time.sleep(4) # 5 secs gets 12 requests // 4 seconds gets 15 requests // 3 seconds gets 20 requests, which is close to the >20 requests/min block limit 
-		except:
-			print(f'{fa} not captured')
+		except Exception as e:
+			print(f'{fa} not captured — {type(e).__name__}: {e}')
 
 	main_free_agents_df['slug']=main_free_agents_df['slug'].astype(str)
 	main_free_agents_df['name']=main_free_agents_df['name'].astype(str)
