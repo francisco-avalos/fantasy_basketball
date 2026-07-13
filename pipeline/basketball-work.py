@@ -15,7 +15,7 @@ from basketball_reference_web_scraper.data import Team
 import mysql.connector as mysql
 from mysql.connector import Error
 
-from shared.my_functions import clean_string, remove_name_suffixes
+# from shared.my_functions import clean_string, remove_name_suffixes
 
 import pandas as pd
 import os
@@ -24,13 +24,174 @@ import time
 from datetime import datetime
 from datetime import date
 from datetime import timedelta
-from shared.my_functions import remove_team_string, remove_matchup_string, remove_activity_string, remove_player_string, remove_box_string, clean_string, remove_name_suffixes, convert_game_score_to_points
+# from shared.my_functions import remove_team_string, remove_matchup_string, remove_activity_string, remove_player_string, remove_box_string, clean_string, remove_name_suffixes, convert_game_score_to_points
 
-import shared.my_functions as mf
+# import shared.my_functions as mf
 
 from bs4 import BeautifulSoup
 
 import requests
+
+# from shared.my_functions import day_injuries_basketball
+import requests
+
+from seleniumbase import SB
+
+
+# day='2025-02-25'
+# data=day_injuries_basketball(day)
+# print(data)
+
+
+# headers = {
+#     "User-Agent": ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+#                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+#                    "Chrome/124.0.0.0 Safari/537.36"),
+#     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+#     "Accept-Language": "en-US,en;q=0.9",
+#     "Referer": "https://www.prosportstransactions.com/",
+# }
+# session = requests.Session()
+# session.headers.update(headers)
+
+
+# original_url = (f"https://www.prosportstransactions.com/basketball/Search/SearchResults.php?"
+#                 f"Player=&Team=&BeginDate={day}&EndDate={day}&ILChkBx=yes&InjuriesChkBx=yes"
+#                 f"&PersonalChkBx=yes&DisciplinaryChkBx=yes&LegalChkBx=yes&Submit=Search")
+
+# res = session.get(original_url, timeout=30)
+# print(res.status_code)
+# print(res.text[:1000])
+
+
+
+# # pip install curl_cffi
+# from curl_cffi import requests as creq
+
+# session = creq.Session(impersonate="chrome")  # mimics real Chrome TLS/JA3
+
+# res = session.get(original_url, timeout=30)
+# print(res.status_code)          # check this is 200, not 403
+# data = BeautifulSoup(res.content, 'html.parser')
+
+# print(data)
+
+
+
+# # pip install seleniumbase   (downloads its own chromedriver automatically)
+# from seleniumbase import SB
+# from bs4 import BeautifulSoup
+# import pandas as pd
+# import time
+
+
+# def day_injuries_basketball22(day) -> pd.DataFrame:
+#     original_url = (f"https://www.prosportstransactions.com/basketball/Search/SearchResults.php?"
+#                     f"Player=&Team=&BeginDate={day}&EndDate={day}&ILChkBx=yes&InjuriesChkBx=yes"
+#                     f"&PersonalChkBx=yes&DisciplinaryChkBx=yes&LegalChkBx=yes&Submit=Search")
+
+#     def fix_names(series):
+#         out = []
+#         for c_name in (x.replace('• ', '') for x in series):
+#             s = c_name.encode().decode('unicode_escape').encode('raw_unicode_escape')
+#             out.append(s.decode('utf-8'))
+#         return out
+
+#     main_df = pd.DataFrame()
+
+#     # headless=False is far less detectable than headless=True; on a Mac the window is fine
+#     with SB(uc=True, headless=False) as sb:
+#         # first load: solve the Cloudflare challenge ONCE
+#         sb.uc_open_with_reconnect(original_url, reconnect_time=6)
+#         try:
+#             sb.uc_gui_click_captcha()      # clicks the "Verify you are human" box if shown
+#         except Exception:
+#             pass                            # often clears on its own; ignore if no box
+#         sb.wait_for_element('table.datatable', timeout=40)
+#         first_html = sb.get_page_source()
+
+#         # figure out pagination from the now-real HTML
+#         data = BeautifulSoup(first_html, 'html.parser')
+#         pages_iteration = list_of_pages(data)
+#         url_pagenated_list = pagenize_url(pages_iteration, original_url)
+#         if len(url_pagenated_list) > 1:
+#             url_pagenated_list = url_pagenated_list[:-1]
+
+#         for i, url in enumerate(url_pagenated_list):
+#             if i == 0:
+#                 html = first_html          # already loaded, reuse it
+#             else:
+#                 sb.open(url)               # same session -> no new challenge
+#                 sb.wait_for_element('table.datatable', timeout=40)
+#                 html = sb.get_page_source()
+
+#             data = BeautifulSoup(html, 'html.parser')
+#             table = data.select_one('table.datatable')
+#             if table is None:
+#                 time.sleep(5)
+#                 continue
+
+#             rows = table.find_all('tr')
+#             mylist = [[c.text.strip() for c in row.find_all('td')] for row in rows]
+#             if len(mylist) <= 1:
+#                 time.sleep(5)
+#                 continue
+
+#             df = pd.DataFrame(mylist[1:],
+#                               columns=['date', 'team', 'acquired', 'relinquished', 'notes'])
+#             df.relinquished = fix_names(df.relinquished)
+#             df.acquired = fix_names(df.acquired)
+#             main_df = pd.concat([main_df, df])
+#             time.sleep(5)
+
+#     return main_df
+
+# data=day_injuries_basketball22(day=day)
+# print(data.head())
+
+
+
+# from seleniumbase import SB
+
+# day = "2025-02-25"   # use a date you know has results
+# url = (f"https://www.prosportstransactions.com/basketball/Search/SearchResults.php?"
+#        f"Player=&Team=&BeginDate={day}&EndDate={day}&ILChkBx=yes&InjuriesChkBx=yes"
+#        f"&PersonalChkBx=yes&DisciplinaryChkBx=yes&LegalChkBx=yes&Submit=Search")
+
+# with SB(uc=True, headless=False) as sb:
+#     sb.activate_cdp_mode(url)        # most reliable CF bypass in current SeleniumBase
+#     sb.sleep(2)
+#     try:
+#         sb.uc_gui_click_captcha()    # needs the macOS permissions above to actually click
+#     except Exception as e:
+#         print("captcha helper error:", e)
+#     sb.sleep(6)
+
+#     print("TITLE:", sb.get_title())
+#     sb.save_screenshot("cf_debug.png")           # look at this file
+#     html = sb.get_page_source()
+#     print("LEN:", len(html))
+#     print(html[:600])
+#     # see what tables actually exist:
+#     from bs4 import BeautifulSoup
+#     soup = BeautifulSoup(html, "html.parser")
+#     print("TABLES:", [t.get("class") for t in soup.find_all("table")])
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -99,6 +260,9 @@ pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', None)
 
 
+
+
+
 # sports_db_admin_host=os.environ.get('sports_db_admin_host')
 # sports_db_admin_db='basketball'
 # sports_db_admin_user=os.environ.get('sports_db_admin_user')
@@ -165,28 +329,28 @@ pd.set_option('display.max_rows', None)
 
 
 
-leagueid=os.environ.get('leagueid')
-espn_s2=os.environ.get('espn_s2')
-swid=os.environ.get('swid')
+# leagueid=os.environ.get('leagueid')
+# espn_s2=os.environ.get('espn_s2')
+# swid=os.environ.get('swid')
 
-print(f'leagueid: {leagueid}')
-print(f'espn_s2: {espn_s2}')
-print(f'swid: {swid}')
+# print(f'leagueid: {leagueid}')
+# print(f'espn_s2: {espn_s2}')
+# print(f'swid: {swid}')
 
-fa_size=5
-season_end_year=2025
-league=League(league_id=leagueid, 
-				year=season_end_year,
-				espn_s2=espn_s2,
-				swid=swid, 
-				debug=False)
+# fa_size=5
+# season_end_year=2025
+# league=League(league_id=leagueid, 
+# 				year=season_end_year,
+# 				espn_s2=espn_s2,
+# 				swid=swid, 
+# 				debug=False)
 
-FA=league.free_agents(size=fa_size)
-FA=pd.DataFrame(FA)
-FA=clean_string(FA)#.split(',')
-FA=remove_name_suffixes(FA)
-FA=FA.lstrip().rstrip()
-print(FA)
+# FA=league.free_agents(size=fa_size)
+# FA=pd.DataFrame(FA)
+# FA=clean_string(FA)#.split(',')
+# FA=remove_name_suffixes(FA)
+# FA=FA.lstrip().rstrip()
+# print(FA)
 
 
 
@@ -482,18 +646,18 @@ print(FA)
 # ###################################################
 
 
-p=client.player_box_scores(day=1,month=11,year=2024)
-print(type(p))
-df=pd.DataFrame(p)
-# df=df[df['name']=='Anthony Davis']
-print(df.head())
+# p=client.player_box_scores(day=1,month=11,year=2024)
+# print(type(p))
+# df=pd.DataFrame(p)
+# # df=df[df['name']=='Anthony Davis']
+# print(df.head())
 
 
 
 
-# p=client.season_schedule(season_end_year=2018)
-# p=client.players_season_totals(season_end_year=2023)
-# p=client.players_season_totals(season_end_year=2018)
+# p=client.season_schedule(season_end_year=2026)
+# # p=client.players_season_totals(season_end_year=2023)
+# # p=client.players_season_totals(season_end_year=2026)
 # print(p)
 
 
@@ -847,8 +1011,8 @@ print(df.head())
 # print('schedule \n',df.shape)
 
 
-# # team box score
-# df=client.team_box_scores(day=9,month=11,year=2022)
+# # # team box score
+# df=client.team_box_scores(day=26,month=2,year=2025)
 # df=pd.DataFrame(df)
 # print('team box Score \n',df)
 
@@ -860,10 +1024,17 @@ print(df.head())
 
 
 
-# season_end_year=2025
-# df=pd.DataFrame(client.players_advanced_season_totals(season_end_year=season_end_year))
+# season_end_year=2026
+# # df=pd.DataFrame(client.players_advanced_season_totals(season_end_year=season_end_year))
+# data=client.players_advanced_season_totals(season_end_year=season_end_year)
+# data=pd.DataFrame(data)
 # # df=df[df['name']=='Mo Bamba']
-# print(df.head())
+# # print(df.head())
+# # print(len(data))
+# # print(data[:2])
+# print(data.head())
+
+
 
 # print(help(client))
 # df=pd.DataFrame(client.season_schedule(2023))
