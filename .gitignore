@@ -30,3 +30,4 @@ venv/
 .DS_Store
 archived/
 downloaded_files/
+season_dates.csv
