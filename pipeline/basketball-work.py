@@ -38,6 +38,11 @@ import requests
 from seleniumbase import SB
 
 
+## Preliminaries, set ups & initiators 
+pd.set_option('display.max_columns', None)
+pd.set_option('display.max_rows', None)
+
+
 # day='2025-02-25'
 # data=day_injuries_basketball(day)
 # print(data)
@@ -255,9 +260,7 @@ from seleniumbase import SB
 
 
 
-## Preliminaries, set ups & initiators 
-pd.set_option('display.max_columns', None)
-pd.set_option('display.max_rows', None)
+
 
 
 
@@ -290,13 +293,30 @@ pd.set_option('display.max_rows', None)
 
 
 
+# yahoo access 
 # sc=OAuth2(None,None,from_file='oauth2.json')
 # gm=yfa.Game(sc, 'nba')
-# league_id=gm.league_ids(year=2025)
-# lg=gm.to_league('454.l.6397')
-# tk=lg.free_agents('PG')
-# tk_df=pd.DataFrame(tk)
-# print(tk_df.head(20))
+# # league_id=gm.league_ids(year=2025)
+# # lg=gm.to_league('454.l.6397')
+# # tk=lg.free_agents('PG')
+# # tk_df=pd.DataFrame(tk)
+# # print(tk_df.head(20))
+
+# leagues=gm.league_ids()
+# HHU_league=leagues[-1]
+# hhu_lg=gm.to_league(HHU_league)
+# teamkey=hhu_lg.team_key()
+# hhu_team=hhu_lg.to_team(teamkey)
+
+# roster=hhu_team.roster()
+
+# main_df=pd.DataFrame()
+# for p in roster:
+#   temp_df=pd.DataFrame.from_dict(p)
+#   main_df=pd.concat([main_df,temp_df])
+# print(main_df)
+
+
 
 # print(lg.stat_categories())
 # print(lg.team_key())
@@ -329,28 +349,28 @@ pd.set_option('display.max_rows', None)
 
 
 
-# leagueid=os.environ.get('leagueid')
-# espn_s2=os.environ.get('espn_s2')
-# swid=os.environ.get('swid')
+leagueid=os.environ.get('leagueid')
+espn_s2=os.environ.get('espn_s2')
+swid=os.environ.get('swid')
 
 # print(f'leagueid: {leagueid}')
 # print(f'espn_s2: {espn_s2}')
 # print(f'swid: {swid}')
 
-# fa_size=5
-# season_end_year=2025
-# league=League(league_id=leagueid, 
-# 				year=season_end_year,
-# 				espn_s2=espn_s2,
-# 				swid=swid, 
-# 				debug=False)
+fa_size=5
+season_end_year=2027
+league=League(league_id=leagueid, 
+				year=season_end_year,
+				espn_s2=espn_s2,
+				swid=swid, 
+				debug=False)
 
-# FA=league.free_agents(size=fa_size)
-# FA=pd.DataFrame(FA)
+FA=league.free_agents(size=fa_size)
+FA=pd.DataFrame(FA)
 # FA=clean_string(FA)#.split(',')
 # FA=remove_name_suffixes(FA)
 # FA=FA.lstrip().rstrip()
-# print(FA)
+print(FA.head())
 
 
 
