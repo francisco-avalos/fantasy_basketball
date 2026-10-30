@@ -142,7 +142,7 @@ cols=['made_field_goals', 'made_three_point_field_goals','made_free_throws',
 focus_value='made_field_goals'
 calc='mean'
 player_sample=20
-days_ago=700
+days_ago=14
 
 today=dt.date.today()
 days_back=today-dt.timedelta(days=days_ago)
@@ -622,7 +622,7 @@ league_id_dropdown_options_filter1=[
     {'label':'ESPN', 'value':'espn'},
     {'label':'Yahoo','value':'yahoo'}
 ]
-league_id_default_value_filter1='yahoo'
+league_id_default_value_filter1='espn'
 
 history_dropdown_options_filter2=[
     {'label':'History only','value':'ho'},
@@ -727,7 +727,7 @@ page2=html.Div([
                         ),
                         html.Div(['(Functional for current season only)',
                             dcc.Input(id='my_input',
-                                        value=700,
+                                        value=14,
                                         type='number',
                                         style={'font-size': '12px','display': 'inline-block', 'border-radius' : '2px', 'border' : '1px solid #ccc', 'color' : corporate_colors["superdark-green"], 'border-spacing' : '0', 'border-collapse' :'separate'}
                                 )

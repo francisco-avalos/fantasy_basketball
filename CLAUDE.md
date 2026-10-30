@@ -280,9 +280,22 @@ layouts executes callbacks first. Each of the two modules independently:
   **twice per boot**.
 
 `layouts.py` then does more pandas work at import (a 700-day groupby for the
-opening heatmap). This is why the Procfile carries `-t 120 --preload`, and why a
-schema change needs a **full restart**: the frames are module globals, never
-refreshed, with no cache TTL. There is no "reload data" path short of a restart.
+opening heatmap). This is why the Procfile carries `-t 120 --preload`.
+
+⚠️ **Running ANY pipeline script changes nothing on the live site until the dyno
+restarts** (`heroku restart -a fantasy-basketball-team-dash`, or Heroku's own
+~daily cycling). The frames are module globals, never refreshed, with no cache
+TTL — there is no "reload data" path short of a restart. A fresh table plus a
+stale dyno is easy to mistake for a code bug: on 2026-10-30, `live_free_agents`
+had 163 players all inside the last 10 days, while the dyno still served a
+226-player snapshot from an older load. The free-agent screener's Player
+Checklist is the quickest tell, since it is frozen at boot from the same
+snapshot — compare its names against the table.
+
+The screener also **500s on an empty window**: `apply_calculation('weights')`
+sets 13 column names on the 0×16 frame that `groupby().apply()` returns for no
+rows (`ValueError: Length mismatch`), and Dash then keeps whatever figure was
+already showing.
 
 `optimize_code_layouts()` also queries `my_live_espn_qry` / `my_live_yahoo_qry`
 and never puts the results in its return dict — dead work on every boot.
