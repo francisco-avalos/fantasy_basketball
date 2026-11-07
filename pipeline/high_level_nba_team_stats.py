@@ -14,6 +14,7 @@ from mysql.connector import Error
 import pandas as pd
 import os
 import time 
+import requests
 from datetime import datetime
 from datetime import date
 from datetime import timedelta	
@@ -166,8 +167,13 @@ try:
 					cursor.close()
 					connection.close()
 					print('MySQL connection closed')
-			except:
-				print(f'No game for {day}')
+			except requests.exceptions.RequestException as e:
+				# bbref down / blocking (e.g. 503). Stop here so MAX(date) never jumps past
+				# a missing day; the next run resumes from the last day that actually loaded.
+				print(f'Halting at {day} — {type(e).__name__}: {e}')
+				break
+			except Exception as e:
+				print(f'No game for {day} — {type(e).__name__}: {e}')
 
 
 				# file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/advanced_data_extract.csv'
@@ -228,6 +234,11 @@ try:
 					cursor.close()
 					connection.close()
 				print(f'finished for {date}')
+			except requests.exceptions.RequestException as e:
+				# bbref down / blocking (e.g. 503). Stop here so MAX(date) never jumps past
+				# a missing day; the next run resumes from the last day that actually loaded.
+				print(f'Halting at {day} — {type(e).__name__}: {e}')
+				break
 			except Exception as e:
 				print(f'No game for {day} — {type(e).__name__}: {e}')
 
