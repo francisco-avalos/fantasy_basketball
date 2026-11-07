@@ -1,501 +1,255 @@
+"""
+Refresh my fantasy rosters and their current-season game logs.
 
-# ESPN
-from espn_api.basketball import League
-from espn_api.basketball import Player
+Four tables, two per league:
 
-# Yahoo
-# YAHOO PAUSED - awaiting Yahoo NBA API approval. Uncomment to resume.
-# from yahoo_oauth import OAuth2
-# import yahoo_fantasy_api as yfa
+    live_espn_players   -> my_team_stats          (ESPN)
+    live_yahoo_players  -> my_team_stats_yahoo    (Yahoo, off until YAHOO_ENABLED=True)
 
-# basketball-reference
-from basketball_reference_web_scraper import client
+Every run, per league:
+  1. Live table:  pull my current roster from the fantasy API and replace the
+                  live table with exactly those names.
+  2. Stats table: for every player in the live table, pull this season's
+                  regular-season game log from basketball-reference, then
+                  replace the stats table with exactly those rows.
 
-# Connection to my DB
-import mysql.connector as mysql
-from mysql.connector import Error
+Rebuilding the stats table from the live table each run means:
+  * a player I dropped disappears from the stats table,
+  * a player I just added gets his whole season, not only games since the last run,
+  * the first run of a new season (new `season_year`) wipes last season's rows and
+    backfills the new one. There is no separate "start of season" mode.
 
+Nothing is written until everything for that table has been fetched. If ESPN,
+Yahoo or basketball-reference fails partway, the run stops and the table keeps
+its previous contents. Each table is replaced inside one transaction.
+
+Run from the repo root:
+    python -m pipeline.my_team_stats
+"""
+
+import os
+import time
 
 import pandas as pd
-import os
-import time 
-from datetime import datetime
-from datetime import date
-from datetime import timedelta
-from shared.my_functions import clean_string, remove_jr, convert_game_score_to_points
-
+import requests
+import mysql.connector as mysql
 from unidecode import unidecode
 
-from shared.my_functions import clean_string, remove_name_suffixes
+from espn_api.basketball import League
+from basketball_reference_web_scraper import client
+from basketball_reference_web_scraper.errors import InvalidPlayerAndSeason
 
-## Preliminaries, set ups & initiators 
-pd.set_option('display.max_columns', None)
-pd.set_option('display.max_rows', None)
+from shared.my_functions import remove_name_suffixes
 
 
-sports_db_admin_host=os.environ.get('sports_db_admin_host')
-sports_db_admin_db='basketball'
-sports_db_admin_user=os.environ.get('sports_db_admin_user')
-sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
-sports_db_admin_port=os.environ.get('sports_db_admin_port')
-season_year=os.environ.get('season_year')
+# Flip to True once the Yahoo NBA API approval comes through.
+YAHOO_ENABLED = False
 
-config={
-	'host':sports_db_admin_host,
-	'database':sports_db_admin_db,
-	'user':sports_db_admin_user,
-	'password':sports_db_admin_pw,
-	'port':sports_db_admin_port,
-	'allow_local_infile':True
+# basketball-reference starts blocking around 20 requests/min; don't lower this.
+BBREF_SLEEP_SECONDS = 4
+
+season_year = int(os.environ.get('season_year'))  # season END year, e.g. 2027 for 2026-27
+
+config = {
+	'host': os.environ.get('sports_db_admin_host'),
+	'database': 'basketball',
+	'user': os.environ.get('sports_db_admin_user'),
+	'password': os.environ.get('sports_db_admin_pw'),
+	'port': os.environ.get('sports_db_admin_port'),
 }
 
-leagueid=os.environ.get('leagueid')
-espn_s2=os.environ.get('espn_s2')
-swid=os.environ.get('swid')
-
-league=League(league_id=leagueid, 
-				year=season_year,
-				espn_s2=espn_s2,
-				swid=swid, 
-				debug=False)
-
-
-
-myteam=league.teams[9]
-my_players=clean_string(myteam.roster).split(',')
-
-espn_current_players=[remove_name_suffixes(x) for x in my_players]
-espn_current_players=[x.strip(' ') for x in espn_current_players]
-
-espn_current_players=pd.DataFrame(espn_current_players)
-espn_current_players.columns=['name']
+# Column order of basketball.my_team_stats / my_team_stats_yahoo.
+STATS_COLUMNS = [
+	'date', 'slug', 'name', 'team', 'location', 'opponent', 'outcome',
+	'seconds_played', 'made_field_goals', 'attempted_field_goals',
+	'made_three_point_field_goals', 'attempted_three_point_field_goals',
+	'made_free_throws', 'attempted_free_throws', 'offensive_rebounds',
+	'defensive_rebounds', 'assists', 'steals', 'blocks', 'turnovers',
+	'personal_fouls', 'game_score', 'points',
+]
+ENUM_COLUMNS = ['team', 'location', 'opponent', 'outcome']  # stored as e.g. 'Team.MIAMI_HEAT'
 
 
-# YAHOO PAUSED - awaiting Yahoo NBA API approval. Uncomment to resume. Yahoo roster pull; `my_players_yh` comes from here.
-# sc=OAuth2(None,None,from_file='oauth2.json')
-# gm=yfa.Game(sc, 'nba')
-# league_id=gm.league_ids(year=2024)
-# lg=gm.to_league('428.l.18598') # 2023-24 season
-# lg=gm.to_league('454.l.6397') # 2024-25 season
+# ---------------------------------------------------------------------------
+# Rosters (live tables)
+# ---------------------------------------------------------------------------
 
-# tm=lg.to_team('454.l.6397.t.4')
-# my_tm=pd.DataFrame(tm.roster())
-# my_players_yh=my_tm.name.tolist()
+def get_espn_roster():
+	"""Names on my ESPN team, found by matching my SWID to the team owner,
+	so it no longer depends on the team's position in league.teams."""
+	swid = os.environ.get('swid')
+	league = League(league_id=os.environ.get('leagueid'), year=season_year,
+					espn_s2=os.environ.get('espn_s2'), swid=swid, debug=False)
 
+	my_id = swid.strip('{}').lower()
+	mine = [t for t in league.teams
+			if any(str(o.get('id', '')).strip('{}').lower() == my_id for o in (t.owners or []))]
+	if len(mine) != 1:
+		teams = ', '.join(f'[{i}] {t.team_name}' for i, t in enumerate(league.teams))
+		raise SystemExit(f'Expected exactly one ESPN team owned by my SWID, found {len(mine)}. Teams: {teams}')
 
-
-
-# YAHOO PAUSED - awaiting Yahoo NBA API approval. Uncomment to resume.
-# my_players_yh_cp=pd.DataFrame(my_players_yh).copy()
-# my_players_yh_cp.columns=['name']
-
-connection=mysql.connect(**config)
-
-if connection.is_connected():
-	cursor=connection.cursor()
-	# YAHOO PAUSED - awaiting Yahoo NBA API approval. Uncomment to resume. (live_yahoo_players truncate + load)
-	# cursor.execute('TRUNCATE basketball.live_yahoo_players;')
-	cursor.execute('TRUNCATE basketball.live_espn_players;')
-
-	# YAHOO PAUSED - awaiting Yahoo NBA API approval. Uncomment to resume. (live_yahoo_players truncate + load)
-	# file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/live_yh_team.csv'
-	# my_players_yh_cp.to_csv(file_path,index=False)
-	# qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.live_yahoo_players FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' IGNORE 1 ROWS;"
-	# cursor.execute(qry)
-	# connection.commit()
-	# del my_players_yh_cp
-	# os.remove(file_path)
-	# print('live_yahoo_players updated with recent data')
-
-	file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/live_ESPN_team.csv'
-	espn_current_players.to_csv(file_path,index=False)
-	qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.live_espn_players FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' IGNORE 1 ROWS;"
-	cursor.execute(qry)
-	connection.commit()
-	del espn_current_players
-	os.remove(file_path)
-	print('live_espn_players updated with recent data')
-
-if(connection.is_connected()):
-	cursor.close()
-	connection.close()
+	team = mine[0]
+	# Same name shape as before (suffixes stripped) so the model scripts' join on
+	# basketball_references_players.BBRefName keeps working.
+	names = [remove_name_suffixes(p.name).strip() for p in team.roster]
+	print(f'ESPN team: {team.team_name} ({len(names)} players)')
+	return names
 
 
+def get_yahoo_roster():
+	"""Names on my Yahoo team, via the logged-in user's team key in this season's league."""
+	from yahoo_oauth import OAuth2
+	import yahoo_fantasy_api as yfa
 
-try:
-	connection=mysql.connect(**config)
+	sc = OAuth2(None, None, from_file='oauth2.json')
+	gm = yfa.Game(sc, 'nba')
+	# Yahoo labels an NBA season by the year it STARTS (2024 = 2024-25); season_year is the end year.
+	league_keys = gm.league_ids(year=season_year - 1)
+	if not league_keys:
+		raise SystemExit(f'No Yahoo NBA league found for the {season_year - 1}-{season_year % 100:02d} season.')
+	lg = gm.to_league(league_keys[-1])
+	tm = lg.to_team(lg.team_key())
 
-	if connection.is_connected():
-		cursor=connection.cursor()
-		sql='SELECT MAX(date) AS most_recent_data_date FROM basketball.my_team_stats;'
-		cursor.execute(sql)
-		output=cursor.fetchone()
-
-		sql='SELECT MAX(date) AS most_recent_data_date FROM basketball.my_team_stats_yahoo;'
-		cursor.execute(sql)
-		output_yh=cursor.fetchone()
-
-		# if(connection.is_connected()):
-		# 	cursor.close()
-		# 	connection.close()
-
-		if output[0] is None:
-			season_begin='2024-10-22'
-			last_data_date=datetime.strptime(season_begin, '%Y-%m-%d')
-			today=datetime.now()-timedelta(days=1)
-			today=today.strftime('%Y-%m-%d')
-
-			if last_data_date!=today:
-
-				main_df=pd.DataFrame()
-				
-				day_range=pd.date_range(start=last_data_date, end=today)
-				for day in day_range:
-					year=int(datetime.strftime(day.date(), '%Y'))
-					month=int(datetime.strftime(day.date(), '%m'))
-					date=int(datetime.strftime(day.date(), '%d'))
-
-					try:
-						p=client.player_box_scores(day=date,month=month,year=year)
-						df=pd.DataFrame(p)
-						df_name_list=df.name.tolist()
-						name_list=[unidecode(name) for name in df_name_list]
-						df['name']=name_list
-						date=f'{year}-{month}-{date}'
-						if not df.empty:
-							df.insert(0, 'date', date)
-							for p in my_players:
-								p=unidecode(p)
-								p=remove_jr(p)
-								p=p.lstrip().rstrip()
-								insert_df=df[df['name']==p]
-								GS=insert_df['game_score']
-								FG=insert_df['made_field_goals']
-								FGA=insert_df['attempted_field_goals']
-								FTA=insert_df['attempted_free_throws']
-								FT=insert_df['made_free_throws']
-								ORB=insert_df['offensive_rebounds']
-								DRB=insert_df['defensive_rebounds']
-								STL=insert_df['steals']
-								AST=insert_df['assists']
-								BLK=insert_df['blocks']
-								PF=insert_df['personal_fouls']
-								TOV=insert_df['turnovers']						
-								points=convert_game_score_to_points(GS=GS, FG=FG, FGA=FGA, FTA=FTA, FT=FT, ORB=ORB, DRB=DRB, STL=STL, AST=AST, BLK=BLK, PF=PF, TOV=TOV)
-								copy=insert_df.copy()
-								copy.loc[copy['date']==date, 'points']=points
-								main_df=pd.concat([main_df, copy])
-					except:
-						print('Player not found')
-					time.sleep(4)
-				main_df['slug']=main_df['slug'].astype(str)
-				main_df['name']=main_df['name'].astype(str)
-				main_df['team']=main_df['team'].astype(str)
-				main_df['location']=main_df['location'].astype(str)
-				main_df['opponent']=main_df['opponent'].astype(str)
-				main_df['outcome']=main_df['outcome'].astype(str)
-
-				connection=mysql.connect(**config)
-				cursor=connection.cursor()
-
-				file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/my_team_stats_extract.csv'
-				main_df.to_csv(file_path,index=False)
-				qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.my_team_stats FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' IGNORE 1 ROWS;"
-				cursor.execute(qry)
-				connection.commit()
-				del main_df
-				os.remove(file_path)
+	names = [p['name'] for p in tm.roster()]
+	print(f'Yahoo league {league_keys[-1]}, team {lg.team_key()} ({len(names)} players)')
+	return names
 
 
-				# cols="`,`".join([str(i) for i in main_df.columns.tolist()])
-				# for i,row in main_df.iterrows():
-				# 	sql='REPLACE INTO `my_team_stats` (`'+cols+'`) VALUES ('+'%s,'*(len(row)-1)+'%s)'
-				# 	cursor.execute(sql, tuple(row))
-				# 	connection.commit()
+# ---------------------------------------------------------------------------
+# Game logs (stats tables)
+# ---------------------------------------------------------------------------
 
-				print('Backfill to basketball.my_team_stats table complete!')
-		else:
-			print(f'basketball.my_team_stats, data through {output[0]}')
-			last_data_date=output[0].strftime('%Y-%m-%d')
-			today=datetime.now()-timedelta(days=1)
-			today=today.strftime('%Y-%m-%d')
-
-			last_data_day=output[0].strftime('%d')
-			last_data_month=output[0].strftime('%m')
-			last_data_year=output[0].strftime('%Y')
-
-			yesterday=datetime.now()-timedelta(days=1)
-			yesterday_day=yesterday.strftime('%d')
-			yesterday_month=yesterday.strftime('%m')
-			yesterday_year=yesterday.now().strftime('%Y')
-			yesterday=yesterday.strftime('%Y-%m-%d')
-
-			if last_data_date!=yesterday:
-				print('New data! Preparing to add data!')
-				main_df=pd.DataFrame()
-				last_data_date=datetime.strptime(last_data_date, '%Y-%m-%d')
-				
-				day_range=pd.date_range(start=last_data_date, end=yesterday)
-				for day in day_range:
-					year=int(datetime.strftime(day.date(), '%Y'))
-					month=int(datetime.strftime(day.date(), '%m'))
-					date=int(datetime.strftime(day.date(), '%d'))
-					# print(f'year - {year}')
-					# print(f'month - {month}')
-					# print(f'date - {date}') #imhere
-					# print('IMHERE!!!')
-					# p=client.player_box_scores(day=date,month=month,year=year)
-					# print(p)
-
-					try:
-						p=client.player_box_scores(day=date,month=month,year=year)
-						df=pd.DataFrame(p)
-						df_name_list=df.name.tolist()
-						name_list=[unidecode(name) for name in df_name_list]
-						df['name']=name_list
-						date=f'{year}-{month}-{date}'
-						if not df.empty:
-							df.insert(0, 'date', date)
-							for p in my_players:
-								p=unidecode(p)
-								p=remove_jr(p)
-								p=p.lstrip().rstrip()
-								insert_df=df[df['name']==p]
-								GS=insert_df['game_score']
-								FG=insert_df['made_field_goals']
-								FGA=insert_df['attempted_field_goals']
-								FTA=insert_df['attempted_free_throws']
-								FT=insert_df['made_free_throws']
-								ORB=insert_df['offensive_rebounds']
-								DRB=insert_df['defensive_rebounds']
-								STL=insert_df['steals']
-								AST=insert_df['assists']
-								BLK=insert_df['blocks']
-								PF=insert_df['personal_fouls']
-								TOV=insert_df['turnovers']						
-								points=convert_game_score_to_points(GS=GS, FG=FG, FGA=FGA, FTA=FTA, FT=FT, ORB=ORB, DRB=DRB, STL=STL, AST=AST, BLK=BLK, PF=PF, TOV=TOV)
-								copy=insert_df.copy()
-								copy.loc[copy['date']==date, 'points']=points
-								main_df=pd.concat([main_df, copy])
-					except:
-						print('Player not found')
-					time.sleep(4)
-
-				main_df['slug']=main_df['slug'].astype(str)
-				main_df['name']=main_df['name'].astype(str)
-				main_df['team']=main_df['team'].astype(str)
-				main_df['location']=main_df['location'].astype(str)
-				main_df['opponent']=main_df['opponent'].astype(str)
-				main_df['outcome']=main_df['outcome'].astype(str)
-
-				connection=mysql.connect(**config)
-				cursor=connection.cursor()
-				file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/my_team_stats_extract.csv'
-				main_df.to_csv(file_path,index=False)
-				qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.my_team_stats FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' IGNORE 1 ROWS;"
-				cursor.execute(qry)
-				connection.commit()
-				del main_df
-				os.remove(file_path)
-				
-				# cols="`,`".join([str(i) for i in main_df.columns.tolist()])
-				
-				# for i,row in main_df.iterrows():
-				# 	sql='REPLACE INTO `my_team_stats` (`'+cols+'`) VALUES ('+'%s,'*(len(row)-1)+'%s)'
-				# 	cursor.execute(sql, tuple(row))
-				# 	connection.commit()
-				
-				cursor=connection.cursor()
-				sql='SELECT MAX(date) AS most_recent_data_date FROM basketball.my_team_stats;'
-				cursor.execute(sql)
-				output=cursor.fetchone()
-				last_data_date=output[0].strftime('%Y-%m-%d')
-				print(f'Data now updated through {last_data_date}')
-			else:
-				print('New data not available yet')
-		# for my yahoo league
-		# YAHOO PAUSED - awaiting Yahoo NBA API approval. Uncomment to resume. Both branches need `my_players_yh`, so they stay off
-		# until the Yahoo API is back. `output_yh` above is still read, so this
-		# block can be uncommented as-is.
-		# if output_yh[0] is None:
-			# season_begin='2024-10-22'
-			# last_data_date=datetime.strptime(season_begin, '%Y-%m-%d')
-			# today=datetime.now()-timedelta(days=1)
-			# today=today.strftime('%Y-%m-%d')
-
-			# if last_data_date!=today:
-
-				# main_df=pd.DataFrame()
-				
-				# day_range=pd.date_range(start=last_data_date, end=today)
-				# for day in day_range:
-					# year=int(datetime.strftime(day.date(), '%Y'))
-					# month=int(datetime.strftime(day.date(), '%m'))
-					# date=int(datetime.strftime(day.date(), '%d'))
-
-					# try:
-						# p=client.player_box_scores(day=date,month=month,year=year)
-						# df=pd.DataFrame(p)
-						# df_name_list=df.name.tolist()
-						# name_list=[unidecode(name) for name in df_name_list]
-						# df['name']=name_list
-						# date=f'{year}-{month}-{date}'
-						# if not df.empty:
-							# df.insert(0, 'date', date)
-							# for p in my_players_yh:
-								# p=unidecode(p)
-								# p=remove_jr(p)
-								# p=p.lstrip().rstrip()
-								# insert_df=df[df['name']==p]
-								# GS=insert_df['game_score']
-								# FG=insert_df['made_field_goals']
-								# FGA=insert_df['attempted_field_goals']
-								# FTA=insert_df['attempted_free_throws']
-								# FT=insert_df['made_free_throws']
-								# ORB=insert_df['offensive_rebounds']
-								# DRB=insert_df['defensive_rebounds']
-								# STL=insert_df['steals']
-								# AST=insert_df['assists']
-								# BLK=insert_df['blocks']
-								# PF=insert_df['personal_fouls']
-								# TOV=insert_df['turnovers']						
-								# points=convert_game_score_to_points(GS=GS, FG=FG, FGA=FGA, FTA=FTA, FT=FT, ORB=ORB, DRB=DRB, STL=STL, AST=AST, BLK=BLK, PF=PF, TOV=TOV)
-								# copy=insert_df.copy()
-								# copy.loc[copy['date']==date, 'points']=points
-								# main_df=pd.concat([main_df, copy])
-					# except:
-						# print('Player not found')
-					# time.sleep(4)
-				# main_df['slug']=main_df['slug'].astype(str)
-				# main_df['name']=main_df['name'].astype(str)
-				# main_df['team']=main_df['team'].astype(str)
-				# main_df['location']=main_df['location'].astype(str)
-				# main_df['opponent']=main_df['opponent'].astype(str)
-				# main_df['outcome']=main_df['outcome'].astype(str)
-
-				# connection=mysql.connect(**config)
-				# cursor=connection.cursor()
-
-				# file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/my_team_stats_extract_yh.csv'
-				# main_df.to_csv(file_path,index=False)
-				# qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.my_team_stats_yahoo FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' IGNORE 1 ROWS;"
-				# cursor.execute(qry)
-				# connection.commit()
-				# del main_df
-				# os.remove(file_path)
-
-				# cols="`,`".join([str(i) for i in main_df.columns.tolist()])
-				# for i,row in main_df.iterrows():
-				# 	sql='REPLACE INTO `my_team_stats` (`'+cols+'`) VALUES ('+'%s,'*(len(row)-1)+'%s)'
-				# 	cursor.execute(sql, tuple(row))
-				# 	connection.commit()
-
-				# print('Backfill to basketball.my_team_stats_yahoo table complete!')
-		# else:
-			# print(f'basketball.my_team_stats_yahoo, data through {output_yh[0]}')
-			# last_data_date=output_yh[0].strftime('%Y-%m-%d')
-			# today=datetime.now()-timedelta(days=1)
-			# today=today.strftime('%Y-%m-%d')
-
-			# last_data_day=output_yh[0].strftime('%d')
-			# last_data_month=output_yh[0].strftime('%m')
-			# last_data_year=output_yh[0].strftime('%Y')
-
-			# yesterday=datetime.now()-timedelta(days=1)
-			# yesterday_day=yesterday.strftime('%d')
-			# yesterday_month=yesterday.strftime('%m')
-			# yesterday_year=yesterday.now().strftime('%Y')
-			# yesterday=yesterday.strftime('%Y-%m-%d')
-
-			# if last_data_date!=yesterday:
-				# print('New data! Preparing to add data!')
-				# main_df=pd.DataFrame()
-				# last_data_date=datetime.strptime(last_data_date, '%Y-%m-%d')
-				
-				# day_range=pd.date_range(start=last_data_date, end=yesterday)
-				# for day in day_range:
-					# year=int(datetime.strftime(day.date(), '%Y'))
-					# month=int(datetime.strftime(day.date(), '%m'))
-					# date=int(datetime.strftime(day.date(), '%d'))
-
-					# try:
-						# p=client.player_box_scores(day=date,month=month,year=year)
-						# df=pd.DataFrame(p)
-						# df_name_list=df.name.tolist()
-						# name_list=[unidecode(name) for name in df_name_list]
-						# df['name']=name_list
-						# date=f'{year}-{month}-{date}'
-						# if not df.empty:
-							# df.insert(0, 'date', date)
-							# for p in my_players_yh:
-								# p=unidecode(p)
-								# p=remove_jr(p)
-								# p=p.lstrip().rstrip()
-								# insert_df=df[df['name']==p]
-								# GS=insert_df['game_score']
-								# FG=insert_df['made_field_goals']
-								# FGA=insert_df['attempted_field_goals']
-								# FTA=insert_df['attempted_free_throws']
-								# FT=insert_df['made_free_throws']
-								# ORB=insert_df['offensive_rebounds']
-								# DRB=insert_df['defensive_rebounds']
-								# STL=insert_df['steals']
-								# AST=insert_df['assists']
-								# BLK=insert_df['blocks']
-								# PF=insert_df['personal_fouls']
-								# TOV=insert_df['turnovers']						
-								# points=convert_game_score_to_points(GS=GS, FG=FG, FGA=FGA, FTA=FTA, FT=FT, ORB=ORB, DRB=DRB, STL=STL, AST=AST, BLK=BLK, PF=PF, TOV=TOV)
-								# copy=insert_df.copy()
-								# copy.loc[copy['date']==date, 'points']=points
-								# main_df=pd.concat([main_df, copy])
-					# except:
-						# print('Player not found')
-					# time.sleep(4)
-
-				# main_df['slug']=main_df['slug'].astype(str)
-				# main_df['name']=main_df['name'].astype(str)
-				# main_df['team']=main_df['team'].astype(str)
-				# main_df['location']=main_df['location'].astype(str)
-				# main_df['opponent']=main_df['opponent'].astype(str)
-				# main_df['outcome']=main_df['outcome'].astype(str)
-
-				# connection=mysql.connect(**config)
-				# cursor=connection.cursor()
-
-				# file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/my_team_stats_extract_yh.csv'
-				# main_df.to_csv(file_path,index=False)
-				# qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.my_team_stats_yahoo FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' IGNORE 1 ROWS;"
-				# cursor.execute(qry)
-				# connection.commit()
-				# del main_df
-				# os.remove(file_path)
-
-				# cols="`,`".join([str(i) for i in main_df.columns.tolist()])
-				
-				# for i,row in main_df.iterrows():
-				# 	sql='REPLACE INTO `my_team_stats` (`'+cols+'`) VALUES ('+'%s,'*(len(row)-1)+'%s)'
-				# 	cursor.execute(sql, tuple(row))
-				# 	connection.commit()
-				
-				# cursor=connection.cursor()
-				# sql='SELECT MAX(date) AS most_recent_data_date FROM basketball.my_team_stats_yahoo;'
-				# cursor.execute(sql)
-				# output_yh=cursor.fetchone()
-				# last_data_date=output_yh[0].strftime('%Y-%m-%d')
-				# print(f'Data now updated through {last_data_date} for my yahoo players')
-			# else:
-				# print('New data not available yet for yahoo players')
-except Error as e:
-	print("Error while connecting to MySQL", e)
+def name_key(name):
+	"""Loose key for matching fantasy names to basketball-reference names:
+	accents, case, periods, apostrophes, hyphens and Jr./Sr./II/III/IV ignored."""
+	s = unidecode(str(name)).lower().replace('.', '').replace("'", '').replace('-', ' ')
+	return ' '.join(t for t in s.split() if t not in {'jr', 'sr', 'ii', 'iii', 'iv'})
 
 
-finally:
-	if(connection.is_connected()):
+def build_slug_lookup(cursor):
+	"""name_key -> set of bbref slugs. This season's player totals cover everyone who
+	has played, rookies included; the crosswalk table covers players who haven't yet."""
+	lookup = {}
+	totals = client.players_season_totals(season_end_year=season_year)
+	for row in totals:
+		lookup.setdefault(name_key(row['name']), set()).add(row['slug'])
+
+	cursor.execute('SELECT BBRefName, BBRefID FROM basketball.basketball_references_players;')
+	crosswalk = {}
+	for bbref_name, slug in cursor.fetchall():
+		crosswalk.setdefault(name_key(bbref_name), set()).add(slug)
+	return lookup, crosswalk
+
+
+def resolve_slug(name, lookup, crosswalk):
+	key = name_key(name)
+	for source in (lookup, crosswalk):
+		slugs = source.get(key, set())
+		if len(slugs) == 1:
+			return next(iter(slugs))
+		if len(slugs) > 1:
+			print(f'  ! {name}: ambiguous basketball-reference match {sorted(slugs)}, skipped')
+			return None
+	print(f'  ! {name}: no basketball-reference match, skipped')
+	return None
+
+
+def fetch_season_game_logs(names, cursor):
+	"""Current-season regular-season game log for each name, as rows in STATS_COLUMNS order.
+	Raises on any HTTP failure so the caller writes nothing."""
+	lookup, crosswalk = build_slug_lookup(cursor)
+
+	frames = []
+	for name in names:
+		slug = resolve_slug(name, lookup, crosswalk)
+		if slug is None:
+			continue
+		time.sleep(BBREF_SLEEP_SECONDS)
+		try:
+			games = pd.DataFrame(client.regular_season_player_box_scores(
+				player_identifier=slug, season_end_year=season_year))
+		except InvalidPlayerAndSeason:
+			games = pd.DataFrame()  # bbref has no game log for him this season yet
+
+		if 'active' in games:
+			games = games[games['active'] == True]
+		print(f'  {name} ({slug}): {len(games)} games')
+		if games.empty:
+			continue
+
+		games = games.rename(columns={'points_scored': 'points'})
+		games['slug'] = slug
+		games['name'] = name  # store the live-table spelling so name joins stay exact
+		for col in ENUM_COLUMNS:
+			games[col] = games[col].astype(str)
+		frames.append(games[STATS_COLUMNS])
+
+	if not frames:
+		return []
+	df = pd.concat(frames, ignore_index=True)
+	# Native Python values (no numpy ints), NaN -> NULL.
+	return df.astype(object).where(pd.notna(df), None).values.tolist()
+
+
+# ---------------------------------------------------------------------------
+# Writing
+# ---------------------------------------------------------------------------
+
+def replace_table(connection, table, columns, rows):
+	"""Make `table` contain exactly `rows`, in one transaction. DELETE rather than
+	TRUNCATE because TRUNCATE commits immediately and can't be rolled back."""
+	cursor = connection.cursor()
+	try:
+		cursor.execute(f'DELETE FROM basketball.{table};')
+		if rows:
+			cols = ', '.join(f'`{c}`' for c in columns)
+			marks = ', '.join(['%s'] * len(columns))
+			cursor.executemany(f'INSERT INTO basketball.{table} ({cols}) VALUES ({marks});', rows)
+		connection.commit()
+	except Exception:
+		connection.rollback()
+		raise
+	finally:
 		cursor.close()
+	print(f'basketball.{table}: {len(rows)} rows')
+
+
+def refresh_league(connection, label, get_roster, live_table, stats_table):
+	print(f'\n=== {label} ===')
+
+	# 1. Live table
+	names = sorted(set(get_roster()))
+	if not names:
+		raise SystemExit(f'{label} roster came back empty; leaving {live_table} untouched.')
+	replace_table(connection, live_table, ['name'], [[n] for n in names])
+
+	# 2. Stats table, built only from the live table just written
+	cursor = connection.cursor()
+	cursor.execute(f'SELECT name FROM basketball.{live_table};')
+	live_names = [r[0] for r in cursor.fetchall()]
+	try:
+		rows = fetch_season_game_logs(live_names, cursor)
+	except requests.exceptions.RequestException as e:
+		raise SystemExit(f'basketball-reference failed ({type(e).__name__}: {e}); '
+						 f'{stats_table} left unchanged. Re-run once it is reachable.')
+	finally:
+		cursor.close()
+	replace_table(connection, stats_table, STATS_COLUMNS, rows)
+
+
+def main():
+	connection = mysql.connect(**config)
+	try:
+		refresh_league(connection, 'ESPN', get_espn_roster,
+					   'live_espn_players', 'my_team_stats')
+		if YAHOO_ENABLED:
+			refresh_league(connection, 'Yahoo', get_yahoo_roster,
+						   'live_yahoo_players', 'my_team_stats_yahoo')
+		else:
+			print('\nYahoo skipped (YAHOO_ENABLED = False); live_yahoo_players and my_team_stats_yahoo untouched.')
+	finally:
 		connection.close()
-		print('MySQL connection is closed')
 
 
-
-
-
+if __name__ == '__main__':
+	main()
