@@ -24,7 +24,7 @@ import time
 from datetime import datetime
 from datetime import date
 from datetime import timedelta
-# from shared.my_functions import remove_team_string, remove_matchup_string, remove_activity_string, remove_player_string, remove_box_string, clean_string, remove_name_suffixes, convert_game_score_to_points
+from shared.my_functions import remove_team_string, remove_matchup_string, remove_activity_string, remove_player_string, remove_box_string, clean_string, remove_name_suffixes, convert_game_score_to_points
 
 # import shared.my_functions as mf
 
@@ -365,12 +365,12 @@ league=League(league_id=leagueid,
 				swid=swid, 
 				debug=False)
 
-FA=league.free_agents(size=fa_size)
-FA=pd.DataFrame(FA)
-# FA=clean_string(FA)#.split(',')
-# FA=remove_name_suffixes(FA)
-# FA=FA.lstrip().rstrip()
-print(FA.head())
+# FA=league.free_agents(size=fa_size)
+# FA=pd.DataFrame(FA)
+# # FA=clean_string(FA)#.split(',')
+# # FA=remove_name_suffixes(FA)
+# # FA=FA.lstrip().rstrip()
+# print(FA.head())
 
 
 
@@ -455,9 +455,9 @@ print(FA.head())
 
 # print(league.teams)
 
-# myteam=league.teams[8]
-# my_players=clean_string(myteam.roster).split(',')
-# print(my_players)
+myteam=league.teams[4]
+my_players=clean_string(myteam.roster).split(',')
+print(my_players)
 
 # myteam=league.teams[9]
 # current_players=clean_string(myteam.roster).split(',')

@@ -9,9 +9,11 @@ from subprocess import call
 chime.theme('mario')
 small_list=['advanced_stats.py','high_level_nba_team_schedules.py',
 				'high_level_nba_team_stats.py', 'my_team_stats.py',
-				'historicals.py', 'historical_basketball_injury_data.py',
-				'injury_probabilities_basketball.py',
-				'free_agents_yahoo_basketball.py']
+				'historicals.py', 
+				# 'historical_basketball_injury_data.py', # historical_basketball_injury_data_updated
+				# 'injury_probabilities_basketball.py',
+				# 'free_agents_yahoo_basketball.py',
+				'free_agents_backfill.py']
 full_list=['advanced_stats.py','high_level_nba_team_schedules.py',
 				'high_level_nba_team_stats.py', 'my_team_stats.py',
 				'historicals.py',
