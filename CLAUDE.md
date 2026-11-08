@@ -141,7 +141,7 @@ connection config for this to work.
 |---|---|---|
 | `advanced_stats.py` | ESPN FA list × bbref advanced season totals | `advanced_stats` |
 | `historicals.py` | basketball-reference box scores | `historical_player_data` |
-| `my_team_stats.py` | ESPN + Yahoo rosters, bbref box scores | `my_team_stats`, `my_team_stats_yahoo`, `live_espn_players`, `live_yahoo_players` |
+| `my_team_stats.py` | ESPN + Yahoo rosters, bbref per-player season game logs | `live_espn_players`, `live_yahoo_players`, then `my_team_stats`, `my_team_stats_yahoo` (Yahoo half behind `YAHOO_ENABLED`) |
 | `free_agents_yahoo_basketball.py` | Yahoo free agents + waivers | `live_free_agents_yahoo` |
 | `free_agents_backfill.py` | ESPN FA history | `live_free_agents` |
 | `espn_player_positions.py` | ESPN | `espn_player_positions` |
@@ -248,8 +248,9 @@ complaint. Same hazard as `advanced_stats.py` below, one step further downstream
 app/index.py        routes, gunicorn entry point (app.index:server)
 app/dash_create.py  the Dash instance (app_inst) — keep minimal
 app/landing.py      page0, the landing page
-app/layouts.py      page1–page4 (1295 lines)
-app/callbacks.py    every @app_inst.callback + every figure builder (946 lines)
+app/layouts.py      page1–page4 shells (page3 is a stub that calls team_performance)
+app/callbacks.py    callbacks + figure builders for pages 1, 2, 4
+app/team_performance.py  page 3 in full: data prep, figures, tabbed layout, callbacks
 app/ai_chatbox.py   Anthropic client, context builder, system prompt
 ```
 
@@ -258,7 +259,7 @@ app/ai_chatbox.py   Anthropic client, context builder, system prompt
 | `/` (and anything unrecognised) | `page0` | landing |
 | `/apps/fantasy-predictions` | `page1` | predictions + model evaluation |
 | `/apps/free-agent-screening` | `page2` | minute-weighted screener |
-| `/apps/team-performance` | `page3` | weekly team performance + injury survival |
+| `/apps/team-performance` | `page3` | three `dcc.Tabs`: Team overview, Player detail, Injuries |
 | `/apps/ai-assistant` | `page4` | chatbox |
 
 Theme is Bootstrap **DARKLY** plus Inter from Google Fonts, patched by
@@ -268,7 +269,8 @@ Theme is Bootstrap **DARKLY** plus Inter from Google Fonts, patched by
 
 ### ⚠️ All data loads at import time, and the app is not a module boundary
 
-`layouts.py` imports its figure builders **from `callbacks.py`**, so importing
+`layouts.py` imports `line_plot_preds` / `create_data_table` **from `callbacks.py`**
+and imports `app.team_performance` (which itself imports `callbacks`), so importing
 layouts executes callbacks first. Each of the two modules independently:
 
 - builds its **own** `pooling.MySQLConnectionPool`, both named `"sports_db_pool"`,
@@ -279,8 +281,10 @@ layouts executes callbacks first. Each of the two modules independently:
   `live_free_agents` with every matching row of `historical_player_data` — runs
   **twice per boot**.
 
-`layouts.py` then does more pandas work at import (a 700-day groupby for the
-opening heatmap). This is why the Procfile carries `-t 120 --preload`.
+`team_performance.py` then runs its own batch (`data_imports.team_performance_data()`:
+league totals since `season_start`, injury curves, roster status, this season's
+`hist_player_inj` moves) on the callbacks pool. Boot is ~30 s locally. This is
+why the Procfile carries `-t 120 --preload`.
 
 ⚠️ **Running ANY pipeline script changes nothing on the live site until the dyno
 restarts** (`heroku restart -a fantasy-basketball-team-dash`, or Heroku's own
@@ -299,6 +303,38 @@ already showing.
 
 `optimize_code_layouts()` also queries `my_live_espn_qry` / `my_live_yahoo_qry`
 and never puts the results in its return dict — dead work on every boot.
+
+### Current Team Performance (page 3)
+
+`app/team_performance.py` owns the whole page. Its layout is `filter_bar()` (league
+ESPN/Yahoo + window season/30/14/7 days, both global) plus `tabs_body()`:
+
+- **Team overview**: a player × 12-category heatmap. Cells show per-game values;
+  colour is a z-score against **league rotation players** (≥3 GP, ≥20 MPG this
+  season, from `league_totals_qry` over `historical_player_data`). FG%/FT%/3P% are
+  ranked on volume-weighted impact (makes − league% × attempts) and TO is
+  inverted. Below it, under one category picker: minute-weighted production,
+  share of team for the latest week, and the weekly trend.
+- **Player detail**: box + strip per player (last 5 games coloured), small
+  multiples, and a hot/cold table (last 5 vs window average).
+- **Injuries**: the players currently out, each a button that loads the matched
+  `injury_probabilities` curve with a "day N" marker, plus key-day odds
+  conditional on days already out, S(d+k)/S(d).
+
+Injury **status** comes from `live_*_players.injury_status` (ESPN `injuryStatus` /
+Yahoo `status`, written by `my_team_stats.py`). That column is added by
+`sql_files/migrations/2026-11-07_live_players_injury_status.sql`. Until the
+migration runs, `team_performance_data()` falls back to names only and the page
+works out "out" from `hist_player_inj` instead (latest `relinquished` after the
+last `acquired`). In that mode it prints `1054 Unknown column 'injury_status'`
+twice at boot. Injury **type** and days out always come from `hist_player_inj`:
+the stint's latest note is matched to a curve by shared body part plus word
+overlap (`match_curve`), falling back to the generic `placed on IL` curve.
+
+Group-bys there use plain sums/`agg`, never `groupby().apply()`, so the code
+behaves the same on pandas 1.3.5 and 2.2.3. Don't put `'responsive': True` in the
+graph config: Plotly then sizes each chart to its heightless card, the cards
+collapse to 0 px and the charts overlap. Each figure sets its own height instead.
 
 ### The minute-weighted calculation
 
@@ -320,17 +356,32 @@ while `'ho'` (historicals only) and `'hcs'` (history + current) **ignore it**.
 
 Each of these costs real time. Do not rediscover them.
 
-- ⚠️ **`myteam=league.teams[9]` — the ESPN roster is picked by LIST INDEX**
-  (`my_team_stats.py`). The index has already moved 11 → 10 → 9 across seasons,
-  and commented-out older values are still in the files. A wrong index silently
-  ingests **another manager's roster** with no error. Verify it against the real
-  team name whenever a season rolls over.
-- ⚠️ **Yahoo league keys are hard-coded, and the two scripts disagree.**
-  `my_team_stats.py` uses `454.l.6397` (2024-25) and `free_agents_yahoo_basketball.py`
-  uses `428.l.18598` (2023-24) — pointing at two different seasons. Worse,
-  `free_agents_yahoo_basketball.py` calls `gm.league_ids(year=season_year)` and
-  then **throws the result away** on the next line. Both keys need updating each
-  season; prefer wiring them to `league_ids()` rather than editing literals.
+- **`my_team_stats.py` rebuilds all four of its tables from scratch every run.**
+  Per league it replaces the live table with the current roster, then replaces
+  the stats table with this season's regular-season game log
+  (`regular_season_player_box_scores`, one bbref request per player) for exactly
+  the players in the live table. So dropped players vanish, new pickups get
+  their whole season, and the first run with a new `season_year` wipes last
+  season. There is no incremental `MAX(date)` loop any more. Everything is fetched
+  before anything is written, and each table is replaced with `DELETE` + `INSERT`
+  in one transaction (not `TRUNCATE`, which can't roll back), so a bbref failure
+  leaves the old contents. The ESPN team is found by matching the `swid` env var
+  to `team.owners[*].id`, **not** by list index (it used to be `league.teams[i]`,
+  which drifted 11 → 10 → 9 → 4 and silently ingested other managers' rosters).
+  Live-table names keep their old shape (ESPN suffixes stripped via
+  `remove_name_suffixes`, Yahoo raw) because `base_model.py` /
+  `machine_learning_models.py` / `model_pooling.py` join them to
+  `basketball_references_players.BBRefName`. Stats rows store the **live-table
+  spelling** in `name` (the app's Yahoo query filters on `name IN live_yahoo_players`)
+  and resolve slugs via a loose `name_key()` against this season's
+  `players_season_totals`, falling back to the crosswalk table.
+- ⚠️ **Yahoo league keys are hard-coded in `free_agents_yahoo_basketball.py`**
+  (`428.l.18598`, 2023-24). It calls `gm.league_ids(year=season_year)` and then
+  **throws the result away** on the next line. `my_team_stats.py` already derives
+  both keys: `gm.league_ids(year=season_year - 1)` (Yahoo labels a season by its
+  **start** year; `season_year` is the end year) and `lg.team_key()` for the
+  logged-in user's team. Do the same here instead of editing literals. Neither has
+  run since Yahoo access lapsed, so treat the Yahoo path as untested.
 - ⚠️ **`advanced_stats.py` TRUNCATEs before it fetches.** The table is emptied,
   *then* the ESPN FA list and the bbref advanced-totals scrape run. A rate-limit
   or auth failure leaves `advanced_stats` **empty**, and the app shows no error —
@@ -366,9 +417,48 @@ Each of these costs real time. Do not rediscover them.
 - **Bare `except:` hides failures** — `run_scripts.py` and several ETL loops. When
   touching one, print the actual exception. `advanced_stats.py`'s per-player
   handler already does (`f'{fa} not captured — {type(e).__name__}: {e}'`).
+- ⚠️ **basketball-reference-web-scraper fails SILENTLY when bbref changes its
+  HTML** — a parser that can't find its table returns an empty list, not an
+  error. bbref renamed the advanced-totals table `advanced_stats` → `advanced`;
+  scraper 4.12.1 (what `basketball-env-useme` had) returns **0 rows for every
+  season**, while 4.15.4 (pinned in `requirements-dev.txt`) parses it. In
+  `advanced_stats.py` that surfaces as `KeyError: 'slug'` at the
+  `main_free_agents_df['slug']` line — the frame is still the empty
+  `pd.DataFrame()` because no lookup ever matched. Check the env's installed
+  version against `requirements-dev.txt` before debugging the script. Box-score
+  calls (`player_box_scores`, `regular_season_player_box_scores`) were unaffected
+  as of 2026-11-05. A day with 0 box scores may just be a day with no games
+  (e.g. Election Day 2026-11-03).
 - **Basketball-reference rate-limits hard.** Scripts carry `time.sleep(4)` between
   requests; the comments in `advanced_stats.py` record the measured ceiling
   (~20 requests/min is where blocking starts). Don't lower the delays.
+- ⚠️ **Incremental day-loops resume from `MAX(date) + 1`, so a skipped day is
+  skipped forever.** Scripts that walk `pd.date_range(MAX(date)+1, yesterday)` and
+  catch every exception per day treat "bbref returned 503" the same as "no games
+  that day", move on, and load later days, so `MAX(date)` jumps past the hole. On
+  2026-11-05 a Sports Reference outage ("Sports Reference is temporarily offline",
+  Cloudflare 503 on every page) left 10 missing October/November days in
+  `high_level_nba_team_stats` while 5 days in between loaded.
+  `high_level_nba_team_stats.py` now catches `requests.exceptions.RequestException`
+  separately and **`break`s**, so it halts at the first HTTP failure and the next run
+  resumes there. An empty no-game day still surfaces as `KeyError: 'team'` (empty
+  frame) and is skipped, which is correct. (`my_team_stats.py` no longer
+  day-loops; it rebuilds per player, see above.) Other day-loops
+  (`historicals.py`, `free_agents_backfill.py`, …) have not been checked for the
+  same hazard. **To backfill a hole**, uncomment the
+  `last_data_date='YYYY-MM-DD'` override in the script's `else` branch and set it
+  to the day before the gap. Re-loading days that already loaded is safe wherever
+  the table's primary key includes `date` (`high_level_nba_team_stats` is
+  `(team, date)`), because `LOAD DATA ... REPLACE` overwrites instead of
+  duplicating. Remove the override afterwards.
+- ⚠️ **`espn-api` 0.46 needs `year` as an `int`.** Its `EspnFantasyRequests` does
+  `if year < 2018`, so passing the raw `os.environ.get('season_year')` string raises
+  `TypeError: '<' not supported between instances of 'str' and 'int'`. 0.32 (the
+  old `basketball-env-useme`) accepted the string, so this surfaced only after
+  moving to `basketball-env-useme-v11052026`. Every live pipeline script that
+  builds a `League(...)` now does `season_year=int(season_year)` (only the
+  reference-only `basketball-work.py` and `my_team_performance_dash.py` don't);
+  keep that in any new one.
 - ⚠️ **Hard-coded absolute paths.** Every CSV handoff and model folder is written
   as `/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/...`. Moving or
   renaming the repo breaks the whole pipeline. `tmp_data/` is gitignored, so these

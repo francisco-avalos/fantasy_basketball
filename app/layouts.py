@@ -19,8 +19,8 @@ import plotly.graph_objects as go
 # import matplotlib.pyplot as plt
 
 # own functions/connections
-from app.callbacks import injury_probabilities,line_plot_preds,create_data_table,heatmap
-from app.callbacks import heatmap_weights,line_plot,bar_plot,boxplot_by_player,boxplot_by_player_weekday_class
+from app.callbacks import line_plot_preds,create_data_table
+from app import team_performance as tp
 from shared.data_imports import add_new_fields, optimize_code_layouts
 
 
@@ -166,8 +166,6 @@ def player_stats():
 
     return fig
 
-
-injury_probabilities_df=injury_probabilities()
 
 model_eval_pred_df_copy=model_eval_pred_df[['day','predictions']].copy()
 merged_table_1=pd.merge(model_eval_pred_df,next_5_players_df,on=['slug','day'],how='inner')
@@ -840,233 +838,14 @@ page2=html.Div([
 # 003 - page3 (current team performance)
 ####################################################################################################
 
-id_dropdown_options=[
-    {'label':'Made Field Goals','value':'made_field_goals'},
-    {'label':'Made 3pt Field Goals','value':'made_three_point_field_goals'},
-    {'label':'Made Free Throws','value':'made_free_throws'},
-    {'label':'Total Rebounds','value':'total_rebounds'},
-    {'label':'Offensive Rebounds','value':'offensive_rebounds'},
-    {'label':'Defensive Rebounds','value':'defensive_rebounds'},
-    {'label':'Assists','value':'assists'},
-    {'label':'Steals','value':'steals'},
-    {'label':'Blocks','value':'blocks'},
-    {'label':'Turnovers','value':'turnovers'},
-    {'label':'Personal Fouls','value':'personal_fouls'},
-    {'label':'Points','value':'points'},
-    {'label':'Minutes Played','value':'minutes_played'},
-    {'label':'Game Score','value':'game_score'}
-]
-id_dropdown_default_value='made_field_goals'
-
+# Layout D: league / window filters, then three tabs (Team overview, Player detail,
+# Injuries). Figures, data prep and callbacks live in app/team_performance.py.
 page3=html.Div([
-
-    #####################
-    #Row 1 : Header
     get_header(),
-
-    #####################
-    #Row 2 : Nav bar
     get_navbar('page3'),
-
-    #####################
-    #Row 3 : Filters
-    html.Div([ # External row
-        html.Div([ # External 12-column
-            html.Div([ # Internal row
-                ########################################################################################
-                #Filter pt 1
-                html.Div([
-                    html.Div([
-                        html.H5(
-                            children='League:',
-                            style={'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
-                        ),
-                        #Date range picker
-                        html.Div([#'Focus Field: ',
-                            dcc.Dropdown(id='id-league',
-                                    options=id_league_dropdown_options,
-                                              value=id_league_default_value
-                                )
-                        ], style={'margin-top' : '5px'}
-                        )
-                    ],
-                    style={'margin-top' : '10px',
-                            'margin-bottom' : '5px',
-                            'text-align' : 'left',
-                            'paddingLeft': 5})
-                ],className='col-4'), # Filter part 1
-                ########################################################################################
-                #Filter pt 2
-                html.Div([
-                    html.Div([
-                        html.H5(
-                            children='Focus Field:',
-                            style={'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
-                        ),
-                        html.Div([ #'Enter # of days back: ',
-                            dcc.Dropdown(id='id-dropdown',
-                                         options=id_dropdown_options,
-                                    value=id_dropdown_default_value
-                                )
-                        ], style={'margin-top' : '5px'}
-                        )
-                    ],
-                    style={'margin-top' : '10px',
-                            'margin-bottom' : '5px',
-                            'text-align' : 'left',
-                            'paddingLeft': 5})
-                ],className='col-4'), # Filter part 2
-                ########################################################################################                
-                #Filter pt 3
-                html.Div([
-                    html.Div([
-                        html.H5(
-                            children='Injury Type:',
-                            style={'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
-                        ),
-                        #Date range picker
-                        html.Div([#'Focus Field: ',
-                            dcc.Input(id='id-inj-prob',
-                                        type='text',
-                                        value='flu',
-                                        placeholder='wildcard search',
-                                )
-                        ], style={'margin-top' : '5px'}
-                        )
-                    ],
-                    style={'margin-top' : '10px',
-                            'margin-bottom' : '5px',
-                            'text-align' : 'left',
-                            'paddingLeft': 5})
-                ],className='col-4'), # Filter part 2
-                ########################################################################################                
-                html.Div([
-                ],className='col-2') # Blank 2 columns
-            ],className='row') # Internal row
-        ],className='col-12',
-        style=filterdiv_borderstyling) # External 12-column
-    ],className='row sticky-top'), # External row
-
-    #####################
-    #Row 4
+    tp.filter_bar(filterdiv_borderstyling),
     get_emptyrow(),
-
-    #####################
-    #Row 5 : Charts
-    html.Div([ # External row
-        html.Div([
-        ],
-        className='col-1'), # Blank 1 column
-        html.Div([ # External 10-column
-            html.H2(children="Minutes-Played Weighted Production",
-                style={'color' : corporate_colors['dark-green']}),
-            html.Div([ # Internal row 1
-                # min-weight focus field prod heatmap
-                html.Div([
-                    dcc.Graph(id='heat-map', figure=heatmap(), config=config),
-                ],
-                className='col-6'),
-                # min-weights
-                html.Div([
-                    dcc.Graph(id='heat-map-weights', figure=heatmap_weights(), config=config)
-                ],className='col-6'),
-            ],className='row'), # Internal row 1
-
-            html.Div([ # Internal row 2
-
-                # Chart Column
-                html.Div([
-                    dcc.Graph(id='line_plot', figure=line_plot(), config=config)
-                ],className='col-4'),
-            ],className='row'), # Internal row 2
-
-            html.Div([ # Internal row 3
-                # Chart Column
-                html.Div([
-                    dcc.Graph(id='bar-plot', figure=bar_plot(), config=config)
-                ],className='col-4'),
-            ],className='row'), # Internal row 3
-
-            html.Div([ # Internal row 4
-                # Chart Column
-                html.Div([
-                    dcc.Graph(id='box-plot', figure=boxplot_by_player(), config=config)
-                ],className='col-12'),
-            ],className='row'), # Internal row 4
-
-            html.Div([ # Internal row 5
-                # Chart Column
-                html.Div([
-                    dcc.Graph(id='box-plot-x-week-class', figure=boxplot_by_player_weekday_class(), config=config)
-                ],className='col-12'),
-            ],className='row'), # Internal row 5
-
-            ##### BELOW 3 TABLES DISCONTINUED
-            # html.Div([ # Internal row 6
-
-            #     # Players at risk table and title
-            #     html.Div([
-            #         html.H5("Players at risk of being \n picked up if dropped",
-            #             style={'color': corporate_colors['white']}),
-            #         dash_table.DataTable(
-            #             id='id-my-team',
-            #             data=players_at_risk.to_dict('records'),
-            #             columns=[{"name": i, "id": i} for i in players_at_risk.columns],
-            #             style_cell=dict(textAlign='left'),
-            #             style_header=dict(backgroundColor="paleturquoise"),
-            #             style_table={'overflowX':'auto','width':'100%'},
-            #         )
-            #     ],
-            #     className='col-md-4 col-sm-12'),
-
-            #     # Injured Players table and title
-            #     html.Div([
-            #         html.H5("Injured Players",
-            #             style={'color': corporate_colors['white']}),
-            #         dash_table.DataTable(
-            #             id='id-injured',
-            #             data=inj_df.to_dict('records'),
-            #             columns=[{"name": i, "id": i} for i in inj_df.columns],
-            #             style_cell=dict(textAlign='left'),
-            #             style_header=dict(backgroundColor="paleturquoise"),
-            #             style_table={'overflowX':'auto','width':'100%'},
-            #         )
-            #     ],
-            #     className='col-md-4 col-sm-12'),
-
-            #     # Expected games this week table and title
-            #     html.Div([
-            #         html.H5("Expected games this week",
-            #             style={'color': corporate_colors['white']}),
-            #         dash_table.DataTable(
-            #             id='my-table',
-            #             data=aggregate_yh.to_dict('records'),
-            #             columns=[{"name": i, "id": i} for i in aggregate_yh.columns],
-            #             style_cell=dict(textAlign='left'),
-            #             style_header=dict(backgroundColor="paleturquoise"),
-            #             style_table={'overflowX':'auto','width':'100%'},
-            #         )
-            #     ],
-            #     className='col-md-4 col-sm-12'),
-
-            # ],
-            # className='row'),  # Internal row 6
-
-            html.Div([ # Internal row 7
-                html.H6("Probability of injury duration",
-                    style={'color':corporate_colors['white']}),
-                # Chart Column
-                html.Div([
-                    create_data_table(df=injury_probabilities_df,table_id='id-inj-prob-table',columns=injury_probabilities_df.columns)
-                ],className='col-12'),
-            ],className='row'), # Internal row 7
-        ],className='col-10',
-        style=externalgraph_colstyling), # External 10-column
-        html.Div([],className='col-1'), # Blank 1 column
-    ],className='row',
-    style=externalgraph_rowstyling
-    ), # External row
-
+    tp.tabs_body(),
 ])
 
 

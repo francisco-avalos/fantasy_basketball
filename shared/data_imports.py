@@ -222,6 +222,49 @@ FROM basketball.player_historical_web_app_display HWAD
 ;'''
 
 
+# ---- Current Team Performance page (app/team_performance.py) ----
+
+# Per-player season totals for every NBA player this season: the league baseline
+# the category-value heatmap compares my players against. Aggregated in SQL so the
+# app never holds the full box-score table.
+league_totals_qry='''
+SELECT
+    slug,
+    COUNT(*)                               AS gp,
+    SUM(seconds_played) / 60               AS minutes_played,
+    SUM(made_field_goals)                  AS made_field_goals,
+    SUM(attempted_field_goals)             AS attempted_field_goals,
+    SUM(made_free_throws)                  AS made_free_throws,
+    SUM(attempted_free_throws)             AS attempted_free_throws,
+    SUM(made_three_point_field_goals)      AS made_three_point_field_goals,
+    SUM(attempted_three_point_field_goals) AS attempted_three_point_field_goals,
+    SUM(offensive_rebounds + defensive_rebounds) AS total_rebounds,
+    SUM(assists)                           AS assists,
+    SUM(steals)                            AS steals,
+    SUM(blocks)                            AS blocks,
+    SUM(points)                            AS points,
+    SUM(turnovers)                         AS turnovers
+FROM basketball.historical_player_data
+WHERE date >= %s
+GROUP BY slug;
+'''
+
+# Numeric survival curves (inj_prob_qry above formats them as text for the old table).
+injury_curves_qry='''
+SELECT injury, days, probabilities
+FROM basketball.injury_probabilities
+ORDER BY injury, days;
+'''
+
+# Fantasy-platform injury status, written by pipeline/my_team_stats.py.
+# This season's prosportstransactions moves: relinquished = placed on IL / ruled out,
+# acquired = activated. Used to find each injured player's note and days out.
+injury_moves_qry='''
+SELECT day, team, acquired, relinquished, notes
+FROM basketball.hist_player_inj
+WHERE day >= %s;
+'''
+
 
 ####################################################################################################
 # 000 - DEFINE AND DB CONNECT
@@ -285,6 +328,26 @@ def optimize_code_layouts(connection):
         dfs['model_eval_pred_df']=model_eval_pred_df
         dfs['next_5_players_df']=next_5_players_df
     return dfs
+
+
+def team_performance_data(connection):
+    """Extra frames for the Current Team Performance page. Any query that fails
+    (e.g. the injury_status column not migrated yet) comes back as an empty frame,
+    so the page degrades to a message instead of failing at import."""
+    def fetch(query, *params):
+        df=execute_query_and_fetch_df(query, connection, *params)
+        return df if df is not None else pd.DataFrame()
+    def status(table):
+        # Before the injury_status migration the column doesn't exist: fall back to names only.
+        df=fetch(f'SELECT name, injury_status FROM basketball.{table};')
+        return df if not df.empty else fetch(f'SELECT name FROM basketball.{table};')
+    return {
+        'league_totals_df': fetch(league_totals_qry, season_start_str),
+        'injury_curves_df': fetch(injury_curves_qry),
+        'espn_status_df':   status('live_espn_players'),
+        'yahoo_status_df':  status('live_yahoo_players'),
+        'injury_moves_df':  fetch(injury_moves_qry, season_start_str),
+    }
 
 
 

@@ -601,3 +601,81 @@ input[type="number"]:focus,
 ::-webkit-scrollbar-track { background: var(--bg-page); }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-faint); }
+
+
+/* --------------------------------------------------------------------------
+   Current Team Performance (page 3, app/team_performance.py) — Layout D
+   -------------------------------------------------------------------------- */
+.tp-container { padding: 0 24px 40px; }
+.tp-container .tab-container { border-bottom: 1px solid var(--border); }
+.tp-tab-body { padding-top: 8px; }
+
+.tp-section {
+  display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between;
+  gap: 12px; margin: 26px 0 12px;
+}
+.tp-section-title { color: var(--text-primary); font-size: 1.25rem; font-weight: 600; margin: 0; }
+.tp-section-sub   { color: var(--text-muted); font-size: 0.85rem; margin-top: 2px; }
+.tp-control       { display: flex; align-items: center; gap: 10px; }
+.tp-control-label { color: var(--text-secondary); font-size: 0.85rem; white-space: nowrap; }
+.tp-control .dash-dropdown { min-width: 220px; }
+
+.tp-card {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  padding: 14px 16px 10px; margin-bottom: 16px;
+}
+.tp-card--accent { border-top: 3px solid #00bc8c; }
+.tp-card-title { color: var(--text-primary); font-weight: 600; font-size: 1rem; }
+.tp-card-sub   { color: var(--text-muted); font-size: 0.8rem; margin: 2px 0 6px; }
+.tp-card-sub:empty { display: none; }
+.tp-empty { color: var(--text-secondary); padding: 24px 4px; }
+
+/* tables (hot / cold, key days) */
+.tp-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.tp-table th {
+  color: var(--text-muted); font-weight: 500; text-align: center; padding: 6px 4px;
+  border-bottom: 1px solid var(--border);
+}
+.tp-table td {
+  text-align: center; padding: 7px 4px; border-bottom: 1px solid var(--border-light);
+  color: var(--text-primary); font-variant-numeric: tabular-nums;
+}
+.tp-table th:first-child, .tp-table td.tp-name { text-align: left; }
+.tp-table td.tp-name { white-space: nowrap; padding-right: 10px; }
+.tp-hot  { background: rgba(0, 168, 126, 0.22); color: var(--positive) !important; }
+.tp-cold { background: rgba(184, 64, 47, 0.25); color: var(--negative) !important; }
+.tp-flat { color: var(--text-secondary) !important; }
+.tp-note { font-style: italic; text-align: left !important; }
+
+.tp-keydays td:first-child { text-align: left; white-space: nowrap; color: var(--text-secondary); }
+.tp-keydays td:nth-child(2) { width: 60%; }
+.tp-bar { background: var(--bg-card-inner); border-radius: 4px; height: 12px; overflow: hidden; }
+.tp-bar-fill { background: #00bc8c; height: 100%; }
+.tp-pct { font-weight: 600; }
+
+/* players currently out */
+.tp-out-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; padding: 4px 0 6px;
+}
+.tp-out-item {
+  text-align: left; background: var(--bg-card-inner); border: 1px solid var(--border);
+  border-left: 4px solid var(--border); border-radius: var(--radius-md); padding: 12px 14px;
+  color: var(--text-primary); cursor: pointer; transition: border-color .15s, background .15s;
+}
+.tp-out-item:hover { background: var(--bg-hover); border-left-color: #f5a623; }
+.tp-out-item.selected { border-color: #f5a623; border-left-color: #f5a623; background: var(--accent-bg); }
+.tp-out-item:focus { outline: none; }
+.tp-out-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.tp-out-name { font-weight: 600; font-size: 1rem; }
+.tp-badge {
+  background: var(--negative-bg); color: var(--negative); border-radius: 999px;
+  padding: 2px 9px; font-size: 0.72rem; font-weight: 600; white-space: nowrap;
+}
+.tp-out-note  { color: var(--text-secondary); font-size: 0.85rem; margin-top: 6px; }
+.tp-out-meta  { color: var(--text-primary); font-size: 0.82rem; margin-top: 6px; }
+.tp-out-curve { color: var(--text-muted); font-size: 0.78rem; margin-top: 4px; }
+
+@media (max-width: 768px) {
+  .tp-container { padding: 0 12px 30px; }
+  .tp-control .dash-dropdown { min-width: 160px; }
+}
