@@ -8,7 +8,7 @@ Four tables, two per league:
 
 Every run, per league:
   1. Live table:  pull my current roster from the fantasy API and replace the
-                  live table with exactly those names.
+                  live table with exactly those names and their injury status.
   2. Stats table: for every player in the live table, pull this season's
                   regular-season game log from basketball-reference, then
                   replace the stats table with exactly those rows.
@@ -75,8 +75,9 @@ ENUM_COLUMNS = ['team', 'location', 'opponent', 'outcome']  # stored as e.g. 'Te
 # ---------------------------------------------------------------------------
 
 def get_espn_roster():
-	"""Names on my ESPN team, found by matching my SWID to the team owner,
-	so it no longer depends on the team's position in league.teams."""
+	"""(name, injury_status) for my ESPN team, found by matching my SWID to the
+	team owner, so it no longer depends on the team's position in league.teams.
+	injury_status is ESPN's own flag: ACTIVE, OUT, DAY_TO_DAY, ..."""
 	swid = os.environ.get('swid')
 	league = League(league_id=os.environ.get('leagueid'), year=season_year,
 					espn_s2=os.environ.get('espn_s2'), swid=swid, debug=False)
@@ -91,13 +92,14 @@ def get_espn_roster():
 	team = mine[0]
 	# Same name shape as before (suffixes stripped) so the model scripts' join on
 	# basketball_references_players.BBRefName keeps working.
-	names = [remove_name_suffixes(p.name).strip() for p in team.roster]
-	print(f'ESPN team: {team.team_name} ({len(names)} players)')
-	return names
+	players = [(remove_name_suffixes(p.name).strip(), p.injuryStatus or 'ACTIVE') for p in team.roster]
+	print(f'ESPN team: {team.team_name} ({len(players)} players)')
+	return players
 
 
 def get_yahoo_roster():
-	"""Names on my Yahoo team, via the logged-in user's team key in this season's league."""
+	"""(name, injury_status) for my Yahoo team, via the logged-in user's team key in
+	this season's league. Yahoo's status is '' when healthy, else e.g. 'O', 'GTD', 'INJ'."""
 	from yahoo_oauth import OAuth2
 	import yahoo_fantasy_api as yfa
 
@@ -110,9 +112,9 @@ def get_yahoo_roster():
 	lg = gm.to_league(league_keys[-1])
 	tm = lg.to_team(lg.team_key())
 
-	names = [p['name'] for p in tm.roster()]
-	print(f'Yahoo league {league_keys[-1]}, team {lg.team_key()} ({len(names)} players)')
-	return names
+	players = [(p['name'], p.get('status') or 'ACTIVE') for p in tm.roster()]
+	print(f'Yahoo league {league_keys[-1]}, team {lg.team_key()} ({len(players)} players)')
+	return players
 
 
 # ---------------------------------------------------------------------------
@@ -206,6 +208,12 @@ def replace_table(connection, table, columns, rows):
 			marks = ', '.join(['%s'] * len(columns))
 			cursor.executemany(f'INSERT INTO basketball.{table} ({cols}) VALUES ({marks});', rows)
 		connection.commit()
+	except mysql.errors.ProgrammingError as e:
+		connection.rollback()
+		if e.errno == 1054 and 'injury_status' in str(e):  # unknown column
+			raise SystemExit(f'basketball.{table} has no injury_status column yet; nothing was changed. Run '
+							 'sql_files/migrations/2026-11-07_live_players_injury_status.sql once, then re-run.')
+		raise
 	except Exception:
 		connection.rollback()
 		raise
@@ -217,11 +225,11 @@ def replace_table(connection, table, columns, rows):
 def refresh_league(connection, label, get_roster, live_table, stats_table):
 	print(f'\n=== {label} ===')
 
-	# 1. Live table
-	names = sorted(set(get_roster()))
-	if not names:
+	# 1. Live table (name + the platform's injury status, read by the app's Injuries tab)
+	players = sorted(dict(get_roster()).items())
+	if not players:
 		raise SystemExit(f'{label} roster came back empty; leaving {live_table} untouched.')
-	replace_table(connection, live_table, ['name'], [[n] for n in names])
+	replace_table(connection, live_table, ['name', 'injury_status'], [list(p) for p in players])
 
 	# 2. Stats table, built only from the live table just written
 	cursor = connection.cursor()
