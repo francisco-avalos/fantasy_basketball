@@ -460,6 +460,7 @@
 -- CREATE TABLE IF NOT EXISTS basketball.live_yahoo_players
 -- (
 --   `name` varchar(100) NOT NULL,
+--   `injury_status` varchar(30) DEFAULT NULL,   -- added 2026-11-07, see migrations/
 --   PRIMARY KEY (`name`)
 -- );
 
@@ -471,6 +472,7 @@
 -- CREATE TABLE IF NOT EXISTS basketball.live_espn_players
 -- (
 --   `name` varchar(100) NOT NULL,
+--   `injury_status` varchar(30) DEFAULT NULL,   -- added 2026-11-07, see migrations/
 --   PRIMARY KEY (`name`)
 -- );
 
