@@ -256,6 +256,12 @@ FROM basketball.injury_probabilities
 ORDER BY injury, days;
 '''
 
+# Normalized injury note -> taxonomy labels (shared/injury_taxonomy.py), from pipeline/injury_mapping.py.
+injury_notes_qry='''
+SELECT note_key, category, body_region, injury_type, non_medical_reason
+FROM basketball.injury_note_classification;
+'''
+
 # Fantasy-platform injury status, written by pipeline/my_team_stats.py.
 # This season's prosportstransactions moves: relinquished = placed on IL / ruled out,
 # acquired = activated. Used to find each injured player's note and days out.
@@ -347,6 +353,8 @@ def team_performance_data(connection):
         'espn_status_df':   status('live_espn_players'),
         'yahoo_status_df':  status('live_yahoo_players'),
         'injury_moves_df':  fetch(injury_moves_qry, season_start_str),
+        # note -> taxonomy labels written by pipeline/injury_mapping.py (empty before the 2026-11-08 migration)
+        'injury_notes_df':  fetch(injury_notes_qry),
     }
 
 

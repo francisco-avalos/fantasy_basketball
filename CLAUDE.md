@@ -148,7 +148,8 @@ connection config for this to work.
 | `high_level_nba_team_stats.py` / `_schedules.py` | bbref | `high_level_nba_team_stats`, `high_level_nba_team_schedules` |
 | `injured_report.py` | requests + BeautifulSoup | `injured_player_news`, `injured_player_news_yh` |
 | `historical_basketball_injury_data_updated.py` | prosportstransactions via Unflare | `hist_player_inj` |
-| `injury_probabilities_basketball.py` | `player_injury_cycles` → Kaplan-Meier | `injury_probabilities` |
+| `injury_mapping.py` | `hist_player_inj` + box scores → episodes; notes → taxonomy (regex, then Claude) | `player_injury_cycles`, `injury_note_classification` |
+| `injury_probabilities_basketball.py` | `player_injury_cycles` → survival models, champion on a holdout | `injury_probabilities` |
 | `base_model.py`, `machine_learning_models.py`, `model_pooling.py` | model fitting | `predictions`, `model_evaluation` |
 
 `basketball-work.py` (1264 lines, hyphen in the name so it cannot be imported)
@@ -176,25 +177,77 @@ key everything funnels into is the **bbref slug** (`bbrefid` / `slug`, e.g.
 ⚠️ **There are two copies of the helper module.** `shared/my_functions.py` is
 canonical. `pipeline/my_basketball_funcs.py` is an older, larger copy that still
 contains baseball leftovers (`get_mlb_team_name_designations`) and is imported by
-exactly two scripts — `advanced_stats.py` and `injury_probabilities_basketball.py`
-(for `return_parenthesis_contents`, `contains_number`, `coalesce`, which the
-canonical module lacks). Add new helpers to `shared/`.
+exactly one script — `advanced_stats.py`. Add new helpers to `shared/`.
 
 ### The injury chain
 
-`hist_player_inj` (raw prosportstransactions rows) is reshaped by SQL in
-`sql_files/Injury_table_setup_backfill.sql` through a chain of intermediate
-tables — `unhealthy_date_only_*`, `healthy_date_cycles_excl_*`,
-`unhealthy_date_cycles_excl_*`, `players_cycler`, `player_inj_cycles_prefinal` —
-into **`player_injury_cycles`**, one row per player per health cycle with
-`unhealthy1..5` day counts and their notes.
+```
+hist_player_inj ─┐
+historical_player_data (box scores) ─┼─ pipeline/injury_mapping.py ─> player_injury_cycles ─┐
+injury_note_classification ──────────┘        (+ injury_note_classification)                 │
+                          pipeline/injury_probabilities_basketball.py <──────────────────────┘
+                                         └─> injury_probabilities ─> app (Injuries tab)
+```
 
-`injury_probabilities_basketball.py` reads `player_injury_cycles`, parses the
-injury description out of the notes, and fits
-`sksurv.nonparametric.kaplan_meier_estimator` per injury type, landing
-`injury_probabilities` (injury, days, probability). The app reads that table
-directly and formats the probability as a percentage string **in SQL**
-(`inj_prob_qry`), so it arrives as text, not a number.
+Both scripts need **`basketball-env-useme-v11052026`** (lifelines, anthropic,
+scikit-survival). The old SQL procedure `health_cycle_backfill_proc` is retired:
+its file is in `archived/sql_files/` (gitignored) and the `CALL` in
+`sql_files/scratch.sql` is commented out. Don't revive it. The procedure still
+exists in the database (both `basketball` and `baseball` schemas), but nothing calls it.
+
+**`injury_mapping.py`** builds one row per **injury episode**:
+- An episode **opens** on an "out" row. `(DNP)` single-game rows, fines and coach
+  rows are skipped.
+- It **closes** at the earlier of an activation row or the player's **first box-score
+  game** after the out date. The transaction log often never records the return.
+- A second out row while the episode is open:
+  - same body region, or a vaguer or updated note: the same episode;
+  - different region, illness or non-medical: the open episode is **censored**
+    (`concurrent_injury`) and a new one opens with `concurrent=1`;
+  - a league-wide box-score hole in between: censored (`data_gap`).
+- Episodes are also censored when never closed (`open`), and past the end of the
+  following season (`max_follow_up`).
+- Duration is **in-season days** from `season_dates.csv` via
+  `shared/season_calendar.py`. Every day between a season's start and end counts,
+  game or not. The offseason doesn't.
+- Labels come from the **first** note (or a detailed note within 3 days of a
+  generic one).
+- Names map to bbref slugs by name variants plus career overlap (~99% of rows).
+- Rows before 2000-10-31 (no season dates, no box scores) are dropped.
+
+The note taxonomy is fixed, in `shared/injury_taxonomy.py`: category, body region,
+injury type and non-medical reason; a curve group is e.g. `knee:sprain`. Regex labels
+~96% of rows. The rest go to Claude (`LLM_MODEL`, JSON schema, cached in
+`tmp_data/injury_note_llm_cache.json`). Labels persist in
+`injury_note_classification`; set `reviewed=1` or `source='manual'` there to
+pin a correction, since the pipeline never overwrites those rows.
+`--dry-run` / `--no-llm` / `--audit N` are the flags.
+
+**`injury_probabilities_basketball.py`**:
+- Fits four candidates on seasons before 2023 and scores them on 2023+:
+  KM per group, log-normal AFT, Weibull AFT, and spline PH (Royston-Parmar).
+- Metrics: IPCW Brier and integrated Brier, C-index, and calibration against KM.
+- Covariates: group, era, out-for-season / out-indefinitely / stated window,
+  surgery, DTD, concurrent, age, injury history, and an empirical-Bayes player
+  frailty.
+- Refits the lowest-IBS model on everything (log-normal AFT as of 2026-11-08).
+- Writes one population-average curve per group at the current era, days 0–150,
+  with `DELETE` + `INSERT` in one transaction.
+- `injury` now holds a curve group (`knee:sprain`, `injury:other`,
+  `unspecified`), with `n_episodes` and `model` columns. The app reads it as
+  `injury_curves_qry` (numeric) and `inj_prob_qry` (percent text, for the AI
+  context).
+
+⚠️ **Both scripts need `sql_files/migrations/2026-11-08_injury_episodes.sql` run
+once first.** It renames the old table to `player_injury_cycles_legacy`, creates
+the new `player_injury_cycles` and `injury_note_classification`, and adds two
+columns to `injury_probabilities`. Before that, `--dry-run` works and a real
+run exits without changing anything.
+
+⚠️ **The spline PH model is fitted on in-season days + 1.** lifelines builds its
+spline baseline on log(T), and it goes non-monotone (survival back up to 1) with
+same-day returns at T < 1. The fit diverged before the shift. If you change the
+time scale, re-check that model's curves.
 
 ⚠️ **The prosportstransactions scrape needs a local Unflare container running.**
 `shared/injury_pipeline.py` points `UnflareRequestHandler` at
@@ -327,9 +380,13 @@ Yahoo `status`, written by `my_team_stats.py`). That column is added by
 migration runs, `team_performance_data()` falls back to names only and the page
 works out "out" from `hist_player_inj` instead (latest `relinquished` after the
 last `acquired`). In that mode it prints `1054 Unknown column 'injury_status'`
-twice at boot. Injury **type** and days out always come from `hist_player_inj`:
-the stint's latest note is matched to a curve by shared body part plus word
-overlap (`match_curve`), falling back to the generic `placed on IL` curve.
+twice at boot. Injury **type** and days out always come from `hist_player_inj`.
+Once `injury_probabilities` holds group curves, the stint's latest note goes
+through `injury_note_classification` (else the regex). It falls back from group to
+`<region>:other`, then `injury:other`, then `unspecified`, and days out are counted
+in in-season days (`days_since`). While the table still holds the old raw-note
+curves, the legacy word-overlap matcher and calendar days are used
+(`GROUP_CURVES` picks).
 
 Group-bys there use plain sums/`agg`, never `groupby().apply()`, so the code
 behaves the same on pandas 1.3.5 and 2.2.3. Don't put `'responsive': True` in the
@@ -429,6 +486,11 @@ Each of these costs real time. Do not rediscover them.
   calls (`player_box_scores`, `regular_season_player_box_scores`) were unaffected
   as of 2026-11-05. A day with 0 box scores may just be a day with no games
   (e.g. Election Day 2026-11-03).
+- ⚠️ **`historical_player_data` has no rows from 2025-02-14 to 2025-04-13** (the end
+  of the 2024-25 regular season). `historicals.py` needs a backfill over that window
+  with the `last_data_date` override. Until then, `injury_mapping.py` treats it as a
+  box-score hole: episodes spanning it are censored (`data_gap`) instead of closed by
+  a game.
 - **Basketball-reference rate-limits hard.** Scripts carry `time.sleep(4)` between
   requests; the comments in `advanced_stats.py` record the measured ceiling
   (~20 requests/min is where blocking starts). Don't lower the delays.

@@ -985,7 +985,7 @@ BEGIN
 END $$
 DELIMITER ;
 
-CALL basketball.health_cycle_backfill_proc();
+-- CALL basketball.health_cycle_backfill_proc();  -- retired 2026-11-08: episodes now built by pipeline/injury_mapping.py
 
 
 

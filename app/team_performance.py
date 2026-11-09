@@ -34,6 +34,8 @@ from dash.exceptions import PreventUpdate
 from app.dash_create import app_inst
 from app.callbacks import myteam_df, myteam_df_yh, get_connection_from_pool, close_connection
 from shared.data_imports import team_performance_data, season_start_str
+from shared import season_calendar
+from shared.injury_taxonomy import note_key, regex_classify, curve_group, describe_group
 
 
 ####################################################################################################
@@ -467,7 +469,50 @@ if not CURVES.empty:
     CURVES['probabilities'] = CURVES['probabilities'].astype(float)
 CURVE_N = CURVES.groupby('injury').size().sort_values(ascending=False) if not CURVES.empty else pd.Series(dtype=int)
 INJURY_TYPES = sorted(CURVE_N.index.tolist(), key=str.lower)
-DEFAULT_CURVE = 'placed on IL' if 'placed on IL' in CURVE_N.index else (CURVE_N.index[0] if len(CURVE_N) else None)
+# pipeline/injury_probabilities_basketball.py now writes one curve per taxonomy group
+# ('knee:sprain', 'illness:illness', 'unspecified', ...) on the in-season-day clock. The old
+# table held raw notes on calendar days; until it is rebuilt the legacy matcher below is used.
+GROUP_CURVES = 'unspecified' in CURVE_N.index or any(':' in str(i) for i in CURVE_N.index)
+if GROUP_CURVES:
+    INJURY_TYPES = sorted(CURVE_N.index.tolist(), key=describe_group)
+    DEFAULT_CURVE = 'unspecified' if 'unspecified' in CURVE_N.index else INJURY_TYPES[0]
+else:
+    DEFAULT_CURVE = 'placed on IL' if 'placed on IL' in CURVE_N.index else (CURVE_N.index[0] if len(CURVE_N) else None)
+CURVE_OPTIONS = [{'label': describe_group(i) if GROUP_CURVES else i, 'value': i} for i in INJURY_TYPES]
+
+_NOTES = _extra.get('injury_notes_df', pd.DataFrame())
+NOTE_LABELS = ({} if _NOTES.empty else
+               {r['note_key']: {k: (r[k] if isinstance(r[k], str) else None)
+                                for k in ['category', 'body_region', 'injury_type', 'non_medical_reason']}
+                for r in _NOTES.to_dict('records')})
+
+
+def curve_label(injury):
+    return describe_group(injury) if GROUP_CURVES and injury else injury
+
+
+def days_since(since, today):
+    """Days out on the curves' clock: in-season days for group curves, calendar days for legacy."""
+    if GROUP_CURVES:
+        try:
+            return int(season_calendar.inseason_days(since, today))
+        except ValueError:                       # outside season_dates.csv coverage
+            pass
+    return int((today - since).days)
+
+
+def match_group(note):
+    """Taxonomy curve for a note: the pipeline's label if it has seen the note, else the regex
+    guess; then the most specific curve that exists: group, '<region>:other', 'injury:other',
+    'unspecified'."""
+    key = note_key(note)
+    fields = NOTE_LABELS.get(key) or regex_classify(key)[0]
+    group = curve_group(fields) if fields.get('category') else 'unspecified'
+    head = group.split(':')[0]
+    for g in [group, f'{head}:other', 'injury:other' if fields.get('category') == 'injury' else None, 'unspecified']:
+        if g and g in CURVE_N.index:
+            return g
+    return DEFAULT_CURVE
 
 _STOP = {'placed', 'on', 'il', 'with', 'out', 'indefinitely', 'dtd', 'the', 'to', 'of', 'and', 'a', 'for',
          'in', 'from', 'day', 'dl', 'up', 'activated', 'transferred', 'status', 'return', 'expected', 'game',
@@ -484,11 +529,13 @@ def _tokens(s):
 
 
 def match_curve(note):
-    """Closest survival curve for a free-text injury note: exact match, else the
-    curve sharing the same body part with the most overlapping words, else the
-    generic 'placed on IL' curve."""
+    """Survival curve for a free-text injury note. Group curves: taxonomy match.
+    Legacy curves: exact match, else the curve sharing the same body part with the
+    most overlapping words, else the generic 'placed on IL' curve."""
     if not note or DEFAULT_CURVE is None:
         return DEFAULT_CURVE
+    if GROUP_CURVES:
+        return match_group(note)
     lowered = {i.lower(): i for i in INJURY_TYPES}
     if note.strip().lower() in lowered:
         return lowered[note.strip().lower()]
@@ -570,7 +617,7 @@ def out_players(league):
     players = []
     for n, status in flagged:
         inj = current_injury(n)
-        days_out = int((today - inj['since']).days) if inj else None
+        days_out = days_since(inj['since'], today) if inj else None
         curve = match_curve(inj['note']) if inj else DEFAULT_CURVE
         back_7 = None
         if inj and curve:
@@ -602,7 +649,8 @@ def fig_injury_curve(injury, player=None):
         fig.add_vline(x=d, line=dict(color=AMBER, width=2, dash='dash'))
         fig.add_annotation(x=d, y=s, text=f"{player['name']}: day {d}", showarrow=True, arrowcolor=AMBER,
                            ax=50, ay=-40, font=dict(color=AMBER, size=12), bgcolor='#1a2035')
-    fig.update_xaxes(title_text='Days since ruled out', range=[0, x_max], showgrid=False)
+    fig.update_xaxes(title_text='In-season days since ruled out' if GROUP_CURVES else 'Days since ruled out',
+                     range=[0, x_max], showgrid=False)
     fig.update_yaxes(tickformat='.0%', range=[0, 1.03])
     return style_fig(fig, 380, dict(l=10, r=20, t=10, b=10))
 
@@ -637,7 +685,7 @@ def out_list(league, selected=None):
     for p in players:
         meta = []
         if p['since'] is not None:
-            meta.append(f"Since {p['since']:%b %d} · {p['days_out']} days out")
+            meta.append(f"Since {p['since']:%b %d} · {p['days_out']} {'in-season ' if GROUP_CURVES else ''}days out")
         if p['back_7'] is not None:
             meta.append(f"{p['back_7']:.0%} chance back within 7 days")
         items.append(html.Button([
@@ -645,7 +693,7 @@ def out_list(league, selected=None):
                       html.Span(p['status'], className='tp-badge')], className='tp-out-head'),
             html.Div(p['note'] or 'No injury note found this season · showing the generic curve', className='tp-out-note'),
             html.Div(' · '.join(meta), className='tp-out-meta'),
-            html.Div(f"Curve: {p['curve']}", className='tp-out-curve'),
+            html.Div(f"Curve: {curve_label(p['curve'])}", className='tp-out-curve'),
         ], id={'type': 'tp-out-player', 'index': p['name']}, n_clicks=0,
             className='tp-out-item' + (' selected' if p['name'] == selected else '')))
     return html.Div(items, className='tp-out-grid'), source
@@ -737,7 +785,7 @@ def _tab_injuries():
         _section('Players currently out', 'Click a player to load their injury curve'),
         _card('My injured players', html.Div(id='tp-out-list'), sub_id='tp-out-source'),
         _section('Injury outlook', 'Pick any injury to explore its curve',
-                 _control('Injury curve:', dcc.Dropdown(id='tp-injury', options=INJURY_TYPES, value=DEFAULT_CURVE,
+                 _control('Injury curve:', dcc.Dropdown(id='tp-injury', options=CURVE_OPTIONS, value=DEFAULT_CURVE,
                                                         clearable=False, searchable=True,
                                                         style={'minWidth': '320px'}))),
         _row((_card('Chance still out after N days', _graph('tp-injury-curve'), sub_id='tp-curve-sub'),
@@ -828,6 +876,6 @@ def update_out_list(league, selected):
 def update_injury_curve(injury, selected, league):
     player = next((p for p in out_players(league)[0] if p['name'] == selected), None)
     on_curve = player is not None and player['curve'] == injury and player['days_out'] is not None
-    sub = f'"{injury}"' + (f" · dashed line = {player['name']}, day {player['days_out']}" if on_curve else '')
+    sub = f'"{curve_label(injury)}"' + (f" · dashed line = {player['name']}, day {player['days_out']}" if on_curve else '')
     table, key_sub = key_days(injury, player)
     return fig_injury_curve(injury, player), sub, table, key_sub
