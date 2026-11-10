@@ -120,13 +120,12 @@ git push heroku main
 `import app.callbacks`), not the Dash instance — which is `app_inst`. It raises
 `AttributeError`. Use gunicorn, or fix the block to `app_inst.run_server(...)`.
 
-⚠️ **`pipeline/run_scripts.py` is stale and does not run.** It calls
-`call(['python', script])` with **bare filenames** (`'advanced_stats.py'`), which
-resolves from neither the root nor `pipeline/`, and it names
-`historical_basketball_injury_data.py` — a file that no longer exists (it is now
-`historical_basketball_injury_data_updated.py`). It also wraps the loop in a bare
-`except:` that only plays a `chime` sound, so a failure is inaudible in the log.
-Run scripts individually with `-m` until it is rewritten.
+⚠️ **`pipeline/run_scripts.py` runs each script as `python -m pipeline.<name>`** with
+`cwd` set to the repo root and the current interpreter (`sys.executable`), so it works from
+any directory. It used to call bare filenames (`'advanced_stats.py'`), which failed with
+"No such file or directory". It still wraps the loop in a bare `except:` that only plays a
+`chime` sound, and `call()` returns an exit code without raising, so **a script that fails
+still prints "Finished executing"** — read each script's own output.
 
 ---
 
