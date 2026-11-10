@@ -262,6 +262,14 @@ SELECT note_key, category, body_region, injury_type, non_medical_reason
 FROM basketball.injury_note_classification;
 '''
 
+# ESPN position eligibility for my roster: player_roles is ESPN's eligibleSlots as a Python list literal,
+# e.g. "['PG', 'SG', 'G', 'UT', 'BE', 'IR']", written by pipeline/espn_player_positions.py.
+espn_positions_qry='''
+SELECT p.player_name AS name, p.player_roles
+FROM basketball.espn_player_positions p
+JOIN basketball.live_espn_players l ON l.name = p.player_name;
+'''
+
 # Fantasy-platform injury status, written by pipeline/my_team_stats.py.
 # This season's prosportstransactions moves: relinquished = placed on IL / ruled out,
 # acquired = activated. Used to find each injured player's note and days out.
@@ -355,6 +363,7 @@ def team_performance_data(connection):
         'injury_moves_df':  fetch(injury_moves_qry, season_start_str),
         # note -> taxonomy labels written by pipeline/injury_mapping.py (empty before the 2026-11-08 migration)
         'injury_notes_df':  fetch(injury_notes_qry),
+        'espn_positions_df': fetch(espn_positions_qry),
     }
 
 

@@ -368,6 +368,15 @@ ESPN/Yahoo + window season/30/14/7 days, both global) plus `tabs_body()`:
   ranked on volume-weighted impact (makes − league% × attempts) and TO is
   inverted. Below it, under one category picker: minute-weighted production,
   share of team for the latest week, and the weekly trend.
+- **Position depth** (Team overview, below the heatmap, **ESPN only** — it ignores the page's
+  league filter): one stacked block per player at each lineup slot they're eligible for, from
+  `espn_player_positions.player_roles` (ESPN `eligibleSlots`, a Python list literal) joined to
+  `live_espn_players`. Tick = slots to fill (`SLOTS`: 1 each, UTIL 5, from the league's
+  `lineupSlotCounts`). Injured = any non-healthy `injury_status`, so day-to-day counts; the toggle
+  defaults to Exclude. `pipeline.espn_player_positions` writes every active ESPN player from one
+  `get_pro_players()` request (~2 s; it used to be one `player_info` call + 4 s sleep per player,
+  ~30 min), names in the live-table spelling (suffixes stripped). A player without a row counts at
+  UTIL only. Yahoo needs its roster's eligible positions stored first.
 - **Player detail**: box + strip per player (last 5 games coloured), small
   multiples, and a hot/cold table (last 5 vs window average).
 - **Injuries**: the players currently out, each a button that loads the matched

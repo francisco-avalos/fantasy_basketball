@@ -1,238 +1,71 @@
-
-# ESPN
-from espn_api.basketball import League
-from espn_api.basketball import Player
-
-# basketball-reference
-from basketball_reference_web_scraper import client
-
-# Connection to my DB
-import mysql.connector as mysql
-from mysql.connector import Error
-
-
-import pandas as pd
-import os
-import unidecode
-import time
-from datetime import date
-from datetime import timedelta
-from shared.my_functions import clean_string, remove_name_suffixes, remove_player_string
-# from tqdm import tqdm_notebook
-from tqdm import tqdm
-
-
-## Preliminaries, set ups & initiators 
-pd.set_option('display.max_columns', None)
-pd.set_option('display.max_rows', None)
-
-
-sports_db_admin_host=os.environ.get('sports_db_admin_host')
-sports_db_admin_db='basketball'
-sports_db_admin_user=os.environ.get('sports_db_admin_user')
-sports_db_admin_pw=os.environ.get('sports_db_admin_pw')
-sports_db_admin_port=os.environ.get('sports_db_admin_port')
-season_year=os.environ.get('season_year')
-season_year = int(season_year)
-
-config={
-	'host':sports_db_admin_host,
-	'database':sports_db_admin_db,
-	'user':sports_db_admin_user,
-	'password':sports_db_admin_pw,
-	'port':sports_db_admin_port,
-	'allow_local_infile':True
-}
-
-# leagueid=os.environ.get('leagueid')
-# espn_s2=os.environ.get('espn_s2')
-# swid=os.environ.get('swid')
-
-
-# season_end_year=202
-espn_league_config={
-	'league_id':os.environ.get('leagueid'),
-	'espn_s2':os.environ.get('espn_s2'),
-	'swid':os.environ.get('swid'),
-	'year':season_year,
-	'debug':False
-}
-league=League(**espn_league_config)
-
-# myteam=league.teams[11]
-# my_players=clean_string(myteam.roster).split(',')
-
-
-
-fa_size=1000
-non_shows=[]
-file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/espn_fa_players_roles.csv'
-
-
-player_position_df=pd.DataFrame(columns=['Player_Name','Player_Roles'])
-# for fa in league.free_agents(size=fa_size):
-#     fa=str(fa)
-#     fa=remove_player_string(fa)
-#     pi=league.player_info(fa)
-#     new_row={'Player_Name':fa,'Player_Roles':pi.eligibleSlots}
-#     player_position_df=player_position_df.append(new_row,ignore_index=True)
-#     time.sleep(4)
-# # print(player_position_df)
-
-
-
-
-current_season_players_qry="""
-SELECT DISTINCT name
-FROM basketball.historical_player_data
-WHERE season = (SELECT DISTINCT season FROM basketball.historical_player_data ORDER BY date DESC LIMIT 1)
-;
 """
+ESPN position eligibility for every active NBA player -> basketball.espn_player_positions.
 
-connection=mysql.connect(**config)
+One request: ESPN's pro-players list (the same call espn-api makes to build league.player_map)
+already carries each player's eligibleSlots, so there is no per-player lookup and no sleep.
+(This used to call league.player_info() once per player with a 4 s sleep: ~30 min for ~450
+players, now about 2 s for ~1,100.)
 
-if connection.is_connected():
-	cursor=connection.cursor()
-	cursor.execute(current_season_players_qry)
-	current_season_players=cursor.fetchall()
-	FA=pd.DataFrame(current_season_players, columns=cursor.column_names)
+player_name is stored in the live_espn_players spelling (suffixes stripped, as in
+pipeline/my_team_stats.py) because the app joins the two tables on name.
+player_roles is the eligible-slot list as a Python list literal, e.g. "['PG', 'SG', 'G', 'UT', 'BE', 'IR']";
+app/team_performance.py parses it with ast.literal_eval.
 
-if(connection.is_connected()):
-	cursor.close()
-	connection.close()
+Run from the repo root:
+    python -m pipeline.espn_player_positions
+"""
+import os
+import sys
 
+import mysql.connector as mysql
+from espn_api.basketball import League
+from espn_api.basketball.constant import POSITION_MAP
 
-# for idx,row in FA.iterrows():
-# 	print(row['name'])
-
-try:
-
-	# FA=league.free_agents(size=fa_size)
-
-	# player_position_df=pd.DataFrame(columns=['Player_Name','Player_Roles'])
-	# FA=clean_string(FA).split(',')
-	# row=0
-
-	print('begin process')
-
-	for idx,fa in tqdm(FA.iterrows()):
-		# fa=fa.lstrip().rstrip()
-		fa=str(fa['name'])
-		fa=remove_player_string(fa)
-		pi=league.player_info(fa)
-		if pi is None:
-			continue
-		else:
-			new_row={'Player_Name':fa,'Player_Roles':pi.eligibleSlots}
-		# player_position_df=player_position_df.append(new_row,ignore_index=True)
-		player_position_df = pd.concat([player_position_df, pd.DataFrame([new_row])], ignore_index=True)
-		# print(new_row)
-		time.sleep(4)
-	player_position_df['Player_Name']=player_position_df['Player_Name'].astype(str)
-	print('Obtained FA positions')
+from shared.my_functions import remove_name_suffixes
 
 
-	connection=mysql.connect(**config)
-
-	if connection.is_connected():
-		cursor=connection.cursor()
-		cursor.execute('TRUNCATE basketball.espn_player_positions;')
-		player_position_df.to_csv(file_path,index=False)
-		qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.espn_player_positions FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' IGNORE 1 ROWS;"
-		cursor.execute(qry)
-		connection.commit()
-		# del player_position_df
-		# os.remove(file_path)
-
-	if(connection.is_connected()):
-		cursor.close()
-		connection.close()
+def live_name(full_name):
+    """Same spelling as live_espn_players.name (pipeline/my_team_stats.py)."""
+    return remove_name_suffixes(full_name).strip()
 
 
-	# for fa in FA:
-	# 	fa=fa.lstrip().rstrip()
-	# 	if fa not in list(master_names_list_df.full_name):
-	# 		for i in master_names_list_df.index:
-	# 			full_name=unidecode.unidecode(master_names_list_df.loc[i, 'full_name'])
-	# 			first_name=unidecode.unidecode(master_names_list_df.loc[i, 'first_name'])
-	# 			last_name=unidecode.unidecode(master_names_list_df.loc[i, 'last_name'])
-	# 			name_code=master_names_list_df.loc[i, 'bbrefid']
-	# 			if (fa in full_name) & (name_code is not None):
-	# 			# if (fa in full_name) & (name_code not in keep_out) & (name_code is not None):
-	# 				try:
-	# 					fa_output=client.regular_season_player_box_scores(player_identifier=name_code, 
-	# 																	season_end_year=season_end_year)
-	# 					df=pd.DataFrame(fa_output)
-	# 					df.insert(0, 'name', fa)
-	# 					name_code_list=[name_code] * df.shape[0]
-	# 					df['name_code']=name_code_list
-	# 					if not df.empty:
-	# 						df['active']=df['active'].astype(bool)
-	# 						main_free_agents_df=pd.concat([main_free_agents_df, df])
-	# 				except:
-	# 					non_shows.append(name_code)
-	# 	elif fa in list(master_names_list_df.full_name):
-	# 		for i in master_names_list_df.index:
-	# 			full_name=master_names_list_df.loc[i, 'full_name']
-	# 			name_code=master_names_list_df.loc[i, 'bbrefid']
-	# 			if (fa in full_name) & (name_code is not None):
-	# 			# if (fa in full_name) & (name_code not in keep_out) & (name_code is not None):
-	# 				try:
-	# 					fa_output=client.regular_season_player_box_scores(player_identifier=name_code,
-	# 																	season_end_year=season_end_year)
-	# 					df=pd.DataFrame(fa_output)
-	# 					df.insert(0, 'name', fa)
-	# 					name_code_list=[name_code] * df.shape[0]
-	# 					df['name_code']=name_code_list
-	# 					if not df.empty:
-	# 						df['active']=df['active'].astype(bool)
-	# 						main_free_agents_df=pd.concat([main_free_agents_df, df])
-	# 				except:
-	# 					non_shows.append(name_code)
-	# 	time.sleep(4)
-	# 	row+=1
-	# 	completion_tracker=row/len(FA)
-	# 	print("Progress {:.2%}".format(completion_tracker), end='\r')
-	# main_free_agents_df['name']=main_free_agents_df['name'].astype(str)
-	# main_free_agents_df['team']=main_free_agents_df['team'].astype(str)
-	# main_free_agents_df['location']=main_free_agents_df['location'].astype(str)
-	# main_free_agents_df['opponent']=main_free_agents_df['opponent'].astype(str)
-	# main_free_agents_df['outcome']=main_free_agents_df['outcome'].astype(str)
+def fetch_positions():
+    league = League(league_id=os.environ.get('leagueid'), espn_s2=os.environ.get('espn_s2'),
+                    swid=os.environ.get('swid'), year=int(os.environ.get('season_year')))
+    players = league.espn_request.get_pro_players()
+    rows, seen = [], set()
+    for p in players:
+        name = live_name(p.get('fullName', ''))
+        if not name or name in seen:      # primary key is the name; keep the first of any duplicate
+            continue
+        seen.add(name)
+        slots = [POSITION_MAP.get(s, str(s)) for s in p.get('eligibleSlots', [])]
+        rows.append((name, str(slots)))
+    return rows
 
-	# print('Obtained FA stats')
-	# print('Preparing to insert into db')
 
-	# connection=mysql.connect(host=sports_db_admin_host,
-	# 						database=sports_db_admin_db,
-	# 						user=sports_db_admin_user,
-	# 						password=sports_db_admin_pw,
-	# 						port=sports_db_admin_port,
-	# 						allow_local_infile=True)
+def write(rows):
+    cn = mysql.connect(host=os.environ.get('sports_db_admin_host'), user=os.environ.get('sports_db_admin_user'),
+                       password=os.environ.get('sports_db_admin_pw'), port=os.environ.get('sports_db_admin_port'),
+                       database='basketball')
+    try:
+        cur = cn.cursor()
+        # DELETE + INSERT in one transaction (TRUNCATE can't roll back), so a failure keeps the old rows
+        cur.execute('DELETE FROM basketball.espn_player_positions;')
+        cur.executemany('INSERT INTO basketball.espn_player_positions (player_name, player_roles) VALUES (%s, %s);',
+                        rows)
+        cn.commit()
+        cur.close()
+    except mysql.Error:
+        cn.rollback()
+        raise
+    finally:
+        cn.close()
 
-	# if connection.is_connected():
-	# 	cursor=connection.cursor()
-	# 	cursor.execute('TRUNCATE basketball.live_free_agents;')
-	# 	file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/espn_fa_players.csv'
-	# 	main_free_agents_df.to_csv(file_path,index=False)
-	# 	qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.live_free_agents FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' IGNORE 1 ROWS;"
-	# 	cursor.execute(qry)
-	# 	connection.commit()
-	# 	del main_free_agents_df
-	# 	os.remove(file_path)
 
-	# print('live_free_agents table ready to analyze')
-	
-	# export_non_shows_file=os.path.join(non_shows_path, 'non_shows_list.csv')
-	# non_shows=pd.DataFrame(non_shows, columns=['slug'])
-	# non_shows.to_csv(export_non_shows_file, index=False)
-	# print('Non-shows exported to csv')
-
-except Error as e:
-	print("Error while connecting to MySQL", e)
-
-# finally:
-# 	if(connection.is_connected()):
-# 		cursor.close()
-# 		connection.close()
-# 		print('Script finished - MySQL connection is closed')
-
+if __name__ == '__main__':
+    rows = fetch_positions()
+    if len(rows) < 300:   # a normal pull is ~1,100 active players; anything tiny means a bad response
+        sys.exit(f'ESPN returned only {len(rows)} players; not touching espn_player_positions.')
+    write(rows)
+    print(f'espn_player_positions: {len(rows)} players written')

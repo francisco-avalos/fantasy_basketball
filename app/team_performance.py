@@ -4,8 +4,8 @@ team_performance.py
 The Current Team Performance page (page 3, /apps/team-performance): data prep,
 figure builders, the tabbed layout and its callbacks.
 
-    Team overview  - player x category value heatmap, minute-weighted production,
-                     share of team, weekly trend
+    Team overview  - player x category value heatmap, position depth (ESPN),
+                     minute-weighted production, share of team, weekly trend
     Player detail  - game-by-game spread, small multiples, hot / cold table
     Injuries       - my players currently out (each linked to its survival curve),
                      the curve itself, and key-day probabilities
@@ -19,6 +19,7 @@ Group-bys use plain sums (no groupby().apply()) so the frames behave the same on
 local pandas 1.3.5 and Heroku's pandas 2.2.3.
 """
 
+import ast
 import datetime as dt
 import math
 import re
@@ -142,6 +143,36 @@ def _roster(status_df, games):
 STATUS = {'ESPN': _extra['espn_status_df'], 'Yahoo': _extra['yahoo_status_df']}
 ROSTER = {lg: _roster(STATUS[lg], GAMES[lg]) for lg in GAMES}
 COLORS = {lg: {n: PALETTE[i % len(PALETTE)] for i, n in enumerate(ROSTER[lg])} for lg in GAMES}
+
+# Position depth: lineup slots in my ESPN league (lineupSlotCounts; bench and IR don't count).
+POSITIONS = ['PG', 'SG', 'SF', 'PF', 'C', 'UTIL']
+SLOTS = {'PG': 1, 'SG': 1, 'SF': 1, 'PF': 1, 'C': 1, 'UTIL': 5}
+
+
+def _positions(status_df, pos_df):
+    """My ESPN roster: name, injured flag, status label and the set of base positions (PG..C)
+    each player can play. Every rostered player can play UTIL, even without a positions row.
+    Injured = any fantasy status that isn't healthy, so day-to-day counts as injured."""
+    if status_df is None or status_df.empty or 'name' not in status_df:
+        return pd.DataFrame(columns=['name', 'status', 'injured', 'roles'])
+    out = status_df[['name']].copy()
+    raw = (status_df['injury_status'] if 'injury_status' in status_df else pd.Series('', index=status_df.index))
+    raw = raw.fillna('').astype(str).str.upper()
+    out['injured'] = ~raw.isin(HEALTHY)
+    out['status'] = [STATUS_LABELS.get(s, s.replace('_', ' ').title()) if s not in HEALTHY else 'Healthy'
+                     for s in raw]
+    roles = {}
+    if pos_df is not None and not pos_df.empty:
+        for n, r in zip(pos_df['name'], pos_df['player_roles']):
+            try:
+                roles[n] = set(ast.literal_eval(r)) & set(POSITIONS)
+            except (ValueError, SyntaxError):
+                pass
+    out['roles'] = out['name'].map(lambda n: roles.get(n))
+    return out.sort_values(['injured', 'name']).reset_index(drop=True)
+
+
+ESPN_POSITIONS = _positions(STATUS['ESPN'], _extra.get('espn_positions_df'))
 
 
 def player_totals(df):
@@ -304,6 +335,56 @@ def fig_value_heatmap(df, league, window):
     fig.add_annotation(text='MPG', xref='x3 domain', yref='paper', x=0.5, y=1.0, yanchor='bottom',
                        showarrow=False, font=dict(color=TXT, size=12))
     return style_fig(fig, 36 * len(rows) + 70, dict(l=10, r=30, t=40, b=10))
+
+
+def fig_position_depth(include_injured):
+    """How many of my ESPN players can fill each lineup slot, one block per player.
+    A player counts at every position they're eligible for; the tick marks the slots to fill."""
+    roster = ESPN_POSITIONS if include_injured else ESPN_POSITIONS[~ESPN_POSITIONS['injured']]
+    if roster.empty:
+        return empty_fig('No ESPN roster loaded (run pipeline.my_team_stats).', 300)
+
+    def eligible(roles, pos):
+        return pos == 'UTIL' or (roles is not None and pos in roles)
+
+    fig = go.Figure()
+    for _, r in roster.iterrows():   # one trace per player, in the same order on every row
+        ys = [pos for pos in POSITIONS if eligible(r['roles'], pos)]
+        fig.add_trace(go.Bar(
+            x=[1] * len(ys), y=ys, orientation='h', name=r['name'],
+            marker=dict(color=COLORS['ESPN'].get(r['name'], MUTED), line=dict(color='#161b27', width=2),
+                        opacity=0.5 if r['injured'] else 0.92,
+                        pattern=dict(shape='/' if r['injured'] else '', fgcolor=TXT, fgopacity=1,
+                                     size=7, solidity=0.35)),
+            text=r['name'].split(' ')[-1], textposition='inside', insidetextanchor='middle',
+            textfont=dict(color=TXT if r['injured'] else '#0f1117', size=11), constraintext='inside',
+            hovertemplate=f"{r['name']} · {r['status']}<br>%{{y}}<extra></extra>"))
+    counts = {pos: sum(eligible(ro, pos) for ro in roster['roles']) for pos in POSITIONS}
+    for pos in POSITIONS:
+        fig.add_annotation(x=counts[pos], y=pos, text=str(counts[pos]), xanchor='left', xshift=8,
+                           showarrow=False, font=dict(color=MUTED, size=12))
+        i = POSITIONS.index(pos)   # slot tick, on the category's numeric position
+        fig.add_shape(type='line', x0=SLOTS[pos], x1=SLOTS[pos], y0=i - 0.42, y1=i + 0.42,
+                      line=dict(color=TXT, width=2), layer='above')
+    fig.update_layout(barmode='stack', bargap=0.28)
+    fig.update_xaxes(visible=False, range=[0, len(ESPN_POSITIONS) + 1])
+    fig.update_yaxes(categoryorder='array', categoryarray=POSITIONS, autorange='reversed', showgrid=False,
+                     ticks='', ticksuffix='  ', tickfont=dict(size=13, color=TXT))
+    return style_fig(fig, 46 * len(POSITIONS) + 30, dict(l=10, r=10, t=10, b=10))
+
+
+def position_depth_sub(include_injured):
+    r = ESPN_POSITIONS
+    n_inj = int(r['injured'].sum())
+    parts = ['Each block is one player, in their colour on this page',
+             '│ = lineup slots to fill (1 each, UTIL 5)']
+    if n_inj:
+        names = ', '.join(r.loc[r['injured'], 'name'])
+        parts.append(f'hatched = injured ({names})' if include_injured else f'{n_inj} injured excluded ({names})')
+    missing = r.loc[r['roles'].isna(), 'name'].tolist()
+    if missing:
+        parts.append('no ESPN position data for ' + ', '.join(missing) + ' (counted at UTIL only)')
+    return ' · '.join(parts)
 
 
 def fig_minute_weighted(df, league, window, lab):
@@ -755,6 +836,11 @@ def _tab_overview():
               sub='Cell = per-game stat (FG% / FT% / 3P% = makes ÷ attempts). Colour = z-score vs league '
                   f'rotation players ({BASELINE_MIN_MPG}+ MPG, season to date); percentage colours are '
                   'volume-weighted; TO inverted so green is good. Sorted by total value.'),
+        _section('Position depth', 'How many of my ESPN players can fill each lineup slot, and who they are',
+                 _control('Injured players:', dcc.RadioItems(
+                     id='tp-depth-injured', value='exclude', inline=True, className='tp-segmented',
+                     options=[{'label': 'Exclude', 'value': 'exclude'}, {'label': 'Include', 'value': 'include'}]))),
+        _card('Players eligible by position', _graph('tp-depth'), accent=True, sub_id='tp-depth-sub'),
         _section('Minutes-played weighted production', 'The category picker applies to this section',
                  _control('Category:', dcc.Dropdown(id='tp-category', options=CATEGORY_OPTIONS, value='PTS',
                                                     clearable=False))),
@@ -825,6 +911,16 @@ def update_overview(league, window, lab):
             fig_minute_weighted(df, league, window, lab), f'Minute-weighted {name} + minutes',
             share, f'Share of team {name if not CAT[lab][1] else name.replace(" %", "") + " makes"}', share_sub,
             fig_weekly(df, league, window, lab), f'Weekly {name} by player')
+
+
+@app_inst.callback(
+    Output('tp-depth', 'figure'), Output('tp-depth-sub', 'children'),
+    Input('tp-depth-injured', 'value'),
+)
+def update_position_depth(choice):
+    # ESPN only for now: the page's league filter doesn't apply (Yahoo has no position data yet)
+    include = choice == 'include'
+    return fig_position_depth(include), position_depth_sub(include)
 
 
 @app_inst.callback(

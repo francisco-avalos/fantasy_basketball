@@ -620,6 +620,16 @@ input[type="number"]:focus,
 .tp-control-label { color: var(--text-secondary); font-size: 0.85rem; white-space: nowrap; }
 .tp-control .dash-dropdown { min-width: 220px; }
 
+/* segmented two-way toggle (dcc.RadioItems with className tp-segmented) */
+.tp-segmented { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.tp-segmented label {
+  margin: 0; padding: 4px 16px; cursor: pointer; font-size: 0.85rem;
+  color: var(--text-secondary); background: var(--bg-card-inner); transition: background .15s, color .15s;
+}
+.tp-segmented label + label { border-left: 1px solid var(--border); }
+.tp-segmented input { display: none; }
+.tp-segmented label:has(input:checked) { background: #00bc8c; color: #0f1117; font-weight: 600; }
+
 .tp-card {
   background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg);
   padding: 14px 16px 10px; margin-bottom: 16px;
