@@ -15,6 +15,7 @@ restart, the 2021 play-in) counts as in-season too.
     inseason_days(a, b)  clock(b) - clock(a)
     season_of(date)      NBA season (end year) a date belongs to; offseason dates
                          belong to the season that just ended
+    season_label(date)   the same season as text, e.g. '2024-25' (historical_player_data.season)
     season_bounds(year)  (start, end) Timestamps of that season; end is the later of the
                          regular-season end and the special window's end (2020 bubble)
     is_in_season(date)
@@ -93,3 +94,11 @@ def season_of(dates):
 
 def season_bounds(season_end_year):
     return _calendar()[4][int(season_end_year)]
+
+
+def season_label(dates):
+    """'2024-25' style label of season_of(dates); the 2020 bubble and 2021 play-in
+    windows belong to the season they finished ('2019-20', '2020-21')."""
+    end = season_of(dates)
+    fmt = lambda e: f'{int(e) - 1}-{str(int(e))[-2:]}'
+    return fmt(end) if np.ndim(end) == 0 else np.array([fmt(e) for e in end])

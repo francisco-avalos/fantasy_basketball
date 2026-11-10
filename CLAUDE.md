@@ -486,11 +486,21 @@ Each of these costs real time. Do not rediscover them.
   calls (`player_box_scores`, `regular_season_player_box_scores`) were unaffected
   as of 2026-11-05. A day with 0 box scores may just be a day with no games
   (e.g. Election Day 2026-11-03).
-- ⚠️ **`historical_player_data` has no rows from 2025-02-14 to 2025-04-13** (the end
-  of the 2024-25 regular season). `historicals.py` needs a backfill over that window
-  with the `last_data_date` override. Until then, `injury_mapping.py` treats it as a
-  box-score hole: episodes spanning it are censored (`data_gap`) instead of closed by
-  a game.
+- ⚠️ **basketball-reference-web-scraper 4.15 added `plus_minus` to `player_box_scores`,
+  just before `game_score`.** `historicals.py` used to `LOAD DATA` by position, so every
+  `historical_player_data` row from 2025-10-21 to 2026-11-08 landed one column right:
+  - `game_score` held plus/minus;
+  - `points` held the rounded game score;
+  - `season` held the computed points as text, e.g. `18.9999`.
+
+  That broke this season's points in the screener and the prediction models' training data,
+  and `espn_player_positions.py`'s `WHERE season = (latest season)`.
+  `sql_files/migrations/2026-11-09_historical_player_data_repair.sql` recomputes points and
+  game score from the counting stats and relabels every season by date. `historicals.py`
+  now loads `HIST_COLS` by name, computes points exactly (`box_points`), and labels
+  seasons with `season_calendar.season_label(day)`. **Any loader fed by the scraper should
+  name its columns.** Also: `historicals.py` runs its ingest at import time, so never
+  `import pipeline.historicals` to check it. Parse it with `ast` instead.
 - **Basketball-reference rate-limits hard.** Scripts carry `time.sleep(4)` between
   requests; the comments in `advanced_stats.py` record the measured ceiling
   (~20 requests/min is where blocking starts). Don't lower the delays.

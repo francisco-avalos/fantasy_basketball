@@ -25,7 +25,26 @@ import time
 from datetime import datetime
 from datetime import date
 from datetime import timedelta
-from shared.my_functions import convert_game_score_to_points
+from shared.season_calendar import season_label
+
+# Target columns of basketball.historical_player_data, in order. The load names them
+# explicitly: basketball-reference-web-scraper 4.15 added `plus_minus` before
+# `game_score`, and a positional load shifted game_score/points/season one column
+# right for every row from 2025-10-21 (repaired by
+# sql_files/migrations/2026-11-09_historical_player_data_repair.sql).
+HIST_COLS = ['date', 'slug', 'name', 'team', 'location', 'opponent', 'outcome', 'seconds_played',
+             'made_field_goals', 'attempted_field_goals', 'made_three_point_field_goals',
+             'attempted_three_point_field_goals', 'made_free_throws', 'attempted_free_throws',
+             'offensive_rebounds', 'defensive_rebounds', 'assists', 'steals', 'blocks', 'turnovers',
+             'personal_fouls', 'game_score', 'points', 'season']
+LOAD_QRY = ("LOAD DATA LOCAL INFILE '{path}' REPLACE INTO TABLE basketball.historical_player_data "
+            "FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' IGNORE 1 ROWS (" + ', '.join(HIST_COLS) + ");")
+
+
+def box_points(p):
+    """Exact points from the box score (2 per field goal, +1 per three, +1 per free throw).
+    Replaces convert_game_score_to_points, which backed points out of game score in floats."""
+    return 2 * p['made_field_goals'] + p['made_three_point_field_goals'] + p['made_free_throws']
 
 
 ## Preliminaries, set ups & initiators 
@@ -155,8 +174,8 @@ try:
                     p=client.player_box_scores(day=date,month=month,year=year)
                     p=pd.DataFrame(p)
                     p.insert(0,'date',day.date())
-                    p['points']=convert_game_score_to_points(GS=p['game_score'],FG=p['made_field_goals'],FGA=p['attempted_field_goals'],FT=p['made_free_throws'],FTA=p['attempted_free_throws'],ORB=p['offensive_rebounds'],DRB=p['defensive_rebounds'],STL=p['steals'],AST=p['assists'],BLK=p['blocks'],PF=p['personal_fouls'],TOV=p['turnovers'])
-                    p['season']=season
+                    p['points']=box_points(p)
+                    p['season']=season_label(day)   # from season_dates.csv, not the drifting `season` string
                     df=pd.concat([df, p])
                     print('Completed for ', day)
                 except:
@@ -178,8 +197,8 @@ try:
                 print('Connection to database established... Begin insertion into historical table.')
                 start_time=time.perf_counter()
                 file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/historical_player_extract.csv'
-                df.to_csv(file_path,index=False)
-                qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.historical_player_data FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' IGNORE 1 ROWS;"
+                df[HIST_COLS].to_csv(file_path,index=False)   # drops plus_minus and anything else new
+                qry=LOAD_QRY.format(path=file_path)
                 cursor.execute(qry)
                 connection.commit()
                 del df
@@ -210,8 +229,8 @@ try:
                     p=client.player_box_scores(day=date, month=month, year=year)
                     p=pd.DataFrame(p)
                     p.insert(0,'date',day.date())
-                    p['points']=convert_game_score_to_points(GS=p['game_score'],FG=p['made_field_goals'],FGA=p['attempted_field_goals'],FT=p['made_free_throws'],FTA=p['attempted_free_throws'],ORB=p['offensive_rebounds'],DRB=p['defensive_rebounds'],STL=p['steals'],AST=p['assists'],BLK=p['blocks'],PF=p['personal_fouls'],TOV=p['turnovers'])
-                    p['season']=season
+                    p['points']=box_points(p)
+                    p['season']=season_label(day)   # from season_dates.csv, not the drifting `season` string
                     df=pd.concat([df, p])
                     print('Completed for ', day)
                 except:
@@ -230,8 +249,8 @@ try:
                 print('Connection to database established... Begin insertion into historical table.')
 
                 file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/historical_player_extract.csv'
-                df.to_csv(file_path,index=False)
-                qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.historical_player_data FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' IGNORE 1 ROWS;"
+                df[HIST_COLS].to_csv(file_path,index=False)   # drops plus_minus and anything else new
+                qry=LOAD_QRY.format(path=file_path)
                 cursor.execute(qry)
                 connection.commit()
                 del df
