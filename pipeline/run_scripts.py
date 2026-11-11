@@ -142,6 +142,7 @@ chime.theme('mario')
 small_list=['advanced_stats.py','high_level_nba_team_schedules.py',
 				'high_level_nba_team_stats.py', 'my_team_stats.py',
 				'historicals.py', 
+				'points_forecast.py',      # needs last night's box scores and the fresh rosters above
 				# 'historical_basketball_injury_data.py', # historical_basketball_injury_data_updated
 				# 'injury_probabilities_basketball.py',
 				# 'free_agents_yahoo_basketball.py',
@@ -149,6 +150,7 @@ small_list=['advanced_stats.py','high_level_nba_team_schedules.py',
 full_list=['advanced_stats.py','high_level_nba_team_schedules.py',
 				'high_level_nba_team_stats.py', 'my_team_stats.py',
 				'historicals.py',
+				'points_forecast.py',      # needs last night's box scores and the fresh rosters above
 				# injury scripts run after the list, in run_injury_chain()
 				'free_agents_yahoo_basketball.py',
 				'free_agents_backfill.py']

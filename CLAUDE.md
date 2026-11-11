@@ -162,7 +162,7 @@ connection config for this to work.
 | `historical_basketball_injury_data_updated.py` | prosportstransactions via Unflare | `hist_player_inj` |
 | `injury_mapping.py` | `hist_player_inj` + box scores → episodes; notes → taxonomy (regex, then Claude) | `player_injury_cycles`, `injury_note_classification` |
 | `injury_probabilities_basketball.py` | `player_injury_cycles` → survival models, champion on a holdout | `injury_probabilities` |
-| `base_model.py`, `machine_learning_models.py`, `model_pooling.py` | model fitting | `predictions`, `model_evaluation` |
+| `points_forecast.py` (+ `forecast_models.py`) | `historical_player_data` + `high_level_nba_team_schedules` + rosters | `forecast_roster`, `points_forecasts`, `model_runs`, MLflow in `mlflow/` |
 
 `basketball-work.py` (1264 lines, hyphen in the name so it cannot be imported)
 and `my_team_performance_dash.py` (965 lines, its own standalone matplotlib/Dash)
@@ -269,41 +269,65 @@ the Cloudflare clearance cookie is reused. Before running the injury script:
 from `MAX(day)`; a real fetch failure **halts** rather than marking days empty, so
 gaps don't get baked in silently.
 
-### The model stack
+### The model stack (points forecasting)
 
 ```
-base_model.py              statistical / time-series fits per player
-machine_learning_models.py LINEAR, NEURAL_NETWORK, LSTM (TensorFlow)
-model_pooling.py           adds baselines, picks the champion, loads to MySQL
-my_time_series.py          the library all three import (1333 lines)
+pipeline/forecast_models.py   features, 13 models, rolling-origin backtest, champion rules
+pipeline/points_forecast.py   the runner: MySQL in, MySQL + MLflow out (~80 s for both rosters)
 ```
 
-Artifacts are per player, under
-`tmp_data/basketball_espn/<bbrefid>/` and `tmp_data/basketball_yahoo/<bbrefid>/`,
-split into `models/` (pickles named `<bbrefid>_<YYYY_MM_DD>_<MODEL>.pkl`) and
-`scalers/`, with per-player MAE CSVs (`<bbrefid>_ML_MAE.csv`) alongside.
-`shared/my_functions.create_player_folder` / `create_model_folder` /
-`create_model_scaler_folder` create them; `is_statistical_model()` and
-`date_extract()` parse the model type and date back out of a filename.
+Run in `basketball-env-useme-v11052026`, after `pipeline.historicals`:
+`python -m pipeline.points_forecast` (`--dry-run`, `--no-mlflow`, `--players slug,slug`).
+Needs `sql_files/migrations/2026-11-11_points_forecasts.sql` (run 2026-11-11). `run_scripts.py` runs it
+right after `historicals.py` in both lists (it needs last night's box scores and the rosters `my_team_stats` just refreshed).
 
-- **Train/test split is 80/20** (`n=0.8`), chronological, and the evaluation
-  metric is **MAE** throughout.
-- `model_pooling.py` concatenates the statistical and ML MAE files, appends two
-  naive baselines it computes itself — **REPEAT** (tile the last five games) and
-  **LAST** (repeat the final value) — sorts ascending by MAE, and sets
-  `champion_model = 1` on **the single best row**. Everything else gets 0.
-- Forecast horizon is **5 games**, written through
-  `shared/my_functions.prepare_predictions_table()`, which inserts the id and
-  parameter columns positionally (`df.insert(0..11)`) around the caller's `day`
-  and `predictions`. Change that column order and the `LOAD DATA` into
-  `basketball.predictions` shifts silently.
-- These three scripts are **not** in `run_scripts.py` — fitting is on demand.
+- **Target:** points in each of the team's next 5 scheduled games (`high_level_nba_team_schedules`,
+  UTC `start_time` converted to US/Eastern dates). Everything is in real points; nothing is scaled.
+- **Models:** baselines NAIVE, SEASON_MEAN, MEAN_10, SES; statistical ETS_DAMPED, THETA, ARIMA
+  (KPSS for d, then p,q ≤ 2 by AICc), ARIMAX (ARMA errors + inputs), LOCAL_LEVEL (Kalman), NEGBIN
+  (count GLM + inputs, recency-weighted), MIN_X_PPM (minutes × points per minute), MIN_X_PPM_EB (pts/min
+  shrunk toward the player's longer-run rate, then toward the position average); ML **XGB**: one
+  XGBoost per position group (PG/SG/SF/PF/C from ESPN eligibility; a player is in every group they're
+  eligible for), trained on every eligible player's games since 3 seasons ago, direct multi-horizon (h is
+  a feature), `reg:absoluteerror`. A multi-position player gets the mean of their groups' models.
+- **Inputs:** projected minutes (EWM through the previous game), home, team rest days (capped at 4),
+  back-to-back, opponent points allowed and pace over its last 15 games relative to the 30-day league
+  average. Opponent form is taken **as of the origin** in XGB rows; the per-player ARIMAX/NEGBIN
+  backtest uses it as of the day before each game (a few days' look-ahead, documented).
+- **Series:** regular-season games only (`season_calendar.is_in_season`), since last season's start
+  (the whole 3-season window if fewer than 30 games).
+- **Backtest:** the last 20 (+4 partial) games are origins; every statistical model is refit at each.
+  XGB's backtest model is trained only on targets before the earliest origin of any rostered player.
+- **Champion:** the roster default is the best mean skill (1 − MAE/naive MAE) across players; a player
+  switches to their own best model only if a Diebold-Mariano test (Newey-West, H−1 lags) beats the
+  default at p < 0.10 / (number of challengers) — Bonferroni, because their best is the minimum of all
+  of them. Without it 12 of 32 players "switched"; with it, 1.
+- **80% range:** 10th/90th percentile of the model's own signed backtest errors (all horizons pooled;
+  the roster's pooled errors when a player has fewer than 15).
+- **Forecast log:** `points_forecasts` keeps every run (`DELETE` + `INSERT` for today's `run_date` only),
+  so the page's "Live MAE" joins it to `historical_player_data` on `(slug, game_date)`.
+- **MLflow:** `mlflow/mlflow.db` (SQLite) + `mlflow/artifacts/` (gitignored). One parent run per
+  execution, nested runs per player (metrics per model, params JSON) and per position model; the five
+  XGBoost models are registered as `points_xgb_<POS>`. Browse with
+  `mlflow ui --backend-store-uri sqlite:///mlflow/mlflow.db`. Statistical models are **not** pickled:
+  they refit in milliseconds, so only their parameters are stored (`model_runs.params`).
+- ⚠️ xgboost on this arm64 env needs `libomp.dylib`; the base conda is osx-64 and can't install
+  `llvm-openmp`, so `<env>/lib/libomp.dylib` is a symlink to `sklearn/.dylibs/libomp.dylib`. Installing
+  mlflow bumped `protobuf` past mysql-connector 8.1.0's pin; it's back at 4.21.12 (pip warns about
+  databricks-sdk, which only the Databricks backend uses).
 
-⚠️ `model_pooling.py` **TRUNCATEs `predictions` and `model_evaluation` up front**
-(line ~138), then loads one player at a time from inside the fitting loop
-(line ~205). So an interrupted run leaves a **partially populated** predictions
-table — covering whichever players it reached — and the app serves it without
-complaint. Same hazard as `advanced_stats.py` below, one step further downstream.
+**Retired 2026-11-11:** `base_model.py`, `machine_learning_models.py`, `model_pooling.py` and
+`my_time_series.py` were moved to `archived/pipeline/` (gitignored, local copy only). The tables they fed
+(`predictions`, `model_evaluation`) and the frozen display tables `myteam_next_5_games` /
+`player_historical_web_app_display` (built by the retired `player_app_display` procedure, whose "next 5
+games" were past games after `2024-04-04`) were **dropped**; CSV + DDL backups are in
+`archived/retired_tables/`. Their 1.1 GB of per-player artifacts (`tmp_data/basketball_espn/`,
+`tmp_data/basketball_yahoo/`) were deleted. Their bugs, for the record: ML and statistical MAEs were compared
+on different scales (0–1 vs points), the ML forecasts were fed the literal `[[1,2,3,4,5]]`, the smoothing
+"forecasts" were `predict(1,5)` (the first five career games), "double exponential" had `trend=None`, the
+rolling forecasts never saw test data, and the training query had no `ORDER BY`. The model-folder helpers in
+`shared/my_functions.py` (`create_player_folder`, `is_statistical_model`, `prepare_predictions_table`, …) are
+now unused.
 
 ---
 
@@ -313,8 +337,9 @@ complaint. Same hazard as `advanced_stats.py` below, one step further downstream
 app/index.py        routes, gunicorn entry point (app.index:server)
 app/dash_create.py  the Dash instance (app_inst) — keep minimal
 app/landing.py      page0, the landing page
-app/layouts.py      page1–page4 shells (page3 is a stub that calls team_performance)
-app/callbacks.py    callbacks + figure builders for pages 1, 2, 4
+app/layouts.py      page1–page4 shells (page1 / page3 are stubs over predictions / team_performance)
+app/callbacks.py    callbacks + figure builders for pages 2, 4
+app/predictions.py  page 1 in full: forecast chart, next 5 games, scoreboard, parameter cards
 app/team_performance.py  page 3 in full: data prep, figures, tabbed layout, callbacks
 app/ai_chatbox.py   Anthropic client, context builder, system prompt
 ```
@@ -322,7 +347,7 @@ app/ai_chatbox.py   Anthropic client, context builder, system prompt
 | route | page | content |
 |---|---|---|
 | `/` (and anything unrecognised) | `page0` | landing |
-| `/apps/fantasy-predictions` | `page1` | predictions + model evaluation |
+| `/apps/fantasy-predictions` | `page1` | points forecast (Draft A): chart with opponents on future ticks, next 5 games, model scoreboard, fitted parameters |
 | `/apps/free-agent-screening` | `page2` | minute-weighted screener |
 | `/apps/team-performance` | `page3` | three `dcc.Tabs`: Team overview, Player detail, Injuries |
 | `/apps/ai-assistant` | `page4` | chatbox |
@@ -366,8 +391,16 @@ sets 13 column names on the 0×16 frame that `groupby().apply()` returns for no
 rows (`ValueError: Length mismatch`), and Dash then keeps whatever figure was
 already showing.
 
-`optimize_code_layouts()` also queries `my_live_espn_qry` / `my_live_yahoo_qry`
-and never puts the results in its return dict — dead work on every boot.
+
+### Fantasy Predictions (page 1)
+
+`app/predictions.py` owns the page (Draft A). It loads `forecast_page_data()` once at boot: the roster,
+the latest `model_runs` and `points_forecasts` run, live scores of past forecasts, and ~15 months of the
+rostered players' box scores. Filters: league, player, models (multi; the champion is always drawn, with
+its 80% band), history window. Below the chart: next 5 games (rest / B2B, opponent defence rank, champion
+forecast), the scoreboard (backtest MAE, skill, MAE by horizon as a sparkline, live MAE), and one parameter
+card per selected model. Until the migration has run or a forecast run exists, the page shows a message.
+The AI assistant's context gets the champion forecasts (`forecast_champion_qry`).
 
 ### Current Team Performance (page 3)
 

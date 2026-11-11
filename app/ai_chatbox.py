@@ -41,7 +41,7 @@ def build_context(
     myteam_df:            pd.DataFrame,
     my_live_espn_df:      pd.DataFrame,
     my_live_yahoo_df:     pd.DataFrame,
-    model_eval_pred_df:   pd.DataFrame,
+    forecast_champion_df: pd.DataFrame,
     injury_probabilities_df: pd.DataFrame,
     days_back: int = 14,
 ) -> str:
@@ -118,13 +118,13 @@ def build_context(
     else:
         myteam_agg = pd.DataFrame()
 
-    # ── Predictions (champion model, next 5 days) ─────────────────────────────
-    if not model_eval_pred_df.empty and "champion_model" in model_eval_pred_df.columns:
-        preds_top = model_eval_pred_df[model_eval_pred_df["champion_model"] == 1][
-            ["slug", "day", "predictions", "league"]
-        ].head(30)
+    # ── Predictions (champion model, next 5 scheduled games) ──────────────────
+    if forecast_champion_df is not None and not forecast_champion_df.empty:
+        preds_top = forecast_champion_df[
+            ["league", "name", "game_date", "opponent", "home", "prediction", "lo80", "hi80", "model"]
+        ].head(60)
     else:
-        preds_top = model_eval_pred_df.head(30) if not model_eval_pred_df.empty else pd.DataFrame()
+        preds_top = pd.DataFrame()
 
     # ── Injury probabilities ──────────────────────────────────────────────────
     inj_sample = injury_probabilities_df.head(15) if not injury_probabilities_df.empty else pd.DataFrame()
@@ -149,7 +149,7 @@ def build_context(
         f"=== TOP FREE AGENTS — YAHOO (last {days_back} days, min-weighted avg) ===",
         _fmt_df(yahoo_top)    if not yahoo_top.empty     else "(no data)",
         "",
-        "=== MODEL PREDICTIONS (next 5 games, champion model) ===",
+        "=== POINTS FORECASTS (next 5 scheduled games, champion model, 80% range lo80-hi80) ===",
         _fmt_df(preds_top)    if not preds_top.empty     else "(no data)",
         "",
         "=== INJURY PROBABILITY SAMPLES ===",

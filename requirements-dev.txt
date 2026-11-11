@@ -26,6 +26,8 @@ patsy==0.5.3
 numexpr==2.8.7
 
 # Forecasting
+xgboost==2.1.4        # macOS arm64 needs libomp.dylib: env lib/ has a symlink to sklearn/.dylibs/libomp.dylib
+mlflow==2.22.5        # local tracking store in mlflow/ (pipeline/points_forecast.py); keep protobuf==4.21.12 for mysql-connector
 prophet==1.1.5
 cmdstanpy==1.2.0
 holidays==0.35

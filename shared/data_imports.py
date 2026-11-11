@@ -170,38 +170,8 @@ JOIN basketball.basketball_references_players BRP ON LYP.name = BBRefName
 ;'''
 
 
-model_eval_pred_query=f'''
-SELECT 
-    ME.league,
-    ME.slug,
-    ME.model_type,
-    ME.champion_model,
-    P.day,
-    ME.evaluation_metric,
-    ME.evaluation_metric_value,
-    P.p,
-    P.d,
-    P.q,
-    P.alpha,
-    P.beta,
-    P.predictions
-FROM basketball.model_evaluation ME
-LEFT JOIN basketball.predictions P ON ME.slug = P.slug
-    AND P.league = ME.league
-    AND P.model_type = ME.model_type
-;'''
-
-
-
-next_5_games_opps_qry='''
-SELECT *
-FROM basketball.myteam_next_5_games
-;
-'''
-
-
 inj_prob_qry="""
-SELECT 
+SELECT
     injury,
     days,
     CONCAT(ROUND(probabilities * 100,2),'%') AS probabilities
@@ -209,16 +179,55 @@ FROM basketball.injury_probabilities;
 """
 
 
-historicals_query='''
-SELECT 
-    HWAD.date,
-    HWAD.slug,
-    HWAD.name,
-    HWAD.team,
-    HWAD.opponent,
-    HWAD.points,
-    HWAD.league
-FROM basketball.player_historical_web_app_display HWAD
+# ---- Fantasy Predictions page (app/predictions.py), written by pipeline/points_forecast.py ----
+# Tables from sql_files/migrations/2026-11-11_points_forecasts.sql. The page reads the latest run.
+
+forecast_roster_qry='''
+SELECT league, name, slug, positions, team, injury_status, run_date
+FROM basketball.forecast_roster
+;'''
+
+forecast_runs_qry='''
+SELECT run_date, slug, model, label, family, params, n_games, n_origins, mae, mae_h1, mae_h2, mae_h3,
+       mae_h4, mae_h5, skill, aicc, ljung_box_p, champion, champion_reason
+FROM basketball.model_runs
+WHERE run_date = (SELECT MAX(run_date) FROM basketball.model_runs)
+;'''
+
+forecast_latest_qry='''
+SELECT run_date, slug, model, horizon, game_date, team, opponent, home, rest_days, opp_def_rank,
+       prediction, lo80, hi80, champion
+FROM basketball.points_forecasts
+WHERE run_date = (SELECT MAX(run_date) FROM basketball.points_forecasts)
+;'''
+
+# every logged forecast whose game has been played, scored against the box score
+forecast_live_qry='''
+SELECT F.slug, F.model, COUNT(*) AS n_scored,
+       AVG(ABS(F.prediction - H.points)) AS live_mae,
+       AVG(CASE WHEN H.points BETWEEN F.lo80 AND F.hi80 THEN 1 ELSE 0 END) AS live_coverage
+FROM basketball.points_forecasts F
+JOIN basketball.historical_player_data H ON H.slug = F.slug AND H.date = F.game_date
+WHERE H.seconds_played > 0
+GROUP BY F.slug, F.model
+;'''
+
+forecast_history_qry='''
+SELECT H.date, H.slug, H.team, H.opponent, H.location, H.points, H.seconds_played / 60 AS minutes
+FROM basketball.historical_player_data H
+WHERE H.slug IN (SELECT slug FROM basketball.forecast_roster)
+  AND H.seconds_played > 0
+  AND H.date >= DATE_SUB(CURDATE(), INTERVAL 450 DAY)
+ORDER BY H.slug, H.date
+;'''
+
+# champion forecasts for the AI assistant's context
+forecast_champion_qry='''
+SELECT R.league, R.name, F.slug, F.horizon, F.game_date, F.opponent, F.home, F.prediction, F.lo80, F.hi80, F.model
+FROM basketball.points_forecasts F
+JOIN basketball.forecast_roster R ON R.slug = F.slug
+WHERE F.champion = 1 AND F.run_date = (SELECT MAX(run_date) FROM basketball.points_forecasts)
+ORDER BY R.league, R.name, F.horizon
 ;'''
 
 
@@ -316,16 +325,11 @@ def optimize_code(connection):
 
         current_players=my_live_espn_df['name'].values.tolist()
         dfs['current_players']=current_players
-        model_eval_pred_df=execute_query_and_fetch_df(query=model_eval_pred_query,connection=connection)
-        next_5_players_df=execute_query_and_fetch_df(query=next_5_games_opps_qry,connection=connection)
-        dfs['model_eval_pred_df']=model_eval_pred_df
-        dfs['next_5_players_df']=next_5_players_df
+        forecast_champion_df=execute_query_and_fetch_df(forecast_champion_qry, connection)
+        dfs['forecast_champion_df']=forecast_champion_df if forecast_champion_df is not None else pd.DataFrame()
 
         injury_probabilities_df = execute_query_and_fetch_df(inj_prob_qry, connection)
         dfs['injury_probabilities_df']=injury_probabilities_df
-
-        historicals_df=execute_query_and_fetch_df(historicals_query,connection)
-        dfs['historicals_df']=historicals_df
     return dfs
 
 def optimize_code_layouts(connection):
@@ -333,15 +337,22 @@ def optimize_code_layouts(connection):
     if connection.is_connected():
         fa_espn_df=execute_query_and_fetch_df(espn_query,connection,season_start_str)
         dfs['fa_espn_df']=fa_espn_df
-        my_live_espn_df=execute_query_and_fetch_df(my_live_espn_qry,connection)
-        
-        my_live_yahoo_df=execute_query_and_fetch_df(my_live_yahoo_qry,connection)
-
-        model_eval_pred_df=execute_query_and_fetch_df(query=model_eval_pred_query,connection=connection)
-        next_5_players_df=execute_query_and_fetch_df(query=next_5_games_opps_qry,connection=connection)
-        dfs['model_eval_pred_df']=model_eval_pred_df
-        dfs['next_5_players_df']=next_5_players_df
     return dfs
+
+
+def forecast_page_data(connection):
+    """Frames for the Fantasy Predictions page. A failed query (tables not migrated yet) comes back
+    empty, so the page shows a message instead of failing at import."""
+    def fetch(query):
+        df=execute_query_and_fetch_df(query, connection)
+        return df if df is not None else pd.DataFrame()
+    return {
+        'roster_df': fetch(forecast_roster_qry),
+        'runs_df': fetch(forecast_runs_qry),
+        'forecasts_df': fetch(forecast_latest_qry),
+        'live_df': fetch(forecast_live_qry),
+        'history_df': fetch(forecast_history_qry),
+    }
 
 
 def team_performance_data(connection):

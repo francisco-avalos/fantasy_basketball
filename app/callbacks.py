@@ -62,15 +62,11 @@ myteam_df_yh = dfs['myteam_df_yh']
 my_live_espn_df = dfs['my_live_espn_df']
 my_live_yahoo_df = dfs['my_live_yahoo_df']
 current_players = dfs['current_players']
-model_eval_pred_df = dfs['model_eval_pred_df']
-next_5_players_df = dfs['next_5_players_df']
+forecast_champion_df = dfs['forecast_champion_df']
 injury_probabilities_df = dfs['injury_probabilities_df']
-historicals_df = dfs['historicals_df']
 
 
 
-merged_table_1=pd.merge(model_eval_pred_df,next_5_players_df,on=['slug','day'],how='inner')
-merged_table_1=merged_table_1[['day','opponent_location','predictions','league','slug','model_type']]
 
 
 fa_espn_df=add_new_fields(fa_espn_df)
@@ -78,43 +74,6 @@ fa_yahoo_df=add_new_fields(fa_yahoo_df)
 
 fa_df=fa_espn_df.copy()
 
-model_eval_pred_df_table2_copy=model_eval_pred_df[['league','slug','model_type','p','d','q','alpha','beta','evaluation_metric','evaluation_metric_value']].copy()
-
-
-
-def create_data_table(df,table_id,columns):
-    return dash_table.DataTable(
-            id=table_id,
-            columns=[{'name':col,'id':col} for col in columns],
-            style_cell=dict(textAlign='center'),
-            style_header=dict(backgroundColor='paleturquoise'),
-            style_table={'overflowX':'auto','minwidth':'100%'}
-            # columns=[
-            #     {'name':col,'id':col,"type":"text" if col == 'probabilities' else 'numeric',
-            #      'format':FormatTemplate.percentage(2) if col == 'probabilities' else None
-            #     } for col in columns
-            # ],
-            # data=df.to_dict('records'),
-            # style_cell={
-            #     'textAlign':'left',
-            #     'padding':'5px',
-            #     'whiteSpace':'normal'
-            # },
-            # style_data_conditional=[
-            #     {
-            #         'if':{'column_id':'probabilities'},
-            #         'textAlign':'right',
-            #         'paddingRight':'10px'
-            #     }
-            # ],
-            # style_header={
-            #     'backgroundColor':'rgb(230,230,230)',
-            #     'fontWeight':'bold',
-            #     'textAlign':'center'
-            # },
-            # style_table={'overflowX':'auto'},
-            # page_size=10
-        )
 
 
 
@@ -265,248 +224,7 @@ myteam_df_yh=convert_fields_to_float(df=myteam_df_yh,fields=convert_to_float_fie
 # Current Team Performance (page 3) figures and callbacks live in app/team_performance.py.
 
 
-def line_plot_preds(leagueid='espn',player_slug='tatumja01',model_type=None):
-    if leagueid=='Yahoo':
-        leagueid='yahoo'
-    elif leagueid=='ESPN':
-        leagueid='espn'
-    df=historicals_df[(historicals_df['slug']==player_slug) & (historicals_df['league']==leagueid)].copy()
-
-    df.reset_index(drop=True,inplace=True)
-    df.reset_index(drop=False,inplace=True)
-
-    points_mean=df[~df['points'].isna()]['points'].mean()
-    nan_rows=df.index[df.points.isna()][1:]
-    df.loc[nan_rows,'points']=points_mean
-
-    points_mean = df.loc[~df['points'].isna(), 'points'].mean()
-    df.loc[df['points'].isna(), 'points'] = points_mean
-
-    dups=model_eval_pred_df[model_eval_pred_df.duplicated()]
-
-    model_eval_pred_df_copy=model_eval_pred_df.copy()
-    if not dups.empty:
-        model_eval_pred_df_copy.drop_duplicates(inplace=True)
-
-    df_pred=model_eval_pred_df_copy[
-                            (model_eval_pred_df_copy['slug']==player_slug) & 
-                            (model_eval_pred_df_copy['league']==leagueid)
-                        ].copy()
-    df_pred.reset_index(drop=True,inplace=True)
-
-    line_plot=px.line(df,
-        x='index',
-        y='points'
-    )
-    line_plot.update_traces(mode='lines+markers',line_color='blue',name='Historical Points')
-    line_plot.update_layout(xaxis_title='Time', yaxis_title='Points', showlegend=True)
-
-
-    if model_type==None:
-        model_trace=px.line(
-                        x=df_pred[df_pred.champion_model==1]['day']+len(df),
-                        y=df_pred[df_pred.champion_model==1]['predictions'].values
-                    )
-        model_trace.update_traces(mode='lines+markers',line_color='red',name='Model Predictions')
-    elif model_type is not None:
-        model_trace=px.line(
-                        x=df_pred[df_pred['model_type']==model_type]['day']+len(df),
-                        y=df_pred[df_pred['model_type']==model_type]['predictions'].values
-                    )
-        model_trace.update_traces(mode='lines+markers',line_color='red',name='Model Predictions')
-
-    line_plot.add_trace(model_trace.data[0])
-
-    line_plot.update_layout(
-                            title='Historical and Predictions - Points',
-                            xaxis_title='Time',
-                            yaxis_title='Points'
-        )
-    line_plot.update_traces(showlegend=True)
-    return line_plot
-
-
-
-@app_inst.callback(
-    Output(component_id='preds-line',component_property='figure'),
-    Input(component_id='id-league',component_property='value'),
-    Input(component_id='League-Players',component_property='value'),
-    Input(component_id='id-model',component_property='value')
-)
-
-def update_pred_plot(leagueid,player_slug,model_type):
-    fig_line_pred=line_plot_preds(leagueid,player_slug,model_type)
-    return fig_line_pred
-
-
-@app_inst.callback(
-    Output(component_id='id-preds-table',component_property='data'),
-    Output(component_id='id-preds-table',component_property='columns'),
-    Input(component_id='id-league',component_property='value'),
-    Input(component_id='League-Players',component_property='value'),
-    Input(component_id='id-model',component_property='value')
-)
-
-def update_preds_table(leagueid,player_slug,model_type):
-    if leagueid=='Yahoo':
-        leagueid='yahoo'
-    elif leagueid=='ESPN':
-        leagueid='espn'
-
-    dups=merged_table_1[merged_table_1.duplicated()]
-    model_eval_pred_df_copy=merged_table_1.copy()
-    if not dups.empty:
-        model_eval_pred_df_copy.drop_duplicates(inplace=True)
-
-    df_pred=model_eval_pred_df_copy[
-                            (model_eval_pred_df_copy['slug']==player_slug) & 
-                            (model_eval_pred_df_copy['league']==leagueid)
-                        ].copy()
-    df_pred.reset_index(drop=True,inplace=True)
-
-    df_pred=df_pred[df_pred['model_type']==model_type]
-    df_pred['predictions']=df_pred['predictions'].astype(float).round(1)
-
-    df_pred=df_pred[['day','opponent_location','predictions']]
-
-    data=df_pred.to_dict('records')
-    columns=[{"name":i,"id":i} for i in df_pred.columns]
-
-    return data, columns
-
-
-
-@app_inst.callback(
-    [Output('League-Players', 'options'),
-     Output('League-Players', 'value')],
-    [Input('id-league', 'value')]
-)
-def update_player_list(selected_value):
-    if selected_value == 'ESPN':
-        options = [{'label': row['name'], 'value': row['slug']} for idx, row in my_live_espn_df.iterrows()]
-        # options.sort(key=lambda x:x['label'])
-        default_val = my_live_espn_df.iloc[0, 1] if not my_live_espn_df.empty else None
-    elif selected_value == 'Yahoo':
-        options = [{'label': row['name'], 'value': row['slug']} for idx, row in my_live_yahoo_df.iterrows()]
-        # options.sort(key=lambda x:x['label'])
-        default_val = my_live_yahoo_df.iloc[0, 1] if not my_live_yahoo_df.empty else None
-    else:
-        options = []
-        default_val = None
-    return options, default_val
-
-@app_inst.callback(
-    Output('output', 'children'),
-    [Input('League-Players', 'value')]
-)
-def update_player_picked_comment(selected_value):
-    if selected_value is not None:
-        return f'You have selected {selected_value}'
-    else:
-        return 'Please select a value'
-
-
-dropdown_model_name_display_dict={
-    'ARIMA':'ARIMA',
-    'DBL_EXP':'Double Exponential',
-    'LAST':'Last Game',
-    'LINEAR':'Linear',
-    'LSTM':'LSTM',
-    'NEURAL_NETWORK':'Neural Network',
-    'REPEAT':'Repeat Last 5 Games',
-    'SGL_EXP':'Single Exponential'
-}
-sorted_model_list=['ARIMA','SGL_EXP','DBL_EXP','NEURAL_NETWORK','LSTM','REPEAT','LINEAR','LAST']
-
-
-@app_inst.callback(
-    [Output('id-model', 'options'),
-     Output('id-model', 'value')],
-    [Input('League-Players', 'value'),
-     Input('id-league', 'value')]
-)
-def update_model_list(selected_player, selected_league):
-    if selected_player is not None and selected_league is not None:
-        if selected_league == 'ESPN':
-            df = model_eval_pred_df[model_eval_pred_df['league'] == 'espn'].copy()
-        elif selected_league == 'Yahoo':
-            df = model_eval_pred_df[model_eval_pred_df['league'] == 'yahoo'].copy()
-        else:
-            df = pd.DataFrame()  # Empty dataframe if selected_league is neither ESPN nor Yahoo
-
-        if not df.empty:
-            player_df = df[df['slug'] == selected_player].copy()
-            player_models = player_df['model_type'].unique().tolist()
-            model_default = player_models[0] if player_models else None
-            return [{'label':dropdown_model_name_display_dict.get(model,model),'value':model} for model in player_models],model_default
-            # sorted_models=sorted(player_models,key=lambda x:sorted_model_list.index(x))
-            # model_default = sorted_models[0] if sorted_models else None
-            # return [{'label':dropdown_model_name_display_dict.get(model,model),'value':model} for model in sorted_models],model_default
-
-    # Return empty options and default value if no valid data found or when any of the inputs are None
-    return [], None
-
-
-@app_inst.callback(
-    Output('model-output', 'children'),
-    Input('id-model', 'value')
-)
-def update_model_picked_comment(selected_value):
-    if selected_value is not None:
-        if selected_value == 'ARIMA':
-            return 'Autoregressive Integrated Moving Average'
-        elif selected_value == 'ARMA':
-            return 'Autoregressive Moving Average'
-        elif selected_value == 'DBL_EXP':
-            return 'Double Exponential Smoothing'
-        elif selected_value == 'SGL_EXP':
-            return 'Single Exponential Smoothing'
-        elif selected_value == 'LINEAR':
-            return 'Simple Linear'
-        elif selected_value == 'LSTM':
-            return 'Long Short-Term Memory'
-        elif selected_value == 'NEURAL_NETWORK':
-            return 'Neural Network'
-        elif selected_value == 'REPEAT':
-            return 'Repeat'
-        elif selected_value == 'LAST':
-            return 'Last'
-        elif selected_value == 'AR':
-            return 'Autoregressive'
-        elif selected_value == 'MA':
-            return 'Moving Average'
-    else:
-        return 'Please select a value'
-
-
-
-@app_inst.callback(
-    Output(component_id='id-model-mae',component_property='data'),
-    Output(component_id='id-model-mae',component_property='columns'),
-    Input(component_id='id-league',component_property='value'),
-    Input(component_id='League-Players',component_property='value')
-)
-
-def update_player_models_table(leagueid,player_slug):
-    if leagueid=='Yahoo':
-        leagueid='yahoo'
-    elif leagueid=='ESPN':
-        leagueid='espn'
-    df=model_eval_pred_df_table2_copy.copy()
-    df=df[(df['league']==leagueid) &
-            (df['slug']==player_slug)
-    ]
-    cols_to_drop=['league','slug']
-    df.drop(columns=cols_to_drop,inplace=True)
-    df['evaluation_metric_value']=df['evaluation_metric_value'].astype(float).round(2)
-    df=df.groupby('model_type').first().reset_index()
-    df=df.sort_values(by='evaluation_metric_value',ascending=True)
-
-    data=df.to_dict('records')
-    columns=[{"name":i,"id":i} for i in df.columns]
-
-    return data, columns
-
+# Fantasy Predictions (page 1) figures and callbacks live in app/predictions.py.
 
 
 ####################################################################################################
@@ -572,7 +290,7 @@ def ai_send(n_clicks, user_text, history, days_back):
             myteam_df             = myteam_df,
             my_live_espn_df       = my_live_espn_df,
             my_live_yahoo_df      = my_live_yahoo_df,
-            model_eval_pred_df    = model_eval_pred_df,
+            forecast_champion_df  = forecast_champion_df,
             injury_probabilities_df = injury_probabilities_df,
             days_back             = int(days_back or 14),
         )

@@ -19,8 +19,8 @@ import plotly.graph_objects as go
 # import matplotlib.pyplot as plt
 
 # own functions/connections
-from app.callbacks import line_plot_preds,create_data_table
 from app import team_performance as tp
+from app import predictions as pr
 from shared.data_imports import add_new_fields, optimize_code_layouts
 
 
@@ -127,8 +127,6 @@ finally:
 
 
 fa_espn_df=dfs['fa_espn_df']
-model_eval_pred_df=dfs['model_eval_pred_df']
-next_5_players_df=dfs['next_5_players_df']
 
 fa_df=fa_espn_df[fa_espn_df['current_season_vs_historicals']=='current_season_only'].copy()
 fa_df=add_new_fields(fa_df)
@@ -167,12 +165,6 @@ def player_stats():
     return fig
 
 
-model_eval_pred_df_copy=model_eval_pred_df[['day','predictions']].copy()
-merged_table_1=pd.merge(model_eval_pred_df,next_5_players_df,on=['slug','day'],how='inner')
-merged_table_1=merged_table_1[['day','opponent_location','predictions','league','slug','model_type']]
-
-
-model_eval_pred_df_table2_copy=model_eval_pred_df[['league','slug','model_type','p','d','q','alpha','beta','evaluation_metric','evaluation_metric_value']].copy()
 
 
 
@@ -396,134 +388,15 @@ table_title_font_color={
 ####################################################################################################
 
 
-id_league_dropdown_options=[
-    {'label':'ESPN','value':'ESPN'},
-    {'label':'Yahoo','value':'Yahoo'}
-]
-id_league_default_value='ESPN'
-
-
+# Draft A: league / player / models / history filters, the forecast chart, next-5 table,
+# model scoreboard and fitted-parameter cards. Figures, data and callbacks live in app/predictions.py.
 page1=html.Div([
-
-    #####################
-    #Row 1 : Header
     get_header(),
-
-    #####################
-    #Row 2 : Nav bar
     get_navbar('page1'),
-
-    #####################
-    #Row 3 : Filters
-    html.Div([ # External row
-        html.Div([ # External 12-column
-            html.Div([ # Internal row
-                ######################################################################################## 
-                #Filter pt 1
-                html.Div([
-                    html.Div([
-                        html.H5(
-                            children='League:',
-                            style={'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
-                        ),
-                        #Date range picker
-                        html.Div([#'Focus Field: ',
-                            dcc.Dropdown(id='id-league',
-                                    options=id_league_dropdown_options,
-                                              value=id_league_default_value
-                                ),
-                        ], style={'margin-top' : '5px'}
-                        )
-                    ],
-                    style={'margin-top' : '10px',
-                            'margin-bottom' : '5px',
-                            'text-align' : 'left',
-                            'paddingLeft': 5})
-
-                ],
-                className='col-4'), # Filter part 1
-                ########################################################################################
-                # Filter pt 2
-                html.Div([
-                    html.Div([
-                        html.H5(
-                            children='Team Players:',
-                            style={'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
-                        ),
-                        html.Div([
-                            dcc.Dropdown(
-                                id='League-Players'
-                            ),
-                            html.Div(id='output'),
-                        ], style={'margin-top' : '5px','color' : corporate_colors['superdark-green']}
-                        ),
-                    ],
-                    style={'margin-top' : '10px',
-                            'margin-bottom' : '5px',
-                            'text-align' : 'left',
-                            'paddingLeft': 5})
-                ],className='col-4'), #Filter pt 2
-
-                ########################################################################################
-
-                # Filter pt 3
-                html.Div([
-                    html.Div([
-                        html.H5(
-                            children='Model:',
-                            style={'text-align' : 'left', 'color' : corporate_colors['medium-blue-grey']}
-                        ),
-                        html.Div([
-                            dcc.Dropdown(
-                                id='id-model'
-                            ),
-                            html.Div(id='model-output'),
-                        ], style={'margin-top' : '5px', 'color' : corporate_colors['superdark-green']}
-                        ),
-                    ],
-                    style={'margin-top' : '10px',
-                            'margin-bottom' : '5px',
-                            'text-align' : 'left',
-                            'paddingLeft': 5})
-                ],className='col-4'), #Filter pt 3
-
-                ########################################################################################          
-
-                html.Div([
-                ],className='col-2') # Blank 2 columns
-            ],className='row') # Internal row
-        ],className='col-12',
-        style=filterdiv_borderstyling) # External 12-column
-    ],className='row sticky-top'), # External row
-
-    #####################
-    #Row 4
+    pr.filter_bar(filterdiv_borderstyling),
     get_emptyrow(),
-
-    #####################
-    #Row 5 : Charts
-    html.Div([ # External row
-        html.Div([],className='col-1'), # Blank 1 column
-        html.Div([
-            html.Div([ # Internal row 1
-                html.Div([
-                    dcc.Graph(id='preds-line',figure=line_plot_preds(),config=config)
-                ])
-            ]),
-        ],className='row'),
-        # Injured Players table and title
-        html.Div([
-            html.H5("Predictions Table",
-                style={'color': corporate_colors['white']}),
-            html.Div([ 
-                    create_data_table(df=merged_table_1,table_id='id-preds-table',columns=merged_table_1.columns)
-                ],className='col-6',style={'overflowX':'auto'}),
-            html.Div([
-                    create_data_table(df=model_eval_pred_df_table2_copy,table_id='id-model-mae',columns=model_eval_pred_df_table2_copy.columns)
-                ],className='col-6',style={'overflowX':'auto'})
-        ],className='row'),
-    ],className='container'),
-# ── AI Assistant promo section ─────────────────────────────────────
+    pr.body(),
+    # ── AI Assistant promo section ─────────────────────────────────────
         html.Div(
             [
                 html.Div([], className="col-1"),

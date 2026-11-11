@@ -689,3 +689,22 @@ input[type="number"]:focus,
   .tp-container { padding: 0 12px 30px; }
   .tp-control .dash-dropdown { min-width: 160px; }
 }
+
+
+/* --------------------------------------------------------------------------
+   Fantasy Predictions (page 1, app/predictions.py) — Draft A; reuses the tp- cards/tables
+   -------------------------------------------------------------------------- */
+.pr-muted { color: var(--text-muted) !important; }
+.pr-amber { color: #f5a623 !important; font-weight: 600; }
+.pr-up    { color: var(--positive) !important; }
+.pr-down  { color: var(--negative) !important; }
+.pr-foot  { color: var(--text-muted); font-size: 0.75rem; margin-top: 8px; }
+.pr-board td, .pr-board th { text-align: right; }
+.pr-board th:first-child, .pr-board td:first-child { text-align: left; }
+.pr-spark { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 1px; color: var(--text-secondary) !important; }
+.pr-champ-row td { background: rgba(0, 188, 140, 0.12); }
+.pr-champ-name { color: #00bc8c !important; font-weight: 600; }
+.pr-kv { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; border-bottom: 1px solid var(--border-light); font-size: 0.84rem; }
+.pr-k  { color: var(--text-muted); }
+.pr-v  { color: var(--text-primary); font-variant-numeric: tabular-nums; text-align: right; }
+.pr-reason { color: #00bc8c; font-size: 0.78rem; margin-top: 8px; line-height: 1.4; }

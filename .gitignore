@@ -35,3 +35,6 @@ notebooks/2017_2018_advanced_player_season_totals.csv
 data/
 mockups/
 sql_files/migrations/
+
+# local MLflow tracking store + artifacts (pipeline/points_forecast.py)
+mlflow/
