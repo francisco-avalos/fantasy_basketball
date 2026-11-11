@@ -142,7 +142,7 @@ connection config for this to work.
 | `historicals.py` | basketball-reference box scores | `historical_player_data` |
 | `my_team_stats.py` | ESPN + Yahoo rosters, bbref per-player season game logs | `live_espn_players`, `live_yahoo_players`, then `my_team_stats`, `my_team_stats_yahoo` (Yahoo half behind `YAHOO_ENABLED`) |
 | `free_agents_yahoo_basketball.py` | Yahoo free agents + waivers | `live_free_agents_yahoo` |
-| `free_agents_backfill.py` | ESPN FA history | `live_free_agents` |
+| `free_agents_backfill.py` | ESPN FA list (`league.free_agents`) → slugs via `master_names_list_temp` → this season's rows of `historical_player_data` (run `historicals` first) | `live_free_agents` |
 | `espn_player_positions.py` | ESPN | `espn_player_positions` |
 | `high_level_nba_team_stats.py` / `_schedules.py` | bbref | `high_level_nba_team_stats`, `high_level_nba_team_schedules` |
 | `injured_report.py` | requests + BeautifulSoup | `injured_player_news`, `injured_player_news_yh` |
@@ -509,6 +509,20 @@ Each of these costs real time. Do not rediscover them.
   seasons with `season_calendar.season_label(day)`. **Any loader fed by the scraper should
   name its columns.** Also: `historicals.py` runs its ingest at import time, so never
   `import pipeline.historicals` to check it. Parse it with `ast` instead.
+- **`free_agents_backfill.py` no longer scrapes per player.** It used to call
+  `regular_season_player_box_scores` once per ESPN free agent with a 4 s sleep (~700 requests,
+  ~50 min). Those games are already in `historical_player_data`, so it now runs one query (~3 s)
+  and replaces `live_free_agents` with `DELETE` + `INSERT` in one transaction (`--dry-run` skips the
+  write). The per-player scrape was also **silently returning 0 games for some players** (e.g.
+  `drumman01` on 2026-11-10, with 9 games in the daily box scores), so ~36 free agents were missing.
+  Trade-offs: a stat bbref corrects after `historicals.py` loaded that day isn't picked up, and
+  `plus_minus` is NULL. **Names match this season's box-score names first** (`shared.my_functions.name_key`:
+  accents, case, punctuation, Jr./II ignored), then a unique same-last-name nickname (Ron / Ronald), then
+  the old `master_names_list_temp` substring rule. The crosswalk alone missed rookies and suffixed or
+  accented names (46 free agents with games on 2026-11-10) and had wrong slugs (Taylor Hendricks listed
+  as `hendrita01`; his games are `hendrta01`). Names that still match nothing, mostly retired players
+  ESPN keeps listing, land in `tmp_data/non_shows_list.csv`. `name_key` has older copies in
+  `my_team_stats.py`, `injury_mapping.py` and `team_performance.py`.
 - **Basketball-reference rate-limits hard.** Scripts carry `time.sleep(4)` between
   requests; the comments in `advanced_stats.py` record the measured ceiling
   (~20 requests/min is where blocking starts). Don't lower the delays.
@@ -524,7 +538,7 @@ Each of these costs real time. Do not rediscover them.
   resumes there. An empty no-game day still surfaces as `KeyError: 'team'` (empty
   frame) and is skipped, which is correct. (`my_team_stats.py` no longer
   day-loops; it rebuilds per player, see above.) Other day-loops
-  (`historicals.py`, `free_agents_backfill.py`, …) have not been checked for the
+  (`historicals.py`, …) have not been checked for the
   same hazard. **To backfill a hole**, uncomment the
   `last_data_date='YYYY-MM-DD'` override in the script's `else` branch and set it
   to the day before the gap. Re-loading days that already loaded is safe wherever

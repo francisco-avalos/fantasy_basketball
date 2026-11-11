@@ -6,6 +6,7 @@ import time
 import os
 import re
 from bs4 import BeautifulSoup
+from unidecode import unidecode
 
 
 '''My functions'''
@@ -65,6 +66,15 @@ def remove_jr(item):
 	item=item.replace('IV','')
 	item=item.replace('Sr.','')
 	return item
+
+def name_key(name):
+	"""Loose key for matching player names across ESPN, Yahoo and basketball-reference:
+	accents, case, periods, apostrophes, hyphens and Jr./Sr./II/III/IV/V ignored.
+	'Mikel Brown Jr.' == 'Mikel Brown', 'AJ Green' == 'A.J. Green', 'Nikola Jokić' == 'Nikola Jokic'."""
+	s = unidecode(str(name)).lower()
+	s = re.sub(r"[.'`\u2019,]", '', s).replace('-', ' ')
+	return ' '.join(t for t in s.split() if t not in {'jr', 'sr', 'ii', 'iii', 'iv', 'v'})
+
 
 def remove_name_suffixes(item):
 	item=str(item)
