@@ -127,6 +127,19 @@ any directory. It used to call bare filenames (`'advanced_stats.py'`), which fai
 `chime` sound, and `call()` returns an exit code without raising, so **a script that fails
 still prints "Finished executing"** — read each script's own output.
 
+After either list it runs the **injury chain** (`run_injury_chain()`), with exit codes checked:
+`historical_basketball_injury_data_updated` in `basketball-prosports-vclaude-env` (its interpreter
+is found next to the current env), then `injury_mapping`, then `injury_probabilities_basketball` if
+the date in `tmp_data/injury_probabilities_last_run.txt` is 30+ days old (written on success; delete
+it to force a refit). It opens Docker Desktop (`open -g -a Docker`) and `docker start unflare` when
+port 5002 isn't answering, and stops/quits whichever of the two it started. A failed scrape skips
+the later steps. Run `run_scripts.py` itself in `basketball-env-useme-v11052026`.
+⚠️ **An open port 5002 doesn't mean Unflare is ready.** Docker accepts connections as soon as the
+container starts, ~1 s before the Node server inside listens, and those requests are reset.
+`pro_sports_transactions` logs the reset (`Unflare request failed: [Errno 54]`) but returns an
+**empty page instead of raising**, so the scrape's pre-flight fails with "no rows".
+`unflare_ready()` therefore waits for an actual HTTP response.
+
 ---
 
 ## The pipeline
