@@ -239,7 +239,7 @@ def scoreboard(slug):
         is_c = x['champion'] == 1
         base = x['family'] == 'baseline'
         name = ('★ ' if is_c else '') + x['label'] + (' · baseline' if base else '') + \
-            (' · ML' if x['family'] == 'ml' else '')
+            (' · ML' if x['family'] == 'ml' else ' · DL' if x['family'] == 'dl' else '')
         lv = live.loc[x['model']] if not live.empty and x['model'] in live.index else None
         live_txt = f"{lv['live_mae']:.2f} ({int(lv['n_scored'])})" if lv is not None else '–'
         skill = x['skill']
@@ -267,7 +267,10 @@ PARAM_NAMES = {'alpha': 'alpha (level)', 'beta': 'beta (trend)', 'phi': 'phi (da
                'sigma2.level': 'level var', 'signal_to_noise': 'signal / noise', 'proj_minutes': 'projected minutes',
                'pts_per_min': 'pts / min used', 'recent_ppm': 'recent pts / min', 'long_run_ppm': 'long-run pts / min',
                'group_ppm': 'position pts / min', 'kappa_minutes': 'prior weight (min)', 'games': 'games this season',
-               'window': 'window (games)', 'positions': 'position models'}
+               'window': 'window (games)', 'positions': 'position models',
+               'top_encoder': 'history inputs (top 3)', 'top_decoder': 'matchup inputs (top 3)',
+               'cov80_own_range': 'own 80% range coverage', 'range': '80% range from', 'trained': 'trained on',
+               'backtest_cutoff': 'backtest model trained to'}
 
 
 def _fmt(v):
@@ -291,7 +294,8 @@ def param_cards(slug, models):
             prm = json.loads(r['params'] or '{}')
         except ValueError:
             prm = {}
-        items = [(PARAM_NAMES.get(k, k.replace('_val_mae', ' model val MAE')), _fmt(v)) for k, v in prm.items()]
+        items = [(PARAM_NAMES.get(k, k.replace('_val_mae', ' model val MAE')),
+                  f'{v:.0%}' if k == 'cov80_own_range' and isinstance(v, float) else _fmt(v)) for k, v in prm.items()]
         if pd.notna(r['aicc']):
             items.append(('AICc', f"{r['aicc']:.1f}"))
         if pd.notna(r['ljung_box_p']):
@@ -343,7 +347,7 @@ def body():
         ], className='row'),
         _section('Fitted parameters', 'Final fit on all games for the champion and every model selected above'),
         html.Div(id='pr-params'),
-        html.Div(f'Latest run {RUN_DATE} · pipeline/points_forecast.py · runs and XGBoost models tracked in MLflow',
+        html.Div(f'Latest run {RUN_DATE} · pipeline/points_forecast.py · runs and XGBoost / TFT / DeepAR models tracked in MLflow',
                  className='pr-foot', style={'marginTop': '8px'}),
     ], className='tp-container')
 

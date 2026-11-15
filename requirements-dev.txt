@@ -28,6 +28,9 @@ numexpr==2.8.7
 # Forecasting
 xgboost==2.1.4        # macOS arm64 needs libomp.dylib: env lib/ has a symlink to sklearn/.dylibs/libomp.dylib
 mlflow==2.22.5        # local tracking store in mlflow/ (pipeline/points_forecast.py); keep protobuf==4.21.12 for mysql-connector
+torch==2.8.0          # TFT + DeepAR (pipeline/deep_models.py); CPU training, MPS was >10x slower
+lightning==2.6.0
+pytorch-forecasting==1.4.0
 prophet==1.1.5
 cmdstanpy==1.2.0
 holidays==0.35

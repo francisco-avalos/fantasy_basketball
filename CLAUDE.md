@@ -272,12 +272,15 @@ gaps don't get baked in silently.
 ### The model stack (points forecasting)
 
 ```
-pipeline/forecast_models.py   features, 13 models, rolling-origin backtest, champion rules
-pipeline/points_forecast.py   the runner: MySQL in, MySQL + MLflow out (~80 s for both rosters)
+pipeline/forecast_models.py   features, 15 models, rolling-origin backtest, champion rules
+pipeline/deep_models.py       TFT + DeepAR per position (pytorch-forecasting), weekly-cached models
+pipeline/points_forecast.py   the runner: MySQL in, MySQL + MLflow out (a few min on cached deep models,
+                              ~1.5 h on a week's retrain day)
 ```
 
 Run in `basketball-env-useme-v11052026`, after `pipeline.historicals`:
-`python -m pipeline.points_forecast` (`--dry-run`, `--no-mlflow`, `--players slug,slug`).
+`python -m pipeline.points_forecast` (`--dry-run`, `--no-mlflow`, `--players slug,slug`,
+`--deep auto|retrain|load|skip`).
 Needs `sql_files/migrations/2026-11-11_points_forecasts.sql` (run 2026-11-11). `run_scripts.py` runs it
 right after `historicals.py` in both lists (it needs last night's box scores and the rosters `my_team_stats` just refreshed).
 
@@ -290,6 +293,15 @@ right after `historicals.py` in both lists (it needs last night's box scores and
   XGBoost per position group (PG/SG/SF/PF/C from ESPN eligibility; a player is in every group they're
   eligible for), trained on every eligible player's games since 3 seasons ago, direct multi-horizon (h is
   a feature), `reg:absoluteerror`. A multi-position player gets the mean of their groups' models.
+  DL **TFT** (quantile loss 10/50/90, median = point forecast) and **DEEPAR** (negative binomial, 200
+  sample paths), one of each per position group, same segmentation, same cutoffs and origins as XGB.
+  One step = one game played; up to 30 games of history per window; slug is a static embedding.
+  Decoder (known) inputs: home, rest, b2b, opp_def, opp_pace, `min_lag5` (minutes EWM through the game
+  5 before the target, so no future minutes leak). TFT's encoder also sees minutes, FGA/FTA/3PA, usage,
+  days since last game; DeepAR can only observe the target (its RNN needs identical encoder/decoder inputs).
+  Target scale is per window, from its own history (`FlooredEncoderNormalizer`: TFT mean/std, DeepAR
+  mean only, floored at 1 point). The SPEC-1 per-player `GroupNormalizer` froze each player's level at
+  training time and lost the backtest to XGB by 0.35 pts while matching it on validation.
 - **Inputs:** projected minutes (EWM through the previous game), home, team rest days (capped at 4),
   back-to-back, opponent points allowed and pace over its last 15 games relative to the 30-day league
   average. Opponent form is taken **as of the origin** in XGB rows; the per-player ARIMAX/NEGBIN
@@ -297,24 +309,46 @@ right after `historicals.py` in both lists (it needs last night's box scores and
 - **Series:** regular-season games only (`season_calendar.is_in_season`), since last season's start
   (the whole 3-season window if fewer than 30 games).
 - **Backtest:** the last 20 (+4 partial) games are origins; every statistical model is refit at each.
-  XGB's backtest model is trained only on targets before the earliest origin of any rostered player.
+  XGB / TFT / DeepAR backtest models train only on targets on or before a cutoff. A player's safe cutoff
+  is the last game before their first origin (`player_cutoff`). One roster-wide cutoff (the earliest) was
+  2025-10-24 on 2026-11-12, set by a long-injured player, against a median of 2026-03-10, so most players
+  were scored by models 4–12 months stale. Now `backtest_cutoffs` picks up to `N_CUTOFFS = 3` cutoffs
+  minimising total staleness in **in-season** days (exact DP), and each player uses the newest one at or
+  before their own (`newest_cutoff`): mean staleness 117 → 15 in-season days. Each model's
+  `params.backtest_cutoff` shows which one scored the player.
 - **Champion:** the roster default is the best mean skill (1 − MAE/naive MAE) across players; a player
   switches to their own best model only if a Diebold-Mariano test (Newey-West, H−1 lags) beats the
   default at p < 0.10 / (number of challengers) — Bonferroni, because their best is the minimum of all
   of them. Without it 12 of 32 players "switched"; with it, 1.
 - **80% range:** 10th/90th percentile of the model's own signed backtest errors (all horizons pooled;
-  the roster's pooled errors when a player has fewer than 15).
+  the roster's pooled errors when a player has fewer than 15). TFT / DeepAR use their own 10/90
+  quantiles instead when those cover 70–90% of the roster's backtest actuals (else the error range).
 - **Forecast log:** `points_forecasts` keeps every run (`DELETE` + `INSERT` for today's `run_date` only),
   so the page's "Live MAE" joins it to `historical_player_data` on `(slug, game_date)`.
 - **MLflow:** `mlflow/mlflow.db` (SQLite) + `mlflow/artifacts/` (gitignored). One parent run per
   execution, nested runs per player (metrics per model, params JSON) and per position model; the five
-  XGBoost models are registered as `points_xgb_<POS>`. Browse with
+  XGBoost models are registered as `points_xgb_<POS>`; TFT / DeepAR as `points_tft_<POS>` /
+  `points_deepar_<POS>`, only on runs that retrained them. Browse with
   `mlflow ui --backend-store-uri sqlite:///mlflow/mlflow.db`. Statistical models are **not** pickled:
   they refit in milliseconds, so only their parameters are stored (`model_runs.params`).
 - ⚠️ xgboost on this arm64 env needs `libomp.dylib`; the base conda is osx-64 and can't install
   `llvm-openmp`, so `<env>/lib/libomp.dylib` is a symlink to `sklearn/.dylibs/libomp.dylib`. Installing
   mlflow bumped `protobuf` past mysql-connector 8.1.0's pin; it's back at 4.21.12 (pip warns about
   databricks-sdk, which only the Databricks backend uses).
+- **Deep-model cache:** `mlflow/deep_cache/{tft,deepar}_<POS>_{final,backtest0,backtest1,backtest2}.ckpt`
+  + `.json` metadata (`backtest<k>` = cutoff slot k). `--deep auto` reuses a checkpoint until it is 7 days
+  old or `deep_models.SPEC` changes; a backtest slot is also retrained if the cutoff it was trained to is
+  later than that slot's cutoff today (a roster change can move cutoffs back), which would leak scored
+  games. A retrain day is ~1.5 h (3 backtest models + 1 final per position and type). Bump `SPEC` whenever inputs or
+  architecture change. Training is CPU (`accelerator='cpu'`): MPS was >10× slower.
+- ⚠️ **pytorch-forecasting gotchas** (1.4.0 / torch 2.8 / lightning 2.6, pip-installed into the env
+  without touching pandas 1.3.5): `predict(trainer_kwargs=d)` `setdefault`s its callback **into `d`**,
+  so reusing one dict makes every later call return a list; pass a fresh copy. torch ≥ 2.6 loads
+  checkpoints `weights_only=True` and rejects the pickled loss; our own checkpoints load with
+  `weights_only=False`. `GroupNormalizer(groups=…)` must name columns that are in `group_ids` (why
+  `group_ids=['slug', 'series']`; backtest windows are pseudo-series `slug|k`). `EncoderNormalizer(center=False)`
+  divides by the history mean with **no epsilon**, and the `softplus` transformation maps 0 points to
+  log(eps) ≈ −16, hence the floored subclass and no transformation.
 
 **Retired 2026-11-11:** `base_model.py`, `machine_learning_models.py`, `model_pooling.py` and
 `my_time_series.py` were moved to `archived/pipeline/` (gitignored, local copy only). The tables they fed

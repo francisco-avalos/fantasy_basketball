@@ -12,6 +12,7 @@ Models (MODELS below)
                  and the position average)
     ml           XGB: one XGBoost model per position group (PG/SG/SF/PF/C), trained on every
                  eligible player's games with lag features, direct multi-horizon (h is a feature)
+    dl           TFT, DEEPAR: one of each per position group, in pipeline/deep_models.py
 
 Inputs used by ARIMAX / NEGBIN / XGB (all known before tip-off)
     min_proj   projected minutes: EWM of the player's minutes through the previous game
@@ -22,8 +23,12 @@ Inputs used by ARIMAX / NEGBIN / XGB (all known before tip-off)
 Backtest
     For each player, the last N_ORIGINS(+H-1) games are origins. At origin o every model is
     refit on games [0, o) and forecasts games o..o+4. Errors are in points, signed actual-pred.
-    XGB is trained once with a cutoff before the earliest origin of any rostered player, so it
-    never sees a target it is scored on.
+    XGB / TFT / DeepAR backtest models train only on targets on or before a cutoff. A player's own safe
+    cutoff is the last game before their first origin. One cutoff for the whole roster would be the
+    earliest of those (a long-injured player's, 2025-10-24 on 2026-11-12, against a median of
+    2026-03-10), so up to N_CUTOFFS cutoffs are picked to minimise total staleness
+    (backtest_cutoffs) and each player is scored by the model with the newest cutoff that is still safe
+    for them (newest_cutoff). No player is ever scored on a game their model trained on.
 
 Champion
     The roster default is the model with the best mean skill (1 - MAE/naive MAE) across players.
@@ -45,6 +50,8 @@ from statsmodels.tsa.forecasting.theta import ThetaModel
 from statsmodels.tsa.stattools import kpss
 from statsmodels.stats.diagnostic import acorr_ljungbox
 
+from shared import season_calendar
+
 warnings.filterwarnings('ignore')
 
 H = 5                    # forecast horizon: the team's next 5 games
@@ -54,6 +61,7 @@ DM_ALPHA, DM_MIN_ORIGINS = 0.10, 8
 EXOG = ['min_proj', 'home', 'b2b', 'opp_def', 'opp_pace']
 POSITIONS = ['PG', 'SG', 'SF', 'PF', 'C']
 REST_CAP = 4
+N_CUTOFFS = 3            # backtest-model cutoffs for the ML / DL models (each costs one more backtest fit)
 
 MODELS = {   # key: (label, family)
     'NAIVE': ('Naive (last game)', 'baseline'),
@@ -69,6 +77,8 @@ MODELS = {   # key: (label, family)
     'MIN_X_PPM': ('Minutes x pts/min', 'statistical'),
     'MIN_X_PPM_EB': ('Minutes x pts/min, shrunk', 'statistical'),
     'XGB': ('XGBoost by position', 'ml'),
+    'TFT': ('Temporal Fusion Transformer', 'dl'),      # pipeline/deep_models.py
+    'DEEPAR': ('DeepAR (neg. binomial)', 'dl'),
 }
 
 
@@ -441,6 +451,42 @@ def _clean(d):
             v = None
         out[k] = v
     return out
+
+
+def player_cutoff(df):
+    """Latest training cutoff that is safe for this player: the date of the last game before their first
+    backtest origin (None without origins)."""
+    o = origins_for(len(df))
+    return df['date'].iloc[o[0] - 1] if o else None
+
+
+def backtest_cutoffs(needed, k=N_CUTOFFS):
+    """Per-player safe cutoffs -> at most k cutoffs, chosen so that sum over players of (own cutoff - cutoff
+    used) in in-season days is minimal when each uses the newest cutoff at or before their own. Exact: dynamic
+    programming over the sorted distinct dates; a segment's cutoff is its earliest date."""
+    dates = pd.Series(pd.to_datetime([d for d in needed if d is not None]))
+    if dates.empty:
+        return []
+    cnt = dates.value_counts().sort_index()
+    u, w = cnt.index, cnt.values
+    m, k = len(u), min(k, len(u))
+    day = np.asarray(season_calendar.clock(u), dtype=float)      # in-season days: the offseason has no games
+
+    def cost(i, j):          # players with dates u[i..j], all using u[i]
+        return float(np.sum(w[i:j + 1] * (day[i:j + 1] - day[i])))
+    best = {(0, j): (cost(0, j), [0]) for j in range(m)}           # (segments - 1, last index) -> (cost, starts)
+    for t in range(1, k):
+        for j in range(t, m):
+            best[(t, j)] = min((best[(t - 1, i - 1)][0] + cost(i, j), best[(t - 1, i - 1)][1] + [i])
+                               for i in range(t, j + 1))
+    _, starts = min(best[(t, m - 1)] for t in range(k))
+    return [u[i] for i in starts]
+
+
+def newest_cutoff(own, cutoffs):
+    """The newest of `cutoffs` at or before this player's own safe cutoff (None if there is none)."""
+    ok = [c for c in cutoffs if c is not None and own is not None and pd.Timestamp(c) <= pd.Timestamp(own)]
+    return max(ok) if ok else None
 
 
 ####################################################################################################

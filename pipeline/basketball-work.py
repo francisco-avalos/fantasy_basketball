@@ -294,13 +294,13 @@ pd.set_option('display.max_rows', None)
 
 
 # yahoo access 
-# sc=OAuth2(None,None,from_file='oauth2.json')
-# gm=yfa.Game(sc, 'nba')
-# # league_id=gm.league_ids(year=2025)
-# # lg=gm.to_league('454.l.6397')
-# # tk=lg.free_agents('PG')
-# # tk_df=pd.DataFrame(tk)
-# # print(tk_df.head(20))
+sc=OAuth2(None,None,from_file='oauth2.json')
+gm=yfa.Game(sc, 'nba')
+league_id=gm.league_ids(year=2026)
+# lg=gm.to_league('454.l.6397')
+# tk=lg.free_agents('PG')
+# tk_df=pd.DataFrame(tk)
+# print(tk_df.head(20))
 
 # leagues=gm.league_ids()
 # HHU_league=leagues[-1]

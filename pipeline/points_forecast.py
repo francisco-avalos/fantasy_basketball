@@ -10,9 +10,12 @@ Steps
     2. Build team rest, opponent defence/pace (rolling, as of each date) and per-game inputs.
     3. Per rostered player: rolling-origin backtest of every statistical model, then a final fit and
        a forecast of the team's next 5 games (parallel across players).
-    4. XGBoost per position group (PG/SG/SF/PF/C): a backtest model trained before the earliest
-       origin, and a final model on everything (logged + registered in MLflow).
-    5. Roster default model, per-player champion (Diebold-Mariano), 80% ranges from backtest errors.
+    4. XGBoost per position group (PG/SG/SF/PF/C): backtest models at up to 3 cutoffs (each player scored
+       by the newest one that is safe for them), and a final model on everything (logged + registered).
+    4b. TFT and DeepAR per position group (pipeline/deep_models.py), same cutoffs and origins. Their
+       models are cached in mlflow/deep_cache/ and retrained weekly; other days they only predict.
+    5. Roster default model, per-player champion (Diebold-Mariano), 80% ranges: backtest errors, or
+       TFT / DeepAR's own quantiles when those cover 70-90% of backtest actuals.
     6. Write this run's rows (DELETE + INSERT for today's run_date, one transaction) and log to MLflow.
 
 Needs sql_files/migrations/2026-11-11_points_forecasts.sql run once. Run pipeline.historicals first
@@ -22,6 +25,7 @@ Run from the repo root, in basketball-env-useme-v11052026:
     python -m pipeline.points_forecast                    # full run
     python -m pipeline.points_forecast --dry-run          # no DB writes, no MLflow
     python -m pipeline.points_forecast --players brownja02,adebaba01 --dry-run
+    python -m pipeline.points_forecast --deep retrain     # force TFT/DeepAR retraining (~1 h); --deep skip leaves them out
     mlflow ui --backend-store-uri sqlite:///mlflow/mlflow.db     # browse runs at http://127.0.0.1:5000
 """
 import argparse
@@ -172,14 +176,13 @@ def player_frame(pg, slug, stat_start):
 # 003 - XGBOOST BY POSITION
 ####################################################################################################
 
-def xgb_backtest_and_fit(pg, feats, ratings, groups, roster_frames, roster_groups, fut_by_slug, log):
+def xgb_backtest_and_fit(pg, feats, ratings, groups, roster_frames, roster_groups, fut_by_slug, needed, cutoffs,
+                         log):
+    """Per position: one backtest model per cutoff in use (each player scored by the newest one that is safe
+    for them, see forecast_models.backtest_cutoffs) and a final model on everything."""
     rows = fm.xgb_training_rows(pg, feats, ratings)
     rows = rows[np.isfinite(rows['days_ahead'])]
-    # cutoff: before the earliest backtest origin of any rostered player, so no scored target is trained on
-    first_origin_dates = [df['date'].iloc[fm.origins_for(len(df))[0] - 1] for df in roster_frames.values()
-                          if fm.origins_for(len(df))]
-    cutoff = min(first_origin_dates)
-    log(f'XGB: {len(rows):,} training rows; backtest cutoff {cutoff.date()}')
+    log(f'XGB: {len(rows):,} training rows; backtest cutoffs {", ".join(str(c.date()) for c in cutoffs)}')
     last_feat = feats.groupby(pg['slug']).tail(1).assign(slug=pg['slug'])
     last_feat = last_feat.set_index('slug')
 
@@ -192,16 +195,18 @@ def xgb_backtest_and_fit(pg, feats, ratings, groups, roster_frames, roster_group
             log(f'  {pos}: only {len(grp)} rows, skipped')
             continue
         t0 = time.time()
-        bt_model, _ = fm.fit_xgb(grp[grp['target_date'] <= cutoff])
+        bt_models = {c: fm.fit_xgb(grp[grp['target_date'] <= c])[0]
+                     for c in {fm.newest_cutoff(needed.get(s), cutoffs) for s in need} - {None}}
         model, info = fm.fit_xgb(grp)
-        info.update(n_players=len(members), backtest_cutoff=str(cutoff.date()))
+        info.update(n_players=len(members), backtest_cutoffs=','.join(str(c.date()) for c in sorted(bt_models)))
         models[pos], infos[pos] = model, info
         log(f'  {pos}: {len(members)} players, {info["n_train"]:,} rows, val MAE {info["val_mae"]:.2f}, '
             f'{time.time() - t0:.0f}s')
         for slug in need:
             df = roster_frames[slug]
             origins = fm.origins_for(len(df))
-            if origins:
+            bt_model = bt_models.get(fm.newest_cutoff(needed.get(slug), cutoffs))
+            if origins and bt_model is not None:
                 o_dates = df['date'].iloc[[o - 1 for o in origins]].values
                 ev = rows[(rows['slug'] == slug) & rows['origin_date'].isin(o_dates)]
                 if not ev.empty:
@@ -241,7 +246,30 @@ def mlflow_setup():
     return mlflow
 
 
-def log_mlflow(today, summary, xgb_models, xgb_infos, runs, forecasts, player_meta):
+def log_deep(mlflow, deep_fitted):
+    """One nested run per TFT / DeepAR position model. A model trained in this run is also logged and
+    registered (points_tft_PG, …); a cached one only logs its training metadata."""
+    from pipeline import deep_models as dm
+    import mlflow.pytorch
+    for kind, by_pos in deep_fitted.items():
+        for pos, (model, meta) in by_pos.items():
+            with mlflow.start_run(run_name=f'{kind.lower()}-{pos}', nested=True):
+                mlflow.log_params({**dm.HPARAMS[kind], **{k: v for k, v in dm.TRAIN.items()}, 'spec': dm.SPEC,
+                                   'enc_len': dm.ENC_LEN, 'known': ','.join(dm.KNOWN),
+                                   'observed': ','.join(dm.OBSERVED[kind]), 'trained': meta['trained'],
+                                   'trained_now': meta['trained_now'], 'last_game': meta.get('last_game')})
+                mlflow.log_metrics({k: float(v) for k, v in meta.items()
+                                    if isinstance(v, (int, float)) and not isinstance(v, bool)})
+                if meta['trained_now']:
+                    try:
+                        mlflow.pytorch.log_model(model, artifact_path='model',
+                                                 registered_model_name=f'points_{kind.lower()}_{pos}')
+                    except Exception as e:                      # keep the checkpoint at least
+                        print(f'{kind} {pos}: MLflow log_model failed ({type(e).__name__}: {e}); logging the checkpoint')
+                        mlflow.log_artifact(str(dm.CACHE_DIR / f'{kind.lower()}_{pos}_final.ckpt'))
+
+
+def log_mlflow(today, summary, xgb_models, xgb_infos, runs, forecasts, player_meta, deep_fitted=None):
     mlflow = mlflow_setup()
     import mlflow.xgboost
     run_ids = {}
@@ -262,6 +290,8 @@ def log_mlflow(today, summary, xgb_models, xgb_infos, runs, forecasts, player_me
                 imp = dict(zip(fm.XGB_FEATS, map(float, model.feature_importances_)))
                 mlflow.log_dict(dict(sorted(imp.items(), key=lambda kv: -kv[1])), 'feature_importance.json')
                 mlflow.xgboost.log_model(model, artifact_path='model', registered_model_name=f'points_xgb_{pos}')
+        if deep_fitted:
+            log_deep(mlflow, deep_fitted)
         for slug, g in runs.groupby('slug'):
             with mlflow.start_run(run_name=f'{player_meta.get(slug, slug)} ({slug})', nested=True) as r:
                 champ = g.loc[g['champion'] == 1, 'model']
@@ -309,6 +339,9 @@ def main():
     ap.add_argument('--no-mlflow', action='store_true')
     ap.add_argument('--players', help='comma-separated slugs (default: both rosters)')
     ap.add_argument('--jobs', type=int, default=-1, help='parallel workers for the per-player backtests')
+    ap.add_argument('--deep', choices=['auto', 'retrain', 'load', 'skip'], default='auto',
+                    help='TFT/DeepAR: auto = reuse cached models younger than a week; retrain = always; '
+                         'load = reuse any cached model (still retrains on a leak); skip = leave them out')
     args = ap.parse_args()
 
     t_start = time.time()
@@ -363,16 +396,43 @@ def main():
         log('statistical backtests done')
 
         feats = fm.origin_features(pg)
+        needed = {s: fm.player_cutoff(df) for s, df in frames.items()}      # each player's latest safe cutoff
+        cutoffs = fm.backtest_cutoffs(needed.values())
+        assigned = {s: fm.newest_cutoff(c, cutoffs) for s, c in needed.items()}
         xgb_err, xgb_fc, xgb_models, xgb_infos = xgb_backtest_and_fit(
-            pg, feats, ratings, groups, frames, roster_groups, futs, log)
+            pg, feats, ratings, groups, frames, roster_groups, futs, needed, cutoffs, log)
         for s, r in results.items():
             if s in xgb_err:
                 r['errors']['XGB'] = xgb_err[s]
             if s in xgb_fc:
                 r['forecast']['XGB'] = xgb_fc[s]
                 r['params']['XGB'] = {'positions': ','.join(sorted(roster_groups[s])),
+                                      'backtest_cutoff': str(assigned[s].date()) if assigned.get(s) is not None else None,
                                       **{f'{p}_val_mae': round(xgb_infos[p]['val_mae'], 3)
                                          for p in sorted(roster_groups[s]) if p in xgb_infos}}
+
+        deep_fitted, bands = {}, {}
+        if args.deep != 'skip':
+            from pipeline import deep_models as dm          # imports torch: only when used
+            log(f'TFT + DeepAR by position (cache {dm.CACHE_DIR}, mode {args.deep}) …')
+            deep_out, deep_fitted = dm.run(pg, groups, frames, roster_groups, futs,
+                                           {s: r['origins'] for s, r in results.items()}, needed, cutoffs,
+                                           args.deep, log)
+            for m, d in deep_out.items():
+                cov = dm.coverage(d['hits'])
+                native = 0.70 <= cov <= 0.90                     # use the model's own range only if calibrated
+                log(f'{m}: backtest coverage of its own 80% range {cov:.0%} -> '
+                    f'{"model quantiles" if native else "backtest-error range"}')
+                for s, r in results.items():
+                    if s in d['errors']:
+                        r['errors'][m] = d['errors'][s]
+                    if s in d['forecast']:
+                        r['forecast'][m] = d['forecast'][s]
+                        r['params'][m] = {**d['params'][s], 'cov80_own_range': round(cov, 3),
+                                          'range': 'model quantiles' if native else 'backtest errors'}
+                        if native:
+                            bands.setdefault(s, {})[m] = d['band'][s]
+            log('deep models done')
 
         # ---- champion + intervals ----
         tables = {}
@@ -382,7 +442,8 @@ def main():
             tables[s] = t
         default, mean_skill = fm.roster_default(tables)
         pooled = {m: np.concatenate([r['errors'][m][np.isfinite(r['errors'][m])] for r in results.values()
-                                     if m in r['errors']]) for m in fm.MODELS}
+                                     if m in r['errors']]) for m in fm.MODELS
+                  if any(m in r['errors'] for r in results.values())}
 
         fc_rows, run_rows = [], []
         for s, r in results.items():
@@ -397,13 +458,17 @@ def main():
                     continue
                 lo, hi = fm.interval(r['errors'].get(m), pooled.get(m))
                 pred = np.clip(r['forecast'][m], 0, None)
+                band = bands.get(s, {}).get(m)                   # TFT / DeepAR's own quantiles, when calibrated
                 for i, row in fut.iterrows():
+                    if i >= len(pred):
+                        break
+                    lo80, hi80 = ((band[0][i], band[1][i]) if band is not None else (pred[i] + lo, pred[i] + hi))
                     fc_rows.append({'run_date': today, 'slug': s, 'model': m, 'horizon': int(row['h']),
                                     'game_date': row['date'].date(), 'team': row['team'], 'opponent': row['opponent'],
                                     'home': int(row['home']), 'rest_days': int(row['rest']),
                                     'opp_def_rank': None if pd.isna(row['opp_def_rank']) else int(row['opp_def_rank']),
-                                    'prediction': float(pred[i]), 'lo80': max(0.0, float(pred[i] + lo)),
-                                    'hi80': float(pred[i] + hi), 'champion': int(m == champ)})
+                                    'prediction': float(pred[i]), 'lo80': max(0.0, float(lo80)),
+                                    'hi80': float(hi80), 'champion': int(m == champ)})
                 mt = t.loc[m] if m in t.index else pd.Series(dtype=float)
                 dg = r['diag'].get(m, {})
                 run_rows.append({'run_date': today, 'slug': s, 'model': m, 'label': label, 'family': family,
@@ -436,7 +501,7 @@ def main():
         if not args.no_mlflow:
             meta = dict(zip(roster['slug'], roster['name']))
             ids = log_mlflow(today, {'default': default, 'mean_skill': mean_skill}, xgb_models, xgb_infos,
-                             runs, forecasts, meta)
+                             runs, forecasts, meta, deep_fitted)
             runs['mlflow_run_id'] = runs['slug'].map(ids)
             log(f'MLflow run {ids["_parent"]} logged to {MLFLOW_DIR}')
         write(cn, today, roster_rows, forecasts, runs)
