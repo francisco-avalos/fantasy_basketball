@@ -1,0 +1,117 @@
+# The nightly data refresh, on GitHub's servers: python -m pipeline.run_scripts --list small
+# (every ETL script, points_forecast, then the injury chain), against the RDS database.
+#
+# Needs (repo Settings -> Secrets and variables -> Actions):
+#   secrets    SPORTS_DB_ADMIN_HOST, SPORTS_DB_ADMIN_USER, SPORTS_DB_ADMIN_PW, SPORTS_DB_ADMIN_PORT,
+#              LEAGUEID, ESPN_S2, SWID, ANTHROPIC_API_KEY
+#              HEROKU_API_KEY (optional: restart the dyno afterwards so the site shows the new data)
+#   variables  SEASON_YEAR, SEASON_START, SEASON_END
+#
+# State that must survive between runs (MLflow store, cached TFT/DeepAR checkpoints, the injury
+# refit stamp, the Claude note-label cache) is carried in the Actions cache, not the repo.
+name: Nightly pipeline
+
+on:
+  schedule:
+    - cron: '0 11 * * *'          # 11:00 UTC = 6 AM ET in winter (7 AM in summer); GitHub may start it late
+  workflow_dispatch:
+    inputs:
+      list:
+        description: 'small = skip the Yahoo free-agent script, full = include it'
+        type: choice
+        options: [small, full]
+        default: small
+
+concurrency:
+  group: nightly-pipeline
+  cancel-in-progress: false        # never two runs writing the same tables
+
+permissions:
+  contents: read
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350           # a TFT/DeepAR retrain day (every 7 days) is the long one
+    steps:
+      - uses: actions/checkout@v4
+
+      # The injury scrape (pro_sports_transactions) runs in its own Python 3.11 venv, like the
+      # basketball-prosports-vclaude-env conda env locally.
+      - uses: actions/setup-python@v5
+        id: py311
+        with:
+          python-version: '3.11'
+      - name: Install the injury-scrape venv
+        run: |
+          ${{ steps.py311.outputs.python-path }} -m venv "$RUNNER_TEMP/prosports"
+          "$RUNNER_TEMP/prosports/bin/pip" install -q --disable-pip-version-check \
+            pro_sports_transactions==1.1.2 pandas==2.3.3 mysql-connector-python==9.7.0
+
+      # Everything else: Python 3.9, matching basketball-env-useme-v11052026. Set up last so it's `python`.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+          cache: pip
+          cache-dependency-path: requirements-pipeline.txt
+      - name: Install pipeline packages
+        run: |
+          pip install -q --disable-pip-version-check --no-deps torch==2.8.0 --index-url https://download.pytorch.org/whl/cpu
+          pip install -q --disable-pip-version-check --no-deps -r requirements-pipeline.txt
+
+      # Unflare solves prosportstransactions' Cloudflare challenge (shared/injury_pipeline.py -> localhost:5002).
+      - name: Start Unflare
+        run: |
+          docker run -d --name unflare -p 5002:5002 ghcr.io/iamyegor/unflare
+          for i in $(seq 1 45); do
+            curl -s -o /dev/null --max-time 3 http://localhost:5002/ && { echo "Unflare up after $((i*2)) s"; exit 0; }
+            sleep 2
+          done
+          echo "Unflare did not answer; run_scripts will retry and skip the injury chain if it still can't"
+
+      - name: Restore pipeline state
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            mlflow
+            tmp_data/injury_probabilities_last_run.txt
+            tmp_data/injury_note_llm_cache.json
+          key: pipeline-state-${{ github.run_id }}
+          restore-keys: pipeline-state-
+
+      - name: Run the pipeline
+        env:
+          sports_db_admin_host: ${{ secrets.SPORTS_DB_ADMIN_HOST }}
+          sports_db_admin_user: ${{ secrets.SPORTS_DB_ADMIN_USER }}
+          sports_db_admin_pw: ${{ secrets.SPORTS_DB_ADMIN_PW }}
+          sports_db_admin_port: ${{ secrets.SPORTS_DB_ADMIN_PORT }}
+          leagueid: ${{ secrets.LEAGUEID }}
+          espn_s2: ${{ secrets.ESPN_S2 }}
+          swid: ${{ secrets.SWID }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          season_year: ${{ vars.SEASON_YEAR }}
+          season_start: ${{ vars.SEASON_START }}
+          season_end: ${{ vars.SEASON_END }}
+          PROSPORTS_PYTHON: ${{ runner.temp }}/prosports/bin/python
+          PYTHONUNBUFFERED: '1'
+        run: python -m pipeline.run_scripts --list ${{ inputs.list || 'small' }}
+
+      - name: Save pipeline state
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            mlflow
+            tmp_data/injury_probabilities_last_run.txt
+            tmp_data/injury_note_llm_cache.json
+          key: pipeline-state-${{ github.run_id }}
+
+      # Optional: restart the dyno so the site loads the fresh tables. Runs only once HEROKU_API_KEY exists.
+      - name: Restart the Heroku dyno
+        if: ${{ !cancelled() && env.HEROKU_API_KEY != '' }}
+        env:
+          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+        run: |
+          curl -sf -X DELETE https://api.heroku.com/apps/fantasy-basketball-team-dash/dynos \
+            -H 'Accept: application/vnd.heroku+json; version=3' \
+            -H "Authorization: Bearer $HEROKU_API_KEY" && echo 'dyno restart requested'

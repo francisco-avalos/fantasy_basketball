@@ -46,6 +46,7 @@ Run from the repo root (env: basketball-env-useme-v11052026, which has lifelines
     python -m pipeline.injury_probabilities_basketball --from-csv tmp_data/injury_episodes_dryrun.csv --dry-run --plot
 """
 
+from shared.paths import REPO_ROOT
 import argparse
 import os
 import warnings
@@ -70,7 +71,7 @@ config = {
     'port': os.environ.get('sports_db_admin_port'),
 }
 
-ROOT = '/Users/franciscoavalosjr/Desktop/basketball-folder/'
+ROOT = REPO_ROOT + '/'
 TMP = ROOT + 'tmp_data/'
 TEST_FROM_SEASON = 2023
 MIN_GROUP = 30             # episodes for a curve group to get its own effect and its own published curve

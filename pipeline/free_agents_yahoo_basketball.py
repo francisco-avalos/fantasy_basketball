@@ -1,5 +1,6 @@
 
 # Yahoo
+from shared.paths import REPO_ROOT
 from yahoo_oauth import OAuth2
 import yahoo_fantasy_api as yfa
 
@@ -63,7 +64,7 @@ if connection.is_connected():
 	cursor=connection.cursor()
 	cursor.execute('TRUNCATE basketball.live_free_agents_yahoo;')
 
-	file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/yahoo_fa_players.csv'
+	file_path=REPO_ROOT + '/tmp_data/yahoo_fa_players.csv'
 	tk_df.to_csv(file_path,index=False)
 	qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.live_free_agents_yahoo FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' IGNORE 1 ROWS;"
 	cursor.execute(qry)

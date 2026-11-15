@@ -1,5 +1,6 @@
 
 # ESPN
+from shared.paths import REPO_ROOT
 from espn_api.basketball import League
 from espn_api.basketball import Player
 
@@ -155,7 +156,7 @@ try:
 				if connection.is_connected():
 					cursor=connection.cursor()
 
-					file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/high_level_nba_team_stats.csv'
+					file_path=REPO_ROOT + '/tmp_data/high_level_nba_team_stats.csv'
 					df.to_csv(file_path,index=False)
 					qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.high_level_nba_team_stats FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' IGNORE 1 ROWS;"
 					cursor.execute(qry)
@@ -176,7 +177,7 @@ try:
 				print(f'No game for {day} — {type(e).__name__}: {e}')
 
 
-				# file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/advanced_data_extract.csv'
+				# file_path=REPO_ROOT + '/tmp_data/advanced_data_extract.csv'
 				# main_free_agents_df.to_csv(file_path,index=False)
 				# qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.advanced_stats FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' IGNORE 1 ROWS;"
 				# cursor.execute(qry)
@@ -223,7 +224,7 @@ try:
 				connection=mysql.connect(**config)
 				if connection.is_connected():
 					cursor=connection.cursor()
-					file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/high_level_nba_team_stats.csv'
+					file_path=REPO_ROOT + '/tmp_data/high_level_nba_team_stats.csv'
 					df.to_csv(file_path,index=False)
 					qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.high_level_nba_team_stats FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' IGNORE 1 ROWS;"
 					cursor.execute(qry)
@@ -249,7 +250,7 @@ try:
 			# 	df['team']=df['team'].astype(str)
 			# 	df['outcome']=df['outcome'].astype(str)
 
-			# 	file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/high_level_nba_team_stats.csv'
+			# 	file_path=REPO_ROOT + '/tmp_data/high_level_nba_team_stats.csv'
 			# 	df.to_csv(file_path,index=False)
 			# 	qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.high_level_nba_team_stats FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' IGNORE 1 ROWS;"
 			# 	cursor.execute(qry)

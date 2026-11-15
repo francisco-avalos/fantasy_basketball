@@ -14,6 +14,7 @@ MAX(day) already in the table. A real fetch failure HALTS the run (rather than
 silently marking days empty); fix Unflare and re-run to resume with no gaps.
 """
 
+from shared.paths import REPO_ROOT
 import os
 import csv
 import time
@@ -42,8 +43,8 @@ config = {
 }
 
 START_DATE = "2000-01-01"
-TMP_DIR    = "/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data"
-FAILED_LOG = "/Users/franciscoavalosjr/Desktop/basketball-folder/failed_days.log"
+TMP_DIR    = REPO_ROOT + "/tmp_data"
+FAILED_LOG = REPO_ROOT + "/failed_days.log"
 
 # Seconds between days. ~12 requests/min is polite and well within limits.
 # You can lower toward 2-3 to speed a big backfill, but watch for 403/429.

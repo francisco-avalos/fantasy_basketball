@@ -23,6 +23,7 @@ Run from the repo root:
     python -m pipeline.free_agents_backfill            # fetch + replace live_free_agents
     python -m pipeline.free_agents_backfill --dry-run  # fetch + summary, no DB writes
 """
+from shared.paths import REPO_ROOT
 import argparse
 import os
 import sys
@@ -36,7 +37,7 @@ from shared.my_functions import clean_string, name_key
 from shared import season_calendar
 
 FA_SIZE = 700
-NON_SHOWS_FILE = '/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/non_shows_list.csv'
+NON_SHOWS_FILE = REPO_ROOT + '/tmp_data/non_shows_list.csv'
 
 # live_free_agents columns, in table order (named in the INSERT, so order never shifts data)
 FA_COLS = ['name', 'date', 'team', 'location', 'opponent', 'outcome', 'active', 'seconds_played',

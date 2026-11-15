@@ -243,6 +243,11 @@ def mlflow_setup():
     if mlflow.get_experiment_by_name(EXPERIMENT) is None:
         mlflow.create_experiment(EXPERIMENT, artifact_location=(MLFLOW_DIR / 'artifacts').as_uri())
     mlflow.set_experiment(EXPERIMENT)
+    # A Linux test container logged every SQLAlchemy ORM step at DEBUG once MLflow had created a new
+    # mlflow.db (not reproducible on the Mac); keep the store's own loggers quiet either way.
+    import logging
+    for name in ('sqlalchemy', 'alembic'):
+        logging.getLogger(name).setLevel(logging.WARNING)
     return mlflow
 
 

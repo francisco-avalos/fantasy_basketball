@@ -1,5 +1,6 @@
 
 # ESPN
+from shared.paths import REPO_ROOT
 from espn_api.basketball import League
 from espn_api.basketball import Player
 
@@ -67,7 +68,7 @@ try:
 	df['away_team']=df['away_team'].astype(str)
 	df['home_team']=df['home_team'].astype(str)
 
-	file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/high_level_nba_team_scheds.csv'
+	file_path=REPO_ROOT + '/tmp_data/high_level_nba_team_scheds.csv'
 	df.to_csv(file_path, index=False)
 	qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.high_level_nba_team_schedules FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' IGNORE 1 ROWS;"
 	cursor.execute(qry)

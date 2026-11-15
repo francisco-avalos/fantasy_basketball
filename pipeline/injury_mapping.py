@@ -50,6 +50,7 @@ Run from the repo root (env: basketball-env-useme-v11052026, which has anthropic
     python -m pipeline.injury_mapping --audit 200    # also have Claude label 200 regex keys and report agreement
 """
 
+from shared.paths import REPO_ROOT
 import argparse
 import datetime as dt
 import json
@@ -74,7 +75,7 @@ config = {
     'port': os.environ.get('sports_db_admin_port'),
 }
 
-TMP = '/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/'
+TMP = REPO_ROOT + '/tmp_data/'
 LLM_CACHE = TMP + 'injury_note_llm_cache.json'
 LLM_MODEL = 'claude-opus-5-5'
 LLM_BATCH = 40

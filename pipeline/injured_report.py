@@ -1,3 +1,4 @@
+from shared.paths import REPO_ROOT
 import requests
 import pandas as pd
 import time
@@ -132,7 +133,7 @@ try:
 		cursor.execute('TRUNCATE basketball.injured_player_news_yh;')
 
 	if connection.is_connected():
-		file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/my_team_inj_report.csv'
+		file_path=REPO_ROOT + '/tmp_data/my_team_inj_report.csv'
 		df.to_csv(file_path,index=False)
 		qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.injured_player_news FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' IGNORE 1 ROWS;"
 		cursor.execute(qry)
@@ -140,7 +141,7 @@ try:
 		del df
 		os.remove(file_path)
 
-		file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/my_team_inj_report_yh.csv'
+		file_path=REPO_ROOT + '/tmp_data/my_team_inj_report_yh.csv'
 		df_yh.to_csv(file_path,index=False)
 		qry=f"LOAD DATA LOCAL INFILE '{file_path}' REPLACE INTO TABLE basketball.injured_player_news_yh FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '\"' IGNORE 1 ROWS;"
 		cursor.execute(qry)

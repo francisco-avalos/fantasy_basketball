@@ -1,5 +1,6 @@
 
 # ESPN
+from shared.paths import REPO_ROOT
 from espn_api.basketball import League
 from espn_api.basketball import Player
 
@@ -67,8 +68,8 @@ config={
     'allow_local_infile':True
 }
 
-# basketball_seasons=pd.read_csv('/Users/franciscoavalosjr/Desktop/basketball-folder/season_dates-2.csv')
-basketball_seasons=pd.read_csv('/Users/franciscoavalosjr/Desktop/basketball-folder/season_dates.csv')
+# basketball_seasons=pd.read_csv(REPO_ROOT + '/season_dates-2.csv')
+basketball_seasons=pd.read_csv(REPO_ROOT + '/season_dates.csv')
 basketball_seasons['start'] = pd.to_datetime(basketball_seasons['start'])
 # print(basketball_seasons.tail(1))
 # print(basketball_seasons.tail(1).start.iloc[0].strftime('%Y-%m-%d'))
@@ -196,7 +197,7 @@ try:
                 cursor=connection.cursor()
                 print('Connection to database established... Begin insertion into historical table.')
                 start_time=time.perf_counter()
-                file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/historical_player_extract.csv'
+                file_path=REPO_ROOT + '/tmp_data/historical_player_extract.csv'
                 df[HIST_COLS].to_csv(file_path,index=False)   # drops plus_minus and anything else new
                 qry=LOAD_QRY.format(path=file_path)
                 cursor.execute(qry)
@@ -248,7 +249,7 @@ try:
                 cursor=connection.cursor()
                 print('Connection to database established... Begin insertion into historical table.')
 
-                file_path='/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/historical_player_extract.csv'
+                file_path=REPO_ROOT + '/tmp_data/historical_player_extract.csv'
                 df[HIST_COLS].to_csv(file_path,index=False)   # drops plus_minus and anything else new
                 qry=LOAD_QRY.format(path=file_path)
                 cursor.execute(qry)

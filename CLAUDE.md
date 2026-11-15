@@ -123,16 +123,29 @@ git push heroku main
 ⚠️ **`pipeline/run_scripts.py` runs each script as `python -m pipeline.<name>`** with
 `cwd` set to the repo root and the current interpreter (`sys.executable`), so it works from
 any directory. It used to call bare filenames (`'advanced_stats.py'`), which failed with
-"No such file or directory". It still wraps the loop in a bare `except:` that only plays a
-`chime` sound, and `call()` returns an exit code without raising, so **a script that fails
-still prints "Finished executing"** — read each script's own output.
+"No such file or directory". `--list small|full` skips the "Execute Free Agents Script?" prompt
+(small = without `free_agents_yahoo_basketball`; with no flag it still asks, and refuses to run
+without a terminal). Every step's exit code is checked and the script **exits 1 if any step
+failed**, listing them. `chime` is skipped under `CI=true` or when it isn't installed.
+
+**Nightly on GitHub Actions:** `.github/workflows/nightly-pipeline.yml` runs
+`python -m pipeline.run_scripts --list small` at 11:00 UTC (and on demand: Actions → Nightly pipeline →
+Run workflow) on `ubuntu-latest`, against RDS. Python 3.9 from `requirements-pipeline.txt` (pinned from
+this env, installed `--no-deps`; torch from the CPU index), a 3.11 venv for the injury scrape
+(`PROSPORTS_PYTHON`), and the published `ghcr.io/iamyegor/unflare` image (amd64; the local `unflare`
+container is an arm64 build from `~/Downloads/Unflare-main`). DB / ESPN / Anthropic credentials are
+repo **secrets**, season dates repo **variables** (the workflow header lists them). `mlflow/` and the two
+`tmp_data` state files ride in the Actions cache between runs, so the runner's MLflow store and
+`deep_cache` are **separate from this laptop's**. An optional `HEROKU_API_KEY` secret makes it restart
+the dyno afterwards. The repo is public: run logs are public too (secret values are masked).
 
 After either list it runs the **injury chain** (`run_injury_chain()`), with exit codes checked:
 `historical_basketball_injury_data_updated` in `basketball-prosports-vclaude-env` (its interpreter
 is found next to the current env), then `injury_mapping`, then `injury_probabilities_basketball` if
 the date in `tmp_data/injury_probabilities_last_run.txt` is 30+ days old (written on success; delete
-it to force a refit). It opens Docker Desktop (`open -g -a Docker`) and `docker start unflare` when
-port 5002 isn't answering, and stops/quits whichever of the two it started. A failed scrape skips
+it to force a refit). On macOS it opens Docker Desktop (`open -g -a Docker`) and `docker start unflare`
+when port 5002 isn't answering, and stops/quits whichever of the two it started (on Linux the caller
+starts Docker and the container). A failed scrape skips
 the later steps. Run `run_scripts.py` itself in `basketball-env-useme-v11052026`.
 ⚠️ **An open port 5002 doesn't mean Unflare is ready.** Docker accepts connections as soon as the
 container starts, ~1 s before the Node server inside listens, and those requests are reset.
@@ -633,21 +646,28 @@ Each of these costs real time. Do not rediscover them.
   builds a `League(...)` now does `season_year=int(season_year)` (only the
   reference-only `basketball-work.py` and `my_team_performance_dash.py` don't);
   keep that in any new one.
-- ⚠️ **Hard-coded absolute paths.** Every CSV handoff and model folder is written
-  as `/Users/franciscoavalosjr/Desktop/basketball-folder/tmp_data/...`. Moving or
-  renaming the repo breaks the whole pipeline. `tmp_data/` is gitignored, so these
-  paths exist on this machine only — and nothing on Heroku can read them.
+- **Paths are repo-relative.** Pipeline scripts build CSV handoff paths from
+  `shared.paths.REPO_ROOT` (which also creates `tmp_data/`), so any checkout works,
+  including the GitHub Actions runner. They used to hard-code
+  `/Users/franciscoavalosjr/Desktop/basketball-folder/...`; only the reference-only
+  `basketball-work.py` / `my_team_performance_dash.py` still do. Don't add new
+  absolute paths. `tmp_data/` is gitignored, and nothing on Heroku can read it.
 
 ---
 
-## Two requirements files
+## Three requirements files
 
 - `requirements.txt` — **what Heroku installs**: Dash, Plotly, pandas,
   mysql-connector, `anthropic`, `beautifulsoup4`. No sports APIs, no statsmodels,
   no TensorFlow. The app cannot ingest or fit; that is deliberate.
 - `requirements-dev.txt` — the local superset: adds espn-api, yahoo-fantasy-api,
   basketball-reference-web-scraper, statsmodels, scikit-survival, prophet,
-  matplotlib/seaborn, scipy, sklearn.
+  matplotlib/seaborn, scipy, sklearn. Loosely maintained: its pandas / espn-api pins
+  don't match the working env.
+- `requirements-pipeline.txt` — **what the nightly GitHub Action installs**: an exact
+  `pip list --format=freeze` of `basketball-env-useme-v11052026` minus notebook / Dash /
+  browser / test packages, installed with `--no-deps` (the env has two pin conflicts
+  pip would refuse). Regenerate it the same way when the env changes.
 
 ⚠️ `Flask==2.2.5` / `Werkzeug==2.2.3` are pinned because **Dash 2.13 breaks on
 Flask 2.3+**. Don't bump them without bumping Dash.
