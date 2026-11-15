@@ -31,7 +31,9 @@ permissions:
 
 jobs:
   pipeline:
-    runs-on: ubuntu-latest
+    # Not ubuntu-latest: that moved to 26.04, which has no prebuilt Python 3.9 for setup-python (3.9 is
+    # end-of-life; its builds stop at 24.04). Moving the pipeline env to 3.11 would lift this pin.
+    runs-on: ubuntu-24.04
     timeout-minutes: 350           # a TFT/DeepAR retrain day (every 7 days) is the long one
     steps:
       - uses: actions/checkout@v4

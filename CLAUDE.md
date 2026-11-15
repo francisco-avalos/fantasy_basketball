@@ -130,7 +130,7 @@ failed**, listing them. `chime` is skipped under `CI=true` or when it isn't inst
 
 **Nightly on GitHub Actions:** `.github/workflows/nightly-pipeline.yml` runs
 `python -m pipeline.run_scripts --list small` at 11:00 UTC (and on demand: Actions → Nightly pipeline →
-Run workflow) on `ubuntu-latest`, against RDS. Python 3.9 from `requirements-pipeline.txt` (pinned from
+Run workflow) on `ubuntu-24.04` (not `ubuntu-latest`: 26.04 has no prebuilt Python 3.9), against RDS. Python 3.9 from `requirements-pipeline.txt` (pinned from
 this env, installed `--no-deps`; torch from the CPU index), a 3.11 venv for the injury scrape
 (`PROSPORTS_PYTHON`), and the published `ghcr.io/iamyegor/unflare` image (amd64; the local `unflare`
 container is an arm64 build from `~/Downloads/Unflare-main`). DB / ESPN / Anthropic credentials are
