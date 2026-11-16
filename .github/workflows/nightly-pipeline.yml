@@ -13,7 +13,9 @@ name: Nightly pipeline
 
 on:
   schedule:
-    - cron: '0 11 * * *'          # 11:00 UTC = 6 AM ET in winter (7 AM in summer); GitHub may start it late
+    # Cron is always UTC (no daylight saving): 16:00 UTC = 8 AM PST (Nov-Mar), 9 AM PDT (Mar-Nov).
+    # GitHub may start a scheduled run several minutes late.
+    - cron: '0 16 * * *'
   workflow_dispatch:
     inputs:
       list:
@@ -35,6 +37,10 @@ jobs:
     # end-of-life; its builds stop at 24.04). Moving the pipeline env to 3.11 would lift this pin.
     runs-on: ubuntu-24.04
     timeout-minutes: 350           # a TFT/DeepAR retrain day (every 7 days) is the long one
+    env:
+      # 'true' once the HEROKU_API_KEY secret exists (a missing secret reads as ''). Only this yes/no is
+      # job-wide; the key itself is handed to the restart step alone.
+      HAS_HEROKU_KEY: ${{ secrets.HEROKU_API_KEY != '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -108,9 +114,11 @@ jobs:
             tmp_data/injury_note_llm_cache.json
           key: pipeline-state-${{ github.run_id }}
 
-      # Optional: restart the dyno so the site loads the fresh tables. Runs only once HEROKU_API_KEY exists.
+      # Optional: restart the dyno so the site loads the fresh tables. Runs only once HEROKU_API_KEY exists,
+      # and also after a partly failed run (whatever did load is still worth showing), but not a cancelled one.
+      # DELETE /apps/<app>/dynos is the Heroku Platform API's "restart all dynos" (same as `heroku restart`).
       - name: Restart the Heroku dyno
-        if: ${{ !cancelled() && env.HEROKU_API_KEY != '' }}
+        if: ${{ !cancelled() && env.HAS_HEROKU_KEY == 'true' }}
         env:
           HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
         run: |
