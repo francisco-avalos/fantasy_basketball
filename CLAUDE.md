@@ -150,8 +150,7 @@ the later steps. Run `run_scripts.py` itself in `basketball-env-useme-v11052026`
 ⚠️ **An open port 5002 doesn't mean Unflare is ready.** Docker accepts connections as soon as the
 container starts, ~1 s before the Node server inside listens, and those requests are reset.
 `pro_sports_transactions` logs the reset (`Unflare request failed: [Errno 54]`) but returns an
-**empty page instead of raising**, so the scrape's pre-flight fails with "no rows".
-`unflare_ready()` therefore waits for an actual HTTP response.
+**empty page instead of raising**. `unflare_ready()` therefore waits for an actual HTTP response.
 
 ---
 
@@ -275,12 +274,18 @@ same-day returns at T < 1. The fit diverged before the shift. If you change the
 time scale, re-check that model's curves.
 
 ⚠️ **The prosportstransactions scrape needs a local Unflare container running.**
-`shared/injury_pipeline.py` points `UnflareRequestHandler` at
+`shared/injury_pipeline.py` points `_StrictUnflareHandler` at
 `http://localhost:5002/scrape` and builds the handler **once at import time** so
 the Cloudflare clearance cookie is reused. Before running the injury script:
 `docker start unflare`. Each day is committed individually, so a re-run resumes
-from `MAX(day)`; a real fetch failure **halts** rather than marking days empty, so
-gaps don't get baked in silently.
+from `MAX(day)`.
+⚠️ The library's `UnflareRequestHandler` returns `None` on **every** failure, and `Search` turns that into
+an empty frame, which looks exactly like a day with no transactions. So a failed day was skipped, and once
+a later day loaded, resume-from-`MAX(day)` never revisited it (2026-10-28, 15 rows, lost this way).
+`_StrictUnflareHandler` raises on `None` or a Cloudflare challenge page instead, so `_fetch_page` retries
+(10 / 20 / 40 s) and the script halts. A genuinely empty day still comes back as HTML with no table
+(`No tables found`) and is skipped. The script turns on `logging` so the library's reason is printed, and
+the workflow prints `docker logs unflare` when a run fails.
 
 ### The model stack (points forecasting)
 

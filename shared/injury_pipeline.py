@@ -7,10 +7,31 @@ from pro_sports_transactions.handlers import UnflareRequestHandler, UnflareConfi
 
 logger = logging.getLogger(__name__)
 
+_CHALLENGE_MARKERS = ("challenge-platform", "<title>Just a moment", "Attention Required! | Cloudflare")
+
+
+class _StrictUnflareHandler(UnflareRequestHandler):
+    """The library's handler returns None on every failure (Unflare down, connection reset, non-200),
+    and Search.get_dataframe() turns None into an empty frame -- exactly what a day with no
+    transactions looks like. A failed fetch was therefore recorded as an empty day, and once a later
+    day loaded, the resume-from-MAX(day) logic never came back for it (2026-10-28 was lost this way).
+    Raise instead, so _fetch_page retries and the caller halts on a real failure."""
+
+    async def get(self, url, headers):
+        text = await super().get(url, headers)
+        if text is None:
+            self.clear_cache()
+            raise RuntimeError("no page from Unflare / prosportstransactions (reason in the log line above)")
+        if any(m in text for m in _CHALLENGE_MARKERS):
+            self.clear_cache()
+            raise RuntimeError("got a Cloudflare challenge page instead of results")
+        return text
+
+
 # Build the handler ONCE at import time so the Cloudflare clearance cookie is
 # cached and reused across every day you query. Creating a new one per call
 # would re-solve the challenge each time and throw away the speed benefit.
-_handler = UnflareRequestHandler(UnflareConfig(url="http://localhost:5002/scrape"))
+_handler = _StrictUnflareHandler(UnflareConfig(url="http://localhost:5002/scrape"))
 
 # ⚠️ VERIFY these names once:  print(list(pst.TransactionType))
 # Adjust any that differ (e.g. if a member is "Injured List" with a space,
@@ -27,8 +48,8 @@ _COLS = ["date", "team", "acquired", "relinquished", "notes"]
 
 # --- retry tuning -----------------------------------------------------------
 _MAX_RETRIES = 4          # attempts per page before giving up
-_BASE_DELAY = 2.0         # seconds; grows 2 -> 4 -> 8 -> 16
-_MAX_DELAY = 30.0         # cap so backoff never sleeps absurdly long
+_BASE_DELAY = 10.0        # seconds; grows 10 -> 20 -> 40 (a fresh Cloudflare solve needs time)
+_MAX_DELAY = 60.0         # cap so backoff never sleeps absurdly long
 
 
 async def _fetch_page(d: date, starting_row: int) -> pd.DataFrame:

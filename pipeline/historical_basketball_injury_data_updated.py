@@ -18,6 +18,7 @@ from shared.paths import REPO_ROOT
 import os
 import csv
 import time
+import logging
 import warnings
 import datetime as dt
 
@@ -25,6 +26,9 @@ import pandas as pd
 import mysql.connector as mysql
 
 from shared.injury_pipeline import day_injuries_basketball
+
+# Show the scraping library's own warnings (why Unflare or the site refused a request) and our retries.
+logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
 
 # The library calls pandas.read_html internally; pandas emits a harmless
 # FutureWarning from inside it. Silence just that one so logs stay readable.

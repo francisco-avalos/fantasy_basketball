@@ -104,6 +104,10 @@ jobs:
           PYTHONUNBUFFERED: '1'
         run: python -m pipeline.run_scripts --list ${{ inputs.list || 'small' }}
 
+      - name: Unflare logs (on failure)
+        if: failure()
+        run: docker logs --tail 60 unflare || true
+
       - name: Save pipeline state
         if: always()
         uses: actions/cache/save@v4
