@@ -14,7 +14,7 @@ A requirements txt file included - pip install /path_to_file/requirements.txt
 ### Predictive Modeling
 Points prediction by player for the next five games across the ESPN and Yahoo platforms. Models include: 
 1. Standard time-series - Autoregressive Integrated Moving Average, Autoregressive Moving Average, Double Exponential Smoothing, Single Exponential Smoothing, Autoregressive, Moving Average
-2. Machine Learning - Long Short-Term Memory, Neural Networks
+2. Machine Learning - XGBoost, Temporal Fusion Transformer (TFT), DeepAR (Deep AutoRegressive)
 3. Default base - Last value, repeat values
 
 ### Free Agent Screening Tool
