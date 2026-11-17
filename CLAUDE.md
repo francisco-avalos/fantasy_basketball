@@ -129,7 +129,7 @@ without a terminal). Every step's exit code is checked and the script **exits 1 
 failed**, listing them. `chime` is skipped under `CI=true` or when it isn't installed.
 
 **Nightly on GitHub Actions:** `.github/workflows/nightly-pipeline.yml` runs
-`python -m pipeline.run_scripts --list small` at 16:00 UTC, 8 AM PST / 9 AM PDT (and on demand: Actions → Nightly pipeline →
+`python -m pipeline.run_scripts --list small` at 15:17 UTC, 7:17 AM PST / 8:17 AM PDT, best-effort: GitHub can start it hours late (and on demand: Actions → Nightly pipeline →
 Run workflow) on `ubuntu-24.04` (not `ubuntu-latest`: 26.04 has no prebuilt Python 3.9), against RDS. Python 3.9 from `requirements-pipeline.txt` (pinned from
 this env, installed `--no-deps`; torch from the CPU index), a 3.11 venv for the injury scrape
 (`PROSPORTS_PYTHON`), and the published `ghcr.io/iamyegor/unflare` image (amd64; the local `unflare`

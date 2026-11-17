@@ -13,9 +13,10 @@ name: Nightly pipeline
 
 on:
   schedule:
-    # Cron is always UTC (no daylight saving): 16:00 UTC = 8 AM PST (Nov-Mar), 9 AM PDT (Mar-Nov).
-    # GitHub may start a scheduled run several minutes late.
-    - cron: '0 16 * * *'
+    # Cron is always UTC (no daylight saving): 15:17 UTC = 7:17 AM PST (Nov-Mar), 8:17 AM PDT (Mar-Nov).
+    # Off the top of the hour, GitHub's busiest minute. Scheduled runs are still best-effort: the first
+    # 16:00 UTC run (2026-11-16) started 7 h 53 min late.
+    - cron: '17 15 * * *'
   workflow_dispatch:
     inputs:
       list:
