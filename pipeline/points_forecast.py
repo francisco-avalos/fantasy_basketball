@@ -511,6 +511,12 @@ def main():
             log(f'MLflow run {ids["_parent"]} logged to {MLFLOW_DIR}')
         write(cn, today, roster_rows, forecasts, runs)
         log(f'wrote {len(forecasts)} forecasts, {len(runs)} model rows, {len(roster_rows)} roster rows')
+        if not args.no_mlflow:
+            try:                                    # newest 30 versions + one per week; never fails the run
+                from pipeline import mlflow_retention
+                mlflow_retention.prune(log=log)
+            except Exception as e:
+                log(f'MLflow retention skipped ({type(e).__name__}: {e})')
     finally:
         cn.close()
 

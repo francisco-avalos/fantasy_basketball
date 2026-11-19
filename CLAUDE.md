@@ -349,6 +349,14 @@ right after `historicals.py` in both lists (it needs last night's box scores and
   `points_deepar_<POS>`, only on runs that retrained them. Browse with
   `mlflow ui --backend-store-uri sqlite:///mlflow/mlflow.db`. Statistical models are **not** pickled:
   they refit in milliseconds, so only their parameters are stored (`model_runs.params`).
+- **Retention** (`pipeline/mlflow_retention.py`, called by `points_forecast` after it writes; a failure is
+  only printed): for every `points_*` registered model, keep the newest 30 versions, the last version of
+  each ISO week for 52 weeks (tagged `retention=weekly`), and any version with an alias (set one to pin a
+  version forever). Every other version is deleted from the registry along with its
+  `artifacts/<run_id>/artifacts/model` folder; the run (params, val MAE, feature importance) stays.
+  Steady state ≈ 80 versions × 5 positions, ~400 MB, instead of ~1.8 GB a year of nightly XGBoost.
+  It only deletes inside `mlflow/artifacts/` (the runner's version sources are `/home/runner/...` paths, so
+  it falls back to `<artifacts>/<run_id>/`). `python -m pipeline.mlflow_retention --dry-run [--keep N]`.
 - ⚠️ xgboost on this arm64 env needs `libomp.dylib`; the base conda is osx-64 and can't install
   `llvm-openmp`, so `<env>/lib/libomp.dylib` is a symlink to `sklearn/.dylibs/libomp.dylib`. Installing
   mlflow bumped `protobuf` past mysql-connector 8.1.0's pin; it's back at 4.21.12 (pip warns about
