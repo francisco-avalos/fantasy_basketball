@@ -136,7 +136,16 @@ this env, installed `--no-deps`; torch from the CPU index), a 3.11 venv for the 
 container is an arm64 build from `~/Downloads/Unflare-main`). DB / ESPN / Anthropic credentials are
 repo **secrets**, season dates repo **variables** (the workflow header lists them). `mlflow/` and the two
 `tmp_data` state files ride in the Actions cache between runs, so the runner's MLflow store and
-`deep_cache` are **separate from this laptop's**. An optional `HEROKU_API_KEY` secret makes it restart
+`deep_cache` are **separate from this laptop's**. GitHub evicts a cache entry after 7 days unused, so they
+are also mirrored to S3 after every run (`s3://fantasy-basketball-mlflow-fa/mlflow/runner/store/` = `mlflow/`,
+`state/` = the two files) and restored from there when the cache comes back empty; the `from_s3` dispatch
+input forces that path to test a restore. Access is GitHub OIDC → IAM role `github-fantasy-basketball-mlflow`
+(trusted for `repo:francisco-avalos/fantasy_basketball:ref:refs/heads/main`, inline policy limited to
+`mlflow/runner/*`); repo **variables** `AWS_ROLE_ARN`, `MLFLOW_S3_BUCKET`, `AWS_REGION`, no AWS keys stored.
+The bucket is versioned with a 30-day noncurrent-version expiry. OIDC credentials last 1 h, so the workflow
+fetches them again before the backup (a retrain day runs ~1.5 h). The backup uses `--delete` (mirroring what
+`mlflow_retention` pruned) only when the run started from a restored store, so an empty store can't wipe it.
+The restore-side AWS steps are `continue-on-error`: an AWS problem never blocks the data refresh. An optional `HEROKU_API_KEY` secret makes it restart
 the dyno afterwards. The repo is public: run logs are public too (secret values are masked).
 
 After either list it runs the **injury chain** (`run_injury_chain()`), with exit codes checked:

@@ -6,9 +6,14 @@
 #              LEAGUEID, ESPN_S2, SWID, ANTHROPIC_API_KEY
 #              HEROKU_API_KEY (optional: restart the dyno afterwards so the site shows the new data)
 #   variables  SEASON_YEAR, SEASON_START, SEASON_END
+#              AWS_ROLE_ARN, MLFLOW_S3_BUCKET, AWS_REGION (optional: back the state up to S3)
 #
 # State that must survive between runs (MLflow store, cached TFT/DeepAR checkpoints, the injury
-# refit stamp, the Claude note-label cache) is carried in the Actions cache, not the repo.
+# refit stamp, the Claude note-label cache) is carried in the Actions cache, not the repo. GitHub evicts
+# a cache entry after 7 days unused (or past 10 GB a repo), so with the AWS variables set it is also
+# mirrored to s3://<MLFLOW_S3_BUCKET>/mlflow/runner/ after every run and restored from there whenever the
+# cache comes back empty. AWS access is by GitHub OIDC (an IAM role trusted for this repo's main branch):
+# no AWS keys are stored anywhere.
 name: Nightly pipeline
 
 on:
@@ -24,6 +29,10 @@ on:
         type: choice
         options: [small, full]
         default: small
+      from_s3:
+        description: 'Ignore the Actions cache and restore the pipeline state from the S3 backup (to test a restore)'
+        type: boolean
+        default: false
 
 concurrency:
   group: nightly-pipeline
@@ -31,6 +40,7 @@ concurrency:
 
 permissions:
   contents: read
+  id-token: write                  # GitHub OIDC: lets the job assume the AWS role (no AWS keys stored)
 
 jobs:
   pipeline:
@@ -42,6 +52,8 @@ jobs:
       # 'true' once the HEROKU_API_KEY secret exists (a missing secret reads as ''). Only this yes/no is
       # job-wide; the key itself is handed to the restart step alone.
       HAS_HEROKU_KEY: ${{ secrets.HEROKU_API_KEY != '' }}
+      HAS_AWS: ${{ vars.AWS_ROLE_ARN != '' && vars.MLFLOW_S3_BUCKET != '' }}
+      S3_STATE: s3://${{ vars.MLFLOW_S3_BUCKET }}/mlflow/runner     # store/ = mlflow/, state/ = the tmp_data files
     steps:
       - uses: actions/checkout@v4
 
@@ -79,6 +91,8 @@ jobs:
           echo "Unflare did not answer; run_scripts will retry and skip the injury chain if it still can't"
 
       - name: Restore pipeline state
+        id: state
+        if: ${{ !inputs.from_s3 }}
         uses: actions/cache/restore@v4
         with:
           path: |
@@ -87,6 +101,37 @@ jobs:
             tmp_data/injury_note_llm_cache.json
           key: pipeline-state-${{ github.run_id }}
           restore-keys: pipeline-state-
+
+      # OIDC credentials last 1 hour, and a TFT/DeepAR retrain day runs ~1.5 h, so they are fetched again
+      # before the backup at the end instead of reusing these.
+      - name: AWS credentials (for the restore)
+        if: env.HAS_AWS == 'true'
+        continue-on-error: true        # an AWS problem must not stop the data refresh; the backup step shows it
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'us-west-2' }}
+
+      # The cache key is new every run, so cache-hit is always false; cache-matched-key is empty only when
+      # nothing was restored at all (evicted, first run, or from_s3).
+      - name: Restore pipeline state from S3 (cache was empty)
+        if: env.HAS_AWS == 'true' && steps.state.outputs.cache-matched-key == ''
+        continue-on-error: true
+        run: |
+          mkdir -p mlflow tmp_data
+          aws s3 sync "$S3_STATE/store/" mlflow/ --only-show-errors
+          aws s3 sync "$S3_STATE/state/" tmp_data/ --only-show-errors
+          echo "restored from $S3_STATE"
+
+      - name: Check the restored state
+        run: |
+          if [ -f mlflow/mlflow.db ]; then
+            echo "STORE_RESTORED=true" >> "$GITHUB_ENV"
+            echo "MLflow store restored: $(du -sh mlflow | cut -f1)"
+          else
+            echo "STORE_RESTORED=false" >> "$GITHUB_ENV"
+            echo "No MLflow store restored: this run starts a new one (and retrains TFT/DeepAR)"
+          fi
 
       - name: Run the pipeline
         env:
@@ -118,6 +163,30 @@ jobs:
             tmp_data/injury_probabilities_last_run.txt
             tmp_data/injury_note_llm_cache.json
           key: pipeline-state-${{ github.run_id }}
+
+      - name: AWS credentials (for the backup)
+        if: ${{ !cancelled() && env.HAS_AWS == 'true' }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'us-west-2' }}
+
+      # --delete mirrors what mlflow_retention pruned. It is left off when this run started from an empty
+      # store, so a new near-empty store can never wipe the backup (bucket versioning keeps 30 days anyway).
+      - name: Back up pipeline state to S3
+        if: ${{ !cancelled() && env.HAS_AWS == 'true' }}
+        run: |
+          [ -f mlflow/mlflow.db ] || { echo 'no MLflow store to back up'; exit 0; }
+          DELETE=--delete
+          if [ "$STORE_RESTORED" != true ]; then
+            DELETE=
+            echo 'store started empty this run: uploading without --delete'
+          fi
+          aws s3 sync mlflow/ "$S3_STATE/store/" $DELETE --only-show-errors
+          for f in tmp_data/injury_probabilities_last_run.txt tmp_data/injury_note_llm_cache.json; do
+            [ -f "$f" ] && aws s3 cp "$f" "$S3_STATE/state/$(basename "$f")" --only-show-errors
+          done
+          aws s3 ls "$S3_STATE/" --recursive --summarize --human-readable | tail -2
 
       # Optional: restart the dyno so the site loads the fresh tables. Runs only once HEROKU_API_KEY exists,
       # and also after a partly failed run (whatever did load is still worth showing), but not a cancelled one.
