@@ -617,6 +617,15 @@ input[type="number"]:focus,
 .tp-section-title { color: var(--text-primary); font-size: 1.25rem; font-weight: 600; margin: 0; }
 .tp-section-sub   { color: var(--text-muted); font-size: 0.85rem; margin-top: 2px; }
 .tp-control       { display: flex; align-items: center; gap: 10px; }
+/* model-health badge on the Injuries tab (team_performance.model_health_badge); hover shows the details */
+.tp-health {
+  display: inline-flex; align-items: center; gap: 6px; margin-left: 10px; padding: 1px 10px;
+  border-radius: 999px; border: 1px solid var(--border); font-size: 0.75rem; cursor: help; white-space: nowrap;
+}
+.tp-health-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.tp-health--ok    { color: var(--positive); background: var(--positive-bg); border-color: transparent; }
+.tp-health--warn  { color: #f5b041; background: #3d2c0b; border-color: transparent; }
+.tp-health--muted { color: var(--text-muted); }
 .tp-control-label { color: var(--text-secondary); font-size: 0.85rem; white-space: nowrap; }
 .tp-control .dash-dropdown { min-width: 220px; }
 

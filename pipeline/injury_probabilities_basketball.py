@@ -48,6 +48,7 @@ Run from the repo root (env: basketball-env-useme-v11052026, which has lifelines
 
 from shared.paths import REPO_ROOT
 import argparse
+import datetime as dt
 import os
 import warnings
 
@@ -314,6 +315,45 @@ def write(curves):
     print(f'basketball.injury_probabilities: {len(curves)} rows, {curves.injury.nunique()} curves')
 
 
+EVAL_COLS = ['run_date', 'source', 'model', 'test_seasons', 'train_seasons', 'n_train', 'n_test', 'ibs_1_60',
+             'brier_3d', 'brier_7d', 'brier_14d', 'brier_30d', 'brier_60d', 'c_index', 'calibration_mae', 'is_champion']
+
+
+def record_evaluations(rows, replace_source=None):
+    """Append rows (dicts keyed by EVAL_COLS) to basketball.injury_model_evaluations, the permanent record of
+    holdout / backtest scores (sql_files/migrations/2026-11-20_injury_model_monitoring.sql). With
+    replace_source, that day's rows of that source are replaced. Never fails the caller: before the
+    migration it only prints."""
+    if not rows:
+        return
+    connection = mysql.connect(**config)
+    cur = connection.cursor()
+    try:
+        if replace_source:
+            cur.execute('DELETE FROM basketball.injury_model_evaluations WHERE run_date = %s AND source = %s;',
+                        (rows[0]['run_date'], replace_source))
+        clean = lambda v: None if v is None or (isinstance(v, float) and not np.isfinite(v)) else \
+            (v.item() if hasattr(v, 'item') else v)
+        cur.executemany(f'REPLACE INTO basketball.injury_model_evaluations ({", ".join(EVAL_COLS)}) '
+                        f'VALUES ({", ".join(["%s"] * len(EVAL_COLS))});',
+                        [tuple(clean(r.get(c)) for c in EVAL_COLS) for r in rows])
+        connection.commit()
+        print(f'basketball.injury_model_evaluations: {len(rows)} rows')
+    except mysql.Error as e:
+        connection.rollback()
+        print(f'injury_model_evaluations not written ({e}); run sql_files/migrations/2026-11-20_injury_model_monitoring.sql')
+    finally:
+        cur.close()
+        connection.close()
+
+
+def score_rows(scores, run_date, source, champion, test_seasons, train_seasons, n_train, n_test):
+    """evaluate()'s score table -> rows for record_evaluations."""
+    return [{'run_date': run_date, 'source': source, 'model': m, 'test_seasons': test_seasons,
+             'train_seasons': train_seasons, 'n_train': n_train, 'n_test': n_test, 'is_champion': int(m == champion),
+             **{c: float(r[c]) for c in EVAL_COLS if c in r.index}} for m, r in scores.iterrows()]
+
+
 def plot(test, preds, out_path, groups=('ankle:sprain', 'knee:tear', 'thigh:strain', 'illness:covid_protocol')):
     import matplotlib
     matplotlib.use('Agg')
@@ -355,6 +395,7 @@ def main():
 
     names = ['km_group'] + [m.name for m in candidates()]
     champion = args.champion
+    holdout_rows = []
     if not champion:
         train_raw, test_raw = df[df['season'] < TEST_FROM_SEASON], df[df['season'] >= TEST_FROM_SEASON]
         train, mapping, medians = setup(train_raw)
@@ -371,6 +412,9 @@ def main():
             plot(test, preds, ROOT + 'mockups/survival_model_holdout.png')
         champion = scores['ibs_1_60'].idxmin()
         print(f'\nchampion (lowest integrated Brier): {champion}')
+        holdout_rows = score_rows(scores, dt.date.today(), 'refit_holdout', champion,
+                                  f'{TEST_FROM_SEASON}-{int(df.season.max())}', f'<{TEST_FROM_SEASON}',
+                                  len(train), len(test))
 
     full, mapping, medians = setup(df)
     groups = sorted(full['model_group'].unique())
@@ -393,6 +437,10 @@ def main():
         print(f'\ndry run: wrote {TMP}injury_probabilities_dryrun.csv')
     else:
         write(curves)
+        # the 'refit' row dates the published curves (the app's "Curves refit on ..." badge)
+        record_evaluations(holdout_rows + [{'run_date': dt.date.today(), 'source': 'refit', 'model': champion,
+                                            'test_seasons': '', 'train_seasons': 'all', 'n_train': len(full),
+                                            'is_champion': 1}])
 
 
 if __name__ == '__main__':

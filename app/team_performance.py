@@ -544,6 +544,45 @@ def hot_cold_table(df, league, window):
 # 005 - INJURIES
 ####################################################################################################
 
+def _fmt_day(d):
+    d = pd.Timestamp(d)
+    return f"{d:%b} {d.day}, {d.year}"
+
+
+def model_health_badge(refit_df, health_df):
+    """'Curves refit on <date> · calibration OK / drifting', from injury_model_evaluations (source='refit')
+    and the latest pipeline/injury_drift_monitor.py run in injury_model_monitoring. Drifting = any alert in
+    the calibration or season-backtest checks; mix and data-quality alerts only go in the tooltip. Either
+    frame may be empty (tables missing before the 2026-11-20 migration, or no run yet)."""
+    parts, tip = [], []
+    if refit_df is not None and not refit_df.empty:
+        r = refit_df.iloc[0]
+        parts.append(f"Curves refit on {_fmt_day(r['run_date'])}")
+        tip.append(f"Published model: {r['model']}")
+    if health_df is None or health_df.empty:
+        parts.append('calibration not checked yet')
+        state = 'muted'
+    else:
+        h = health_df
+        checked = _fmt_day(h['run_date'].max())
+        drift = h[(h['status'] == 'alert') & h['check_name'].isin(['calibration', 'season_backtest'])]
+        other = h[(h['status'] == 'alert') & ~h['check_name'].isin(['calibration', 'season_backtest'])]
+        state = 'warn' if len(drift) else 'ok'
+        parts.append('calibration drifting' if len(drift) else 'calibration OK')
+        tip.append(f"Checked {checked} against the last 365 days of injuries")
+        for _, a in drift.iterrows():
+            tip.append(f"⚠ {a['unit'] or a['metric']}: {a['detail']}")
+        if len(other):
+            tip.append(f"{len(other)} other alert(s) (label mix / data quality): "
+                       + ', '.join(sorted(set(other['metric'].astype(str)))))
+    if not parts:
+        return None
+    return html.Span([html.Span(className='tp-health-dot'), ' · '.join(parts)],
+                     className=f"tp-health tp-health--{state}", title='\n'.join(tip))
+
+
+MODEL_BADGE = model_health_badge(_extra.get('injury_refit_df'), _extra.get('injury_health_df'))
+
 CURVES = _extra['injury_curves_df'].copy()
 if not CURVES.empty:
     CURVES['days'] = CURVES['days'].astype(int)
@@ -870,7 +909,7 @@ def _tab_injuries():
     return html.Div([
         _section('Players currently out', 'Click a player to load their injury curve'),
         _card('My injured players', html.Div(id='tp-out-list'), sub_id='tp-out-source'),
-        _section('Injury outlook', 'Pick any injury to explore its curve',
+        _section('Injury outlook', ['Pick any injury to explore its curve', MODEL_BADGE],
                  _control('Injury curve:', dcc.Dropdown(id='tp-injury', options=CURVE_OPTIONS, value=DEFAULT_CURVE,
                                                         clearable=False, searchable=True,
                                                         style={'minWidth': '320px'}))),

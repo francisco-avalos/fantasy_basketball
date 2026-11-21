@@ -52,6 +52,12 @@ so the AI assistant page fails locally there but works on Heroku, where
 `requirements.txt` installs it. TensorFlow lives only in the `-parallel-TF` envs.
 Check for the package before assuming an env is wrong.
 
+⚠️ **No local env can boot the whole app as-is.** `app/ai_chatbox.py` uses `list[dict] | None`
+annotations, which need Python 3.10+, and every local env with Dash is 3.9. `import app.index`
+raises `TypeError: unsupported operand type(s) for |`. To check a page locally, stub
+`sys.modules['app.ai_chatbox']` (with `ask_ai` / `build_context`) before importing `app.index`.
+Heroku runs 3.11, so it's fine there.
+
 ⚠️ **Local pandas is 1.3.5; `requirements.txt` pins 2.2.3.** Local and Heroku are
 not the same pandas major. `groupby().apply()` — used by the minute-weighted
 calculation in `callbacks.apply_calculation()` and by `ai_chatbox.build_context()`
@@ -147,6 +153,9 @@ fetches them again before the backup (a retrain day runs ~1.5 h). The backup use
 `mlflow_retention` pruned) only when the run started from a restored store, so an empty store can't wipe it.
 The restore-side AWS steps are `continue-on-error`: an AWS problem never blocks the data refresh. An optional `HEROKU_API_KEY` secret makes it restart
 the dyno afterwards. The repo is public: run logs are public too (secret values are masked).
+After the pipeline, a **Model health (injury curves)** step runs `python -m pipeline.injury_drift_monitor`
+(`!cancelled()`, `continue-on-error`): it never fails the run, and it writes the "Model health" block to the
+run summary plus a `::warning` annotation per alert (see **Injury drift monitoring**).
 
 After either list it runs the **injury chain** (`run_injury_chain()`), with exit codes checked:
 `historical_basketball_injury_data_updated` in `basketball-prosports-vclaude-env` (its interpreter
@@ -182,7 +191,8 @@ connection config for this to work.
 | `injured_report.py` | requests + BeautifulSoup | `injured_player_news`, `injured_player_news_yh` |
 | `historical_basketball_injury_data_updated.py` | prosportstransactions via Unflare | `hist_player_inj` |
 | `injury_mapping.py` | `hist_player_inj` + box scores → episodes; notes → taxonomy (regex, then Claude) | `player_injury_cycles`, `injury_note_classification` |
-| `injury_probabilities_basketball.py` | `player_injury_cycles` → survival models, champion on a holdout | `injury_probabilities` |
+| `injury_probabilities_basketball.py` | `player_injury_cycles` → survival models, champion on a holdout | `injury_probabilities`, `injury_model_evaluations` |
+| `injury_drift_monitor.py` | `player_injury_cycles` + `injury_probabilities` + box scores / schedules, weekly | `injury_model_monitoring`, `injury_model_evaluations` |
 | `points_forecast.py` (+ `forecast_models.py`) | `historical_player_data` + `high_level_nba_team_schedules` + rosters | `forecast_roster`, `points_forecasts`, `model_runs`, MLflow in `mlflow/` |
 
 `basketball-work.py` (1264 lines, hyphen in the name so it cannot be imported)
@@ -270,6 +280,48 @@ pin a correction, since the pipeline never overwrites those rows.
   `unspecified`), with `n_episodes` and `model` columns. The app reads it as
   `injury_curves_qry` (numeric) and `inj_prob_qry` (percent text, for the AI
   context).
+- Records every candidate's holdout scores (`source='refit_holdout'`) and one
+  `source='refit'` row naming the published champion in `injury_model_evaluations`.
+  These used to live only in the overwritten `tmp_data/injury_model_comparison.csv`.
+  A failed write there is printed, never fatal.
+
+### Injury drift monitoring
+
+`pipeline/injury_drift_monitor.py` checks whether the published curves still describe recent
+injuries. It runs every night from the workflow, but only does the checks when the last run is
+7+ days old (`EVERY_DAYS`); otherwise it just prints the latest summary. It takes ~10 s.
+Flags: `--force`, `--dry-run`, `--summary-only`. It needs
+`sql_files/migrations/2026-11-20_injury_model_monitoring.sql` (run 2026-11-20). That migration
+creates `injury_model_monitoring` (one row per check × unit × metric per run, `ok` / `alert` /
+`info`) and `injury_model_evaluations`, and backfills one `refit` row dated by
+`injury_probabilities`' last write (2026-11-15). Without the tables it prints a note and exits 0.
+`sql_files/migrations/` is gitignored, so the file is local only.
+
+The four checks:
+- **data_quality**: the injury log and box scores are fresh in season (>3 / >2 days is an alert).
+  It also flags game days in the last 60 days with no box scores or no injury moves, and an
+  unmatched-episode share above 2%.
+- **season_backtest**: fits the published model on seasons before the latest completed one and
+  scores that season. Alert if IBS rises >10% over the previous season's backtest, or calibration
+  MAE is >0.06. C-index is info only. Rows go to `injury_model_evaluations` as `season_backtest`.
+- **calibration**: KM of episodes started in the last 365 days vs the mean published S(t), at
+  days 7 / 14 / 30. Units are groups with ≥40 episodes, then `<region>:* (pooled)`, then
+  "everything else (pooled)". A time is skipped below 10 at risk. Alert when the gap is >0.10
+  **and** the curve is outside the KM 95% CI.
+- **mix_labels**: the last 90 days vs the latest completed season. It checks PSI of category and
+  curve group (>0.2), the out-indefinitely / stated-window / surgery / DTD rates (beyond ×2
+  either way), the LLM-labelled share (>15%) and the unspecified share (>10 pp).
+
+Results go to `$GITHUB_STEP_SUMMARY` as "Model health: injury survival curves", with up to 10
+`::warning` annotations. The app badge reads the same table.
+
+⚠️ **The first run (2026-11-20) alerted, and part of it is label drift, not injuries.** Recent
+episodes come back faster than the curves say at day 7 for foot/knee unspecified, illness and
+shoulder (observed below the curve by 0.13–0.15). The mix check found recent notes tagged
+"(DTD)" in 69% of episodes vs 29% in 2025-26, and out-indefinitely ×10.9. 2025-26 tagged DTD far
+less than 2024-25 or 2026-27, so the reference season itself is the odd one. Seasonality is small:
+PSI between a season's first 90 days and the whole season was 0.05. Check the labels before
+refitting on a calibration alert.
 
 ⚠️ **Both scripts need `sql_files/migrations/2026-11-08_injury_episodes.sql` run
 once first.** It renames the old table to `player_injury_cycles_legacy`, creates
@@ -495,7 +547,12 @@ ESPN/Yahoo + window season/30/14/7 days, both global) plus `tabs_body()`:
   multiples, and a hot/cold table (last 5 vs window average).
 - **Injuries**: the players currently out, each a button that loads the matched
   `injury_probabilities` curve with a "day N" marker, plus key-day odds
-  conditional on days already out, S(d+k)/S(d).
+  conditional on days already out, S(d+k)/S(d). Next to "Injury outlook", a badge
+  reads "Curves refit on <date> · calibration OK / drifting"
+  (`model_health_badge`, from `injury_refit_qry` / `injury_health_qry`). It shows
+  drifting on any calibration or season-backtest alert, with the details in its
+  hover tooltip, and "not checked yet" when there's no monitor run. Its CSS class is
+  `tp-health`, because `tp-badge` is already the "Out" chip.
 
 Injury **status** comes from `live_*_players.injury_status` (ESPN `injuryStatus` /
 Yahoo `status`, written by `my_team_stats.py`). That column is added by

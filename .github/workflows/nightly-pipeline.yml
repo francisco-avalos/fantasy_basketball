@@ -150,6 +150,24 @@ jobs:
           PYTHONUNBUFFERED: '1'
         run: python -m pipeline.run_scripts --list ${{ inputs.list || 'small' }}
 
+      # Drift checks for the injury survival curves: run when the last check is 7+ days old, then the latest
+      # results go to the run summary as a "model health" block, with a warning annotation per alert. A drift
+      # alert (or a crash here) never fails the data refresh. Runs after a partly failed pipeline too: the
+      # data-quality check is what shows a gap.
+      - name: Model health (injury curves)
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        env:
+          sports_db_admin_host: ${{ secrets.SPORTS_DB_ADMIN_HOST }}
+          sports_db_admin_user: ${{ secrets.SPORTS_DB_ADMIN_USER }}
+          sports_db_admin_pw: ${{ secrets.SPORTS_DB_ADMIN_PW }}
+          sports_db_admin_port: ${{ secrets.SPORTS_DB_ADMIN_PORT }}
+          season_year: ${{ vars.SEASON_YEAR }}
+          season_start: ${{ vars.SEASON_START }}
+          season_end: ${{ vars.SEASON_END }}
+          PYTHONUNBUFFERED: '1'
+        run: python -m pipeline.injury_drift_monitor
+
       - name: Unflare logs (on failure)
         if: failure()
         run: docker logs --tail 60 unflare || true

@@ -265,6 +265,23 @@ FROM basketball.injury_probabilities
 ORDER BY injury, days;
 '''
 
+# The published curves' last refit (pipeline/injury_probabilities_basketball.py) and the latest weekly drift
+# checks (pipeline/injury_drift_monitor.py), for the Injuries tab's model-health badge. Both tables come from
+# sql_files/migrations/2026-11-20_injury_model_monitoring.sql; before it, these come back empty.
+injury_refit_qry='''
+SELECT run_date, model
+FROM basketball.injury_model_evaluations
+WHERE source = 'refit'
+ORDER BY run_date DESC
+LIMIT 1;
+'''
+
+injury_health_qry='''
+SELECT run_date, check_name, unit, metric, status, detail
+FROM basketball.injury_model_monitoring
+WHERE run_date = (SELECT MAX(run_date) FROM basketball.injury_model_monitoring);
+'''
+
 # Normalized injury note -> taxonomy labels (shared/injury_taxonomy.py), from pipeline/injury_mapping.py.
 injury_notes_qry='''
 SELECT note_key, category, body_region, injury_type, non_medical_reason
@@ -375,6 +392,8 @@ def team_performance_data(connection):
         # note -> taxonomy labels written by pipeline/injury_mapping.py (empty before the 2026-11-08 migration)
         'injury_notes_df':  fetch(injury_notes_qry),
         'espn_positions_df': fetch(espn_positions_qry),
+        'injury_refit_df':  fetch(injury_refit_qry),
+        'injury_health_df': fetch(injury_health_qry),
     }
 
 
