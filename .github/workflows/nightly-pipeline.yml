@@ -1,5 +1,5 @@
 # The nightly data refresh, on GitHub's servers: python -m pipeline.run_scripts --list small
-# (every ETL script, points_forecast, then the injury chain), against the RDS database.
+# (every ETL script, the injury chain, then points_forecast), against the RDS database.
 #
 # Needs (repo Settings -> Secrets and variables -> Actions):
 #   secrets    SPORTS_DB_ADMIN_HOST, SPORTS_DB_ADMIN_USER, SPORTS_DB_ADMIN_PW, SPORTS_DB_ADMIN_PORT,

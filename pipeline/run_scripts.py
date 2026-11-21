@@ -1,4 +1,5 @@
-"""The nightly refresh: every ETL script, the points forecast, then the injury chain.
+"""The nightly refresh: every ETL script, then the injury chain, then the points forecast (last: it reads the
+day's box scores, rosters, ESPN injury snapshot and injury episodes).
 
     python -m pipeline.run_scripts                  # asks whether to run the Yahoo free-agent script
     python -m pipeline.run_scripts --list small     # no prompt: skip free_agents_yahoo_basketball
@@ -166,6 +167,10 @@ def run_injury_chain():
 			return False
 	else:
 		print(f'injury_probabilities_basketball.py: last run less than {PROBABILITIES_EVERY_DAYS} days ago, skipped')
+	# one survival curve per player out today, from the published champion (refit nightly, ~5 s)
+	if not run_step('injury_player_curves.py', module_cmd('injury_player_curves.py')):
+		chime.error()
+		return False
 	chime.success()
 	return True
 
@@ -173,8 +178,9 @@ def run_injury_chain():
 chime.theme('mario')
 small_list=['advanced_stats.py','high_level_nba_team_schedules.py',
 				'high_level_nba_team_stats.py', 'my_team_stats.py',
-				'historicals.py', 
-				'points_forecast.py',      # needs last night's box scores and the fresh rosters above
+				'historicals.py',
+				'espn_player_positions.py',  # positions + today's ESPN injury snapshot (slugs from the box scores above)
+				# points_forecast.py runs after the injury chain, in main()
 				# 'historical_basketball_injury_data.py', # historical_basketball_injury_data_updated
 				# 'injury_probabilities_basketball.py',
 				# 'free_agents_yahoo_basketball.py',
@@ -182,8 +188,8 @@ small_list=['advanced_stats.py','high_level_nba_team_schedules.py',
 full_list=['advanced_stats.py','high_level_nba_team_schedules.py',
 				'high_level_nba_team_stats.py', 'my_team_stats.py',
 				'historicals.py',
-				'points_forecast.py',      # needs last night's box scores and the fresh rosters above
-				# injury scripts run after the list, in run_injury_chain()
+				'espn_player_positions.py',
+				# injury scripts run after the list, in run_injury_chain(); points_forecast.py after those
 				'free_agents_yahoo_basketball.py',
 				'free_agents_backfill.py']
 
@@ -214,6 +220,13 @@ def main():
 			chime.error()
 	if not run_injury_chain():
 		failed.append('injury chain')
+	# last: needs the box scores, rosters and ESPN snapshot above, and the injury episodes. Runs even when the
+	# injury chain failed (it then uses yesterday's episodes).
+	if run_step('points_forecast.py', module_cmd('points_forecast.py')):
+		chime.success()
+	else:
+		failed.append('points_forecast.py')
+		chime.error()
 	if failed:
 		print('FAILED: ' + ', '.join(failed))
 		chime.theme('mario')

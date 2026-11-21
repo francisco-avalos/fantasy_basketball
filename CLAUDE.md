@@ -157,11 +157,15 @@ After the pipeline, a **Model health (injury curves)** step runs `python -m pipe
 (`!cancelled()`, `continue-on-error`): it never fails the run, and it writes the "Model health" block to the
 run summary plus a `::warning` annotation per alert (see **Injury drift monitoring**).
 
-After either list it runs the **injury chain** (`run_injury_chain()`), with exit codes checked:
+Both lists run `historicals.py` then `espn_player_positions.py` (positions + the day's ESPN injury
+snapshot; slugs are matched against the box scores just loaded). After either list it runs the **injury
+chain** (`run_injury_chain()`), with exit codes checked:
 `historical_basketball_injury_data_updated` in `basketball-prosports-vclaude-env` (its interpreter
 is found next to the current env), then `injury_mapping`, then `injury_probabilities_basketball` if
 the date in `tmp_data/injury_probabilities_last_run.txt` is 30+ days old (written on success; delete
-it to force a refit). On macOS it opens Docker Desktop (`open -g -a Docker`) and `docker start unflare`
+it to force a refit), then `injury_player_curves` (every night). **`points_forecast.py` runs last**, after
+the chain, because it reads the box scores, rosters, ESPN snapshot and injury episodes; it still runs when the
+chain failed (with yesterday's episodes). On macOS it opens Docker Desktop (`open -g -a Docker`) and `docker start unflare`
 when port 5002 isn't answering, and stops/quits whichever of the two it started (on Linux the caller
 starts Docker and the container). A failed scrape skips
 the later steps. Run `run_scripts.py` itself in `basketball-env-useme-v11052026`.
@@ -186,12 +190,13 @@ connection config for this to work.
 | `my_team_stats.py` | ESPN + Yahoo rosters, bbref per-player season game logs | `live_espn_players`, `live_yahoo_players`, then `my_team_stats`, `my_team_stats_yahoo` (Yahoo half behind `YAHOO_ENABLED`) |
 | `free_agents_yahoo_basketball.py` | Yahoo free agents + waivers | `live_free_agents_yahoo` |
 | `free_agents_backfill.py` | ESPN FA list (`league.free_agents`) → slugs via `master_names_list_temp` → this season's rows of `historical_player_data` (run `historicals` first) | `live_free_agents` |
-| `espn_player_positions.py` | ESPN | `espn_player_positions` |
+| `espn_player_positions.py` | ESPN fantasy player list (view `kona_player_info`, one request: slots, pro team, `injuryStatus`) | `espn_player_positions` (replaced), `nba_injury_status` (one snapshot per day, kept) |
 | `high_level_nba_team_stats.py` / `_schedules.py` | bbref | `high_level_nba_team_stats`, `high_level_nba_team_schedules` |
 | `injured_report.py` | requests + BeautifulSoup | `injured_player_news`, `injured_player_news_yh` |
 | `historical_basketball_injury_data_updated.py` | prosportstransactions via Unflare | `hist_player_inj` |
 | `injury_mapping.py` | `hist_player_inj` + box scores → episodes; notes → taxonomy (regex, then Claude) | `player_injury_cycles`, `injury_note_classification` |
 | `injury_probabilities_basketball.py` | `player_injury_cycles` → survival models, champion on a holdout | `injury_probabilities`, `injury_model_evaluations` |
+| `injury_player_curves.py` | `player_injury_cycles` → the published champion refit (~5 s), one curve per player out today | `injury_player_curves` |
 | `injury_drift_monitor.py` | `player_injury_cycles` + `injury_probabilities` + box scores / schedules, weekly | `injury_model_monitoring`, `injury_model_evaluations` |
 | `points_forecast.py` (+ `forecast_models.py`) | `historical_player_data` + `high_level_nba_team_schedules` + rosters | `forecast_roster`, `points_forecasts`, `model_runs`, MLflow in `mlflow/` |
 
@@ -271,8 +276,12 @@ pin a correction, since the pipeline never overwrites those rows.
   KM per group, log-normal AFT, Weibull AFT, and spline PH (Royston-Parmar).
 - Metrics: IPCW Brier and integrated Brier, C-index, and calibration against KM.
 - Covariates: group, era, out-for-season / out-indefinitely / stated window,
-  surgery, DTD, concurrent, age, injury history, and an empirical-Bayes player
-  frailty.
+  surgery, DTD, concurrent, age, injury history, an empirical-Bayes player
+  frailty, and `pre_mpg_10` (minutes per game in his last 10 games within 365 days
+  before the episode, written by `injury_mapping.py`; centred at 20, clipped 0–40,
+  missing flagged). Bench players miss games for non-injury reasons too, so their
+  episodes looked longer. Holdout with it: IBS 0.0801 → 0.0796, C-index 0.6245 → 0.6311.
+  The published population curves use `pre_mpg_10` = max(his value, 20), i.e. a rotation player.
 - Refits the lowest-IBS model on everything (log-normal AFT as of 2026-11-08).
 - Writes one population-average curve per group at the current era, days 0–150,
   with `DELETE` + `INSERT` in one transaction.
@@ -284,6 +293,12 @@ pin a correction, since the pipeline never overwrites those rows.
   `source='refit'` row naming the published champion in `injury_model_evaluations`.
   These used to live only in the overwritten `tmp_data/injury_model_comparison.csv`.
   A failed write there is printed, never fatal.
+
+**`injury_player_curves.py`** (nightly, from `run_injury_chain`): refits the champion named by the latest
+`refit` row (`fit_champion`, else log-normal AFT) and writes one curve per player with an injury episode open
+today, from **that absence's own inputs** (group, stated window, surgery, DTD, age, history, frailty,
+`pre_mpg_10`), days 0–150 from the episode start, to `injury_player_curves` (replaced every run; ~70 players).
+The Injuries tab draws it next to the group curve; `points_forecast` uses it for "back by game k".
 
 ### Injury drift monitoring
 
@@ -360,11 +375,31 @@ pipeline/points_forecast.py   the runner: MySQL in, MySQL + MLflow out (a few mi
 Run in `basketball-env-useme-v11052026`, after `pipeline.historicals`:
 `python -m pipeline.points_forecast` (`--dry-run`, `--no-mlflow`, `--players slug,slug`,
 `--deep auto|retrain|load|skip`).
-Needs `sql_files/migrations/2026-11-11_points_forecasts.sql` (run 2026-11-11). `run_scripts.py` runs it
-right after `historicals.py` in both lists (it needs last night's box scores and the rosters `my_team_stats` just refreshed).
+Needs `sql_files/migrations/2026-11-11_points_forecasts.sql` (run 2026-11-11) and
+`2026-11-21_forecast_inputs.sql` (run 2026-11-20: `nba_injury_status`, `injury_player_curves`,
+`player_injury_cycles.pre_mpg_10`, `points_forecasts.p_play / expected_points / play_note`). `run_scripts.py`
+runs it last, after the injury chain.
 
 - **Target:** points in each of the team's next 5 scheduled games (`high_level_nba_team_schedules`,
   UTC `start_time` converted to US/Eastern dates). Everything is in real points; nothing is scaled.
+  `prediction` is **points if he plays**; `p_play` is the chance he plays and `expected_points` = the two
+  multiplied (a missed game scores 0).
+- **Team-game grid** (`player_grid`, `grid_features`): bbref lists only players who got on the floor, so a
+  missed game had no row and DNPs were invisible. The grid has every team game in each team stint (the
+  latest stint runs to today while ESPN lists him on that team), `played` = has a box score. Missed games are
+  tagged from `player_injury_cycles`: injury, non_medical, or unexplained (coach's decision, rest, G League,
+  an unlogged DTD). 126,918 rows, 33% missed. Horizons are team games, so XGB's `h` and `min_lag5` now mean
+  the h-th **team** game in training, backtest and forecast (they used to count games played).
+- **Playing time** (`fit_play_model`, `play_backtest_and_fit`): an XGBoost classifier, direct multi-horizon
+  (targets ≤ 21 days ahead), from the open episode (days out, DTD, out-for-season / indefinitely, stated
+  window left), runs of missed and unexplained games, games played of the last 5 / 10, minutes, games since
+  return, b2b. Backtest models at the same cutoffs as XGB. Roster backtest Brier 0.110 vs 0.141 for "share
+  of last 10 played", AUC 0.635. Champion MAE over every team game: expected points 6.64 vs 6.79 assuming
+  he plays. `play_forecast` then applies **today's ESPN status** as caps (no status history to train on
+  yet): OUT / SUSPENSION → each game ≤ P(back by that game | out today) from his `injury_player_curves`
+  curve, and game 1 ≤ the historical OUT rate (17%); DAY_TO_DAY → game 1 ≤ the historical day-to-day rate
+  (46%, `status_play_rates`); ACTIVE while the transaction log still has an episode open → the episode is
+  ignored (the log lags a return). A snapshot more than a day old is not used. `play_note` says why.
 - **Models:** baselines NAIVE, SEASON_MEAN, MEAN_10, SES; statistical ETS_DAMPED, THETA, ARIMA
   (KPSS for d, then p,q ≤ 2 by AICc), ARIMAX (ARMA errors + inputs), LOCAL_LEVEL (Kalman), NEGBIN
   (count GLM + inputs, recency-weighted), MIN_X_PPM (minutes × points per minute), MIN_X_PPM_EB (pts/min
@@ -376,18 +411,34 @@ right after `historicals.py` in both lists (it needs last night's box scores and
   sample paths), one of each per position group, same segmentation, same cutoffs and origins as XGB.
   One step = one game played; up to 30 games of history per window; slug is a static embedding.
   Decoder (known) inputs: home, rest, b2b, opp_def, opp_pace, `min_lag5` (minutes EWM through the game
-  5 before the target, so no future minutes leak). TFT's encoder also sees minutes, FGA/FTA/3PA, usage,
-  days since last game; DeepAR can only observe the target (its RNN needs identical encoder/decoder inputs).
+  5 before the target, so no future minutes leak), `tm_out_usg`. TFT's encoder also sees minutes,
+  FGA/FTA/3PA, usage share, days since last game, `started`, `games_on_team`; DeepAR can only observe the
+  target (its RNN needs identical encoder/decoder inputs). Backtest windows' decoders are the team's next 5
+  games from the grid. `deep_models.SPEC` is **3** (2026-11-20), so the first nightly run after this deploys
+  is a retrain day (~1.5 h).
   Target scale is per window, from its own history (`FlooredEncoderNormalizer`: TFT mean/std, DeepAR
   mean only, floored at 1 point). The SPEC-1 per-player `GroupNormalizer` froze each player's level at
   training time and lost the backtest to XGB by 0.35 pts while matching it on validation.
-- **Inputs:** projected minutes (EWM through the previous game), home, team rest days (capped at 4),
-  back-to-back, opponent points allowed and pace over its last 15 games relative to the 30-day league
-  average. Opponent form is taken **as of the origin** in XGB rows; the per-player ARIMAX/NEGBIN
-  backtest uses it as of the day before each game (a few days' look-ahead, documented).
+- **Inputs:** `min_lag5`, home, team rest days (capped at 4), back-to-back, `opp_def` = opponent
+  **defensive rating** (points allowed per 100 possessions over its last 15 games minus the 30-day league
+  average; points allowed per game also measured pace, correlation with `opp_pace` 0.63 → 0.16), `opp_pace`,
+  and `tm_out_usg` = teammates out (sum of usage share × minutes share of teammates with an injury /
+  non-medical episode open, plus at forecast time those ESPN lists OUT; `teammate_absence`,
+  `teammates_out_now`). ARIMAX leaves `tm_out_usg` out (`EXOG`: it made ARIMAX worse, 6.27 → 6.30, too
+  sparse for one series); NEGBIN uses it. XGB also gets usage share of team possessions (`usg_ewm`, not
+  per-minute volume, which grew with pace), a starter proxy (`started_last`, `start_rate5`: top 5 on his
+  team in minutes that game), and team-change features (`games_on_team`, `new_team`, `usg_ewm_team`;
+  `ROLE_RESET` for a player traded since his last game). After a trade, MIN_X_PPM(_EB) project minutes from
+  the new team's games once there are 3. ARIMAX / NEGBIN drop their inputs below 20 training games
+  (`EXOG_MIN_TRAIN`: a near-constant column made NEGBIN explode to MAE 177,939). Opponent form is taken
+  **as of the origin** in XGB rows; the per-player ARIMAX/NEGBIN backtest uses it as of the day before
+  each game (a few days' look-ahead, documented).
 - **Series:** regular-season games only (`season_calendar.is_in_season`), since last season's start
   (the whole 3-season window if fewer than 30 games).
-- **Backtest:** the last 20 (+4 partial) games are origins; every statistical model is refit at each.
+- **Backtest:** the last 20 (+4 partial) games are origins; every statistical model is refit at each and
+  forecasts the **team's** next 5 games after the origin, scored on the games he played (predictions for
+  every game are kept for the expected-points score). This is a harder target set than before (XGB 5.73 →
+  5.77 on the same code), so compare runs only from 2026-11-20 on.
   XGB / TFT / DeepAR backtest models train only on targets on or before a cutoff. A player's safe cutoff
   is the last game before their first origin (`player_cutoff`). One roster-wide cutoff (the earliest) was
   2025-10-24 on 2026-11-12, set by a long-injured player, against a median of 2026-03-10, so most players
@@ -518,8 +569,9 @@ already showing.
 `app/predictions.py` owns the page (Draft A). It loads `forecast_page_data()` once at boot: the roster,
 the latest `model_runs` and `points_forecasts` run, live scores of past forecasts, and ~15 months of the
 rostered players' box scores. Filters: league, player, models (multi; the champion is always drawn, with
-its 80% band), history window. Below the chart: next 5 games (rest / B2B, opponent defence rank, champion
-forecast), the scoreboard (backtest MAE, skill, MAE by horizon as a sparkline, live MAE), and one parameter
+its 80% band), history window. Below the chart: next 5 games (rest / B2B, opponent defence rank per 100
+possessions, **Plays** = `p_play`, champion forecast **if playing**, **Expected** = `expected_points`, and
+the `play_note` above the footnote; the three columns appear once a run has written them), the scoreboard (backtest MAE, skill, MAE by horizon as a sparkline, live MAE), and one parameter
 card per selected model. Until the migration has run or a forecast run exists, the page shows a message.
 The AI assistant's context gets the champion forecasts (`forecast_champion_qry`).
 
@@ -540,19 +592,28 @@ ESPN/Yahoo + window season/30/14/7 days, both global) plus `tabs_body()`:
   `live_espn_players`. Tick = slots to fill (`SLOTS`: 1 each, UTIL 5, from the league's
   `lineupSlotCounts`). Injured = any non-healthy `injury_status`, so day-to-day counts; the toggle
   defaults to Exclude. `pipeline.espn_player_positions` writes every active ESPN player from one
-  `get_pro_players()` request (~2 s; it used to be one `player_info` call + 4 s sleep per player,
-  ~30 min), names in the live-table spelling (suffixes stripped). A player without a row counts at
+  request to ESPN's fantasy player list (view `kona_player_info`, ~2 s; it used to be one `player_info`
+  call + 4 s sleep per player, ~30 min; `get_pro_players()` has no injury status), names in the live-table
+  spelling (suffixes stripped). Slugs for `nba_injury_status` match ESPN's **raw** full name
+  (`remove_name_suffixes` turns "Jimmy Butler III" into "Jimmy Butler I"). A player without a row counts at
   UTIL only. Yahoo needs its roster's eligible positions stored first.
 - **Player detail**: box + strip per player (last 5 games coloured), small
   multiples, and a hot/cold table (last 5 vs window average).
 - **Injuries**: the players currently out, each a button that loads the matched
-  `injury_probabilities` curve with a "day N" marker, plus key-day odds
-  conditional on days already out, S(d+k)/S(d). Next to "Injury outlook", a badge
+  `injury_probabilities` curve (grey dotted, "typical") and, when there is one, his own
+  `injury_player_curves` curve (green), with a "day N" marker, plus key-day odds
+  conditional on days already out, S(d+k)/S(d), from his own curve when there is one
+  ("· fitted to this injury"). Next to "Injury outlook", a badge
   reads "Curves refit on <date> · calibration OK / drifting"
   (`model_health_badge`, from `injury_refit_qry` / `injury_health_qry`). It shows
   drifting on any calibration or season-backtest alert, with the details in its
   hover tooltip, and "not checked yet" when there's no monitor run. Its CSS class is
   `tp-health`, because `tp-badge` is already the "Out" chip.
+
+The free-agent screener (page 2) has an **Injured free agents** card under its graph
+(`tp.injured_free_agents()`, from `fa_injury_curves_qry`: `injury_player_curves` joined to
+`live_free_agents.name_code`): days out, chance back within 7 / 14 days given the days already out, and
+the median further days, soonest first.
 
 Injury **status** comes from `live_*_players.injury_status` (ESPN `injuryStatus` /
 Yahoo `status`, written by `my_team_stats.py`). That column is added by

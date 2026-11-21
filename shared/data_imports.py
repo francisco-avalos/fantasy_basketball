@@ -196,7 +196,7 @@ WHERE run_date = (SELECT MAX(run_date) FROM basketball.model_runs)
 
 forecast_latest_qry='''
 SELECT run_date, slug, model, horizon, game_date, team, opponent, home, rest_days, opp_def_rank,
-       prediction, lo80, hi80, champion
+       prediction, lo80, hi80, champion, p_play, expected_points, play_note
 FROM basketball.points_forecasts
 WHERE run_date = (SELECT MAX(run_date) FROM basketball.points_forecasts)
 ;'''
@@ -280,6 +280,20 @@ injury_health_qry='''
 SELECT run_date, check_name, unit, metric, status, detail
 FROM basketball.injury_model_monitoring
 WHERE run_date = (SELECT MAX(run_date) FROM basketball.injury_model_monitoring);
+'''
+
+# One survival curve per player currently out, from that absence's own inputs (pipeline/injury_player_curves.py,
+# nightly; sql_files/migrations/2026-11-21_forecast_inputs.sql). Empty before the migration.
+injury_player_curves_qry='''
+SELECT slug, player_name, start_date, days_out, curve_group, model, days, probabilities
+FROM basketball.injury_player_curves;
+'''
+
+# The same curves for ESPN free agents (live_free_agents.name_code is the bbref slug), for the screener.
+fa_injury_curves_qry='''
+SELECT F.name, C.slug, C.start_date, C.days_out, C.curve_group, C.days, C.probabilities
+FROM basketball.injury_player_curves C
+JOIN (SELECT DISTINCT name, name_code FROM basketball.live_free_agents) F ON F.name_code = C.slug;
 '''
 
 # Normalized injury note -> taxonomy labels (shared/injury_taxonomy.py), from pipeline/injury_mapping.py.
@@ -394,6 +408,9 @@ def team_performance_data(connection):
         'espn_positions_df': fetch(espn_positions_qry),
         'injury_refit_df':  fetch(injury_refit_qry),
         'injury_health_df': fetch(injury_health_qry),
+        'player_curves_df': fetch(injury_player_curves_qry),
+        'fa_curves_df':     fetch(fa_injury_curves_qry),
+        'forecast_roster_df': fetch(forecast_roster_qry),     # live_* name -> slug, per league
     }
 
 
