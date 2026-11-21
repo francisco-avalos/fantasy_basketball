@@ -701,7 +701,13 @@ page2=html.Div([
 
     html.Div([
         dcc.Graph(id='player_stats',figure=player_stats(),config=config)
-    ],className='col-12')
+    ],className='col-12'),
+
+    # injured free agents: chance back soon, from each player's own survival curve (pipeline/injury_player_curves.py)
+    html.Div(tp._card('Injured free agents', tp.injured_free_agents(),
+                      sub='ESPN free agents currently out, from a survival curve fitted to their own injury details. '
+                          'Days are in-season days.'),
+             className='col-12', style={'padding': '0 24px'})
 ],className='col-12')
 
 

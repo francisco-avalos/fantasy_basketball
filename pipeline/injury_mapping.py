@@ -81,6 +81,7 @@ LLM_MODEL = 'claude-opus-5-5'
 LLM_BATCH = 40
 LABEL_GRACE_DAYS = 3
 SHUTDOWN_WINDOW_DAYS = 14
+PRE_GAMES, PRE_WINDOW_DAYS = 10, 365   # pre_mpg_10: minutes per game over the last 10 games within a year
 HOLE_MIN_DAYS = 8            # league-wide in-season run with no box scores (All-Star break is shorter)
 CLS_FIELDS = ['category', 'body_region', 'body_part', 'injury_type', 'non_medical_reason', 'is_surgery']
 
@@ -91,7 +92,7 @@ CYCLE_COLUMNS = [
     'is_dtd', 'out_for_season', 'out_indefinitely', 'stated_days', 'later_surgery', 'later_out_for_season',
     'severity_tier', 'curve_group', 'concurrent', 'start_offseason', 'crossed_offseason', 'shutdown_suspect',
     'season', 'era', 'age_at_start', 'prior_episodes', 'prior_same_region_365', 'prior_inseason_days_365',
-    'days_since_prior_return', 'fit_eligible', 'built_at',
+    'days_since_prior_return', 'pre_mpg_10', 'fit_eligible', 'built_at',
 ]
 CLS_COLUMNS = ['note_key', 'example_note', 'n_rows'] + CLS_FIELDS + [
     'source', 'model_version', 'confidence', 'llm_regex_agree', 'reviewed', 'classified_at']
@@ -116,7 +117,8 @@ def fetch(cursor, query):
 def load(connection):
     cur = connection.cursor()
     hist = fetch(cur, 'SELECT day, team, acquired, relinquished, notes FROM basketball.hist_player_inj')
-    games = fetch(cur, 'SELECT slug, name, date FROM basketball.historical_player_data WHERE seconds_played > 0')
+    games = fetch(cur, 'SELECT slug, name, date, seconds_played FROM basketball.historical_player_data '
+                       'WHERE seconds_played > 0')
     births = fetch(cur, 'SELECT bbrefid AS slug, bday FROM basketball.master_names_list_temp')
     births2 = fetch(cur, 'SELECT BBRefID AS slug, BBRefBirthDate AS bday FROM basketball.basketball_references_players')
     try:
@@ -136,6 +138,7 @@ def load(connection):
     for c in ['team', 'acquired', 'relinquished', 'notes']:
         hist[c] = hist[c].fillna('').astype(str).str.strip().str.strip('"').str.strip()
     games['date'] = pd.to_datetime(games['date'])
+    games['minutes'] = pd.to_numeric(games.pop('seconds_played'), errors='coerce') / 60
     b = pd.concat([births, births2]).dropna()
     b['bday'] = pd.to_datetime(b['bday'], errors='coerce')
     b = b.dropna().drop_duplicates('slug')
@@ -489,6 +492,26 @@ def build_episodes(hist, slug_map, games, holes, data_end, lookup):
     return episodes
 
 
+def pre_minutes(cycles, games):
+    """Minutes per game over the player's last PRE_GAMES games before the out date (within PRE_WINDOW_DAYS).
+    None without a game in that window. Separates a rotation player from a deep-bench one, whose absence
+    looks longer because a healthy bench player who isn't getting minutes has no box score to end it."""
+    out = pd.Series(np.nan, index=cycles.index)
+    by_slug = {s: (g['date'].values, g['minutes'].values)
+               for s, g in games.sort_values('date').groupby('slug', sort=False)}
+    window = np.timedelta64(PRE_WINDOW_DAYS, 'D')
+    for i, slug, start in zip(cycles.index, cycles['slug'], cycles['start_date']):
+        if slug not in by_slug:
+            continue
+        d, m = by_slug[slug]
+        j = np.searchsorted(d, np.datetime64(start), side='left')       # games strictly before the out date
+        k = max(0, j - PRE_GAMES)
+        keep = d[k:j] >= np.datetime64(start) - window
+        if keep.any():
+            out[i] = round(float(m[k:j][keep].mean()), 2)
+    return out
+
+
 def finish(episodes, births, data_end):
     """Durations, flags, history features and fit eligibility."""
     rows = []
@@ -546,6 +569,7 @@ def finish(episodes, births, data_end):
 
     df['fit_eligible'] = (df['slug'].notna() & ~df['category'].isin(['not_absence']) &
                           (df['start_offseason'] == 0) & (df['calendar_days'] > 0)).astype(int)
+    df['pre_mpg_10'] = np.nan            # filled from the box scores by pre_minutes()
     return df[CYCLE_COLUMNS]
 
 
@@ -642,6 +666,7 @@ def main():
 
         episodes = build_episodes(hist, slug_map, games, holes, data_end, lookup)
         cycles = finish(episodes, births, data_end)
+        cycles['pre_mpg_10'] = pre_minutes(cycles, games)
         summarize(cycles)
 
         if args.dry_run:

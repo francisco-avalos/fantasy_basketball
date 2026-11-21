@@ -9,8 +9,9 @@ Data
     back, the same games as XGB. A player eligible at several positions is in each of those groups'
     training data, and gets the mean of those models' quantiles.
 
-    known (decoder) inputs  home, rest, b2b, opp_def, opp_pace, min_lag5 (+ relative time index)
-    observed (encoder)      TFT:    points, minutes, fga, fta, fg3a, usage, gap_before
+    known (decoder) inputs  home, rest, b2b, opp_def, opp_pace, min_lag5, tm_out_usg (+ relative time index)
+    observed (encoder)      TFT:    points, minutes, fga, fta, fg3a, usage, gap_before, started,
+                                    games_on_team
                             DeepAR: points only (its RNN takes the same inputs in encoder and decoder,
                                     so nothing else can be observed-only)
     static                  slug (an embedding; a player the model hasn't seen gets the "unknown" one)
@@ -18,7 +19,10 @@ Data
     min_lag5 is the player's minutes EWM through the game 5 games before the target game, so it is
     known at the origin for all 5 horizons and no future minutes leak in (XGB and ARIMAX use the EWM at
     the origin instead). opp_def / opp_pace are as of the day before each game: a few days' look-ahead
-    for horizons 2-5, the same as ARIMAX's backtest.
+    for horizons 2-5, the same as ARIMAX's backtest. tm_out_usg (teammates out, forecast_models) is taken as
+    known at the origin and carried to all 5 decoder steps, in the backtest and the forecast. usage is the
+    usage share of team possessions; started = top 5 on his team in minutes that game; games_on_team counts
+    games since his last team change (capped at 40).
 
 Models
     TFT     QuantileLoss at 10/50/90; point forecast = the median (MAE-optimal, like XGB's absolute loss)
@@ -63,14 +67,17 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 CACHE_DIR = REPO_ROOT / 'mlflow' / 'deep_cache'
 
 DEEP_MODELS = {'TFT': ('Temporal Fusion Transformer', 'dl'), 'DEEPAR': ('DeepAR (neg. binomial)', 'dl')}
-SPEC = 2                     # bump when inputs or architecture change: forces a retrain of every cached model
+SPEC = 3                     # bump when inputs or architecture change: forces a retrain of every cached model
+                             # 3 (2026-11-20): usage share, DRtg opp_def, tm_out_usg, started, games_on_team,
+                             #   team-game backtest windows
 ENC_LEN, MIN_ENC = 30, 5     # games of history per window
 QUANTILES = [0.1, 0.5, 0.9]
 N_SAMPLES = 200              # DeepAR sample paths per forecast
 RETRAIN_DAYS = 7
 MIN_ROWS = 2000              # a position group with fewer games is skipped (same rule as XGB)
-KNOWN = ['home', 'rest', 'b2b', 'opp_def', 'opp_pace', 'min_lag5']
-OBSERVED = {'TFT': ['points', 'minutes', 'fga', 'fta', 'fg3a', 'usage', 'gap_before'], 'DEEPAR': ['points']}
+KNOWN = ['home', 'rest', 'b2b', 'opp_def', 'opp_pace', 'min_lag5', 'tm_out_usg']
+OBSERVED = {'TFT': ['points', 'minutes', 'fga', 'fta', 'fg3a', 'usage', 'gap_before', 'started', 'games_on_team'],
+            'DEEPAR': ['points']}
 HPARAMS = {
     'TFT': dict(learning_rate=0.003, hidden_size=32, attention_head_size=2, dropout=0.15,
                 hidden_continuous_size=16, reduce_on_plateau_patience=3),
@@ -80,7 +87,8 @@ TRAIN = dict(max_epochs=30, patience=4, batch_size=128, gradient_clip_val=0.1, s
 INPUT_LABELS = {'points': 'points', 'minutes': 'minutes', 'fga': 'FGA', 'fta': 'FTA', 'fg3a': '3PA',
                 'usage': 'usage', 'gap_before': 'days since last game', 'home': 'home', 'rest': 'rest days',
                 'b2b': 'back-to-back', 'opp_def': 'opp. defence', 'opp_pace': 'opp. pace',
-                'min_lag5': 'minutes (lag 5)', 'relative_time_idx': 'games ahead', 'slug': 'player',
+                'min_lag5': 'minutes (lag 5)', 'tm_out_usg': 'teammates out', 'started': 'started',
+                'games_on_team': 'games on team', 'relative_time_idx': 'games ahead', 'slug': 'player',
                 'encoder_length': 'history length', 'points_center': 'recent scoring level',
                 'points_scale': 'recent scoring spread'}
 
@@ -128,14 +136,15 @@ def _load(kind, path):
 def deep_frame(pg):
     """Player-game table (from forecast_models.player_games) -> one row per game with the model inputs."""
     d = pg[['slug', 'date', 'team', 'opponent', 'points', 'minutes', 'fga', 'fta', 'fg3a', 'tov', 'home', 'rest',
-            'b2b', 'opp_def', 'opp_pace', 'min_ewm']].sort_values(['slug', 'date']).reset_index(drop=True)
+            'b2b', 'opp_def', 'opp_pace', 'min_ewm', 'min_lag5', 'usg_share', 'tm_out_usg', 'started',
+            'games_on_team']].sort_values(['slug', 'date']).reset_index(drop=True)
     g = d.groupby('slug', sort=False)
-    d['usage'] = d['fga'] + 0.44 * d['fta'] + d['tov']
+    d['usage'] = d.pop('usg_share')              # share of team possessions used (forecast_models.player_games)
     d['gap_before'] = g['date'].diff().dt.days.clip(0, 30).fillna(30)
-    d['min_lag5'] = g['min_ewm'].shift(H).fillna(float(d['minutes'].median()))
+    d['games_on_team'] = d['games_on_team'].clip(upper=40)
     d['time_idx'] = g.cumcount().astype(int)
     d['series'] = d['slug'].astype(str)
-    num = ['points', 'minutes', 'fga', 'fta', 'fg3a', 'usage', 'gap_before'] + KNOWN
+    num = OBSERVED['TFT'] + KNOWN
     d[num] = d[num].astype('float32')
     return d
 
@@ -166,18 +175,41 @@ def _window(enc, dec, sid):
     return w, n_real
 
 
-def backtest_windows(d_s, frame, origins):
+def _decoder(enc, games, last):
+    """Decoder rows for `games` (team games with the KNOWN inputs, from the grid or the schedule) after the
+    player's history `enc`; `last` = index of his latest game in his deep frame. min_lag5 = his minutes EWM
+    through game last + h - H, as if he plays every game. Observed-only columns are filled from the last
+    history row (the decoder never reads them)."""
+    m = enc.attrs['min_ewm']
+    dec = pd.DataFrame({'slug': enc['slug'].iloc[0], 'date': games['date'].values, 'team': games['team'].values,
+                        'opponent': games['opponent'].values})
+    for c in KNOWN:
+        if c != 'min_lag5':
+            dec[c] = games[c].values
+    dec['min_lag5'] = [float(m[max(last + h - H, 0)]) for h in range(1, len(dec) + 1)]
+    for c in enc.columns.drop(['series', 'time_idx']):
+        if c not in dec:
+            dec[c] = 0.0 if c == 'points' else enc[c].iloc[-1]
+    return dec[enc.columns.drop(['series', 'time_idx'])].astype(enc.dtypes.drop(['series', 'time_idx']).to_dict())
+
+
+def backtest_windows(d_s, frame, origins, grid_s):
     """Windows at each backtest origin of one player. `frame` / `origins` are the runner's (the same
-    origins as every other model), mapped to rows of the player's full deep frame `d_s` by date."""
+    origins as every other model): history through played game o-1, decoder = the team's next H games from
+    his grid (forecast_models.player_grid), scored where he played."""
     pos = pd.Series(np.arange(len(d_s)), index=d_s['date'].values)
     wins, actual = [], np.full((len(origins), H), np.nan)
     for k, o in enumerate(origins):
-        j = int(pos[frame['date'].iloc[o]])
-        enc, dec = d_s.iloc[max(0, j - ENC_LEN):j], d_s.iloc[j:j + H]
-        if len(enc) < MIN_ENC:
+        d = frame['date'].iloc[o - 1]
+        j = int(pos[d]) + 1
+        enc = d_s.iloc[max(0, j - ENC_LEN):j]
+        games = grid_s[grid_s['date'] > d].head(H)
+        if len(enc) < MIN_ENC or games.empty:
             continue
-        w, n_real = _window(enc, dec, f'{d_s["slug"].iloc[0]}|{k}')
-        actual[k, :n_real] = dec['points'].values
+        enc.attrs['min_ewm'] = d_s['min_ewm'].values
+        games = games.assign(tm_out_usg=float(d_s['tm_out_usg'].iloc[j - 1]))    # teammates out, as known at the origin
+        w, n_real = _window(enc, _decoder(enc, games, j - 1), f'{d_s["slug"].iloc[0]}|{k}')
+        actual[k, :n_real] = np.where(games['played'].values == 1, games['points'].values, np.nan)
         wins.append(w)
     return wins, actual
 
@@ -187,17 +219,8 @@ def live_window(d_s, fut):
     enc = d_s.iloc[-ENC_LEN:]
     if len(enc) < MIN_ENC:
         return None
-    n = len(d_s)
-    m = d_s['min_ewm'].values
-    dec = pd.DataFrame({'slug': d_s['slug'].iloc[0], 'date': fut['date'].values, 'team': fut['team'].values,
-                        'opponent': fut['opponent'].values, 'home': fut['home'].values, 'rest': fut['rest'].values,
-                        'b2b': fut['b2b'].values, 'opp_def': fut['opp_def'].values,
-                        'opp_pace': fut['opp_pace'].values})
-    dec['min_lag5'] = [m[n + k - H] if n + k - H >= 0 else m[0] for k in range(len(dec))]
-    for c in OBSERVED['TFT'] + ['tov', 'min_ewm']:
-        dec[c] = 0.0 if c == 'points' else float(enc[c].iloc[-1])     # not read by the decoder
-    dec = dec[enc.columns.drop(['series', 'time_idx'])].astype(enc.dtypes.drop(['series', 'time_idx']).to_dict())
-    w, _ = _window(enc, dec.iloc[:H], f'{d_s["slug"].iloc[0]}|live')
+    enc.attrs['min_ewm'] = d_s['min_ewm'].values
+    w, _ = _window(enc, _decoder(enc, fut.head(H), len(d_s) - 1), f'{d_s["slug"].iloc[0]}|live')
     return w
 
 
@@ -326,10 +349,11 @@ def _top(weights, n=3):
 # 004 - RUN (called by points_forecast)
 ####################################################################################################
 
-def run(pg, groups, roster_frames, roster_groups, futs, origins_of, needed, cutoffs, mode, log):
+def run(pg, groups, roster_frames, roster_groups, futs, origins_of, needed, cutoffs, mode, log, grids):
     """Backtest + forecast TFT and DeepAR for the rostered players.
 
-    Returns {model: {'errors': {slug: (n_origins, H)}, 'forecast': {slug: (h,)}, 'band': {slug: (lo, hi)},
+    Returns {model: {'errors': {slug: (n_origins, H)}, 'preds': {slug: (n_origins, H)}, 'forecast': {slug: (h,)},
+             'band': {slug: (lo, hi)},
              'hits': {slug: (in, n)}, 'params': {slug: dict}}}, and {model: {pos: (fitted model, meta)}}."""
     _quiet()
     torch.set_num_threads(max(1, (os.cpu_count() or 4) - 1))
@@ -339,7 +363,7 @@ def run(pg, groups, roster_frames, roster_groups, futs, origins_of, needed, cuto
     for s, frame in roster_frames.items():
         if s not in by_slug:
             continue
-        bt[s], actual[s] = backtest_windows(by_slug[s], frame, origins_of[s])
+        bt[s], actual[s] = backtest_windows(by_slug[s], frame, origins_of[s], grids[s])
         w = live_window(by_slug[s], futs[s])
         if w is not None:
             live[s] = w
@@ -389,7 +413,7 @@ def run(pg, groups, roster_frames, roster_groups, futs, origins_of, needed, cuto
                         live_q.setdefault(s, []).append(pred[f'{s}|live'])
                         if imp:
                             imps.setdefault(s, []).append(imp[f'{s}|live'])
-        res = {'errors': {}, 'forecast': {}, 'band': {}, 'hits': {}, 'params': {}}
+        res = {'errors': {}, 'preds': {}, 'forecast': {}, 'band': {}, 'hits': {}, 'params': {}}
         for s in bt_q.keys() | live_q.keys():
             pos_used = [p for p in POSITIONS if p in roster_groups[s] and p in metas]
             prm = {'positions': ','.join(pos_used),
@@ -401,6 +425,7 @@ def run(pg, groups, roster_frames, roster_groups, futs, origins_of, needed, cuto
                 a = actual[s]
                 ok = np.isfinite(a) & np.isfinite(q[:, :, 1])
                 res['errors'][s] = np.where(ok, a - q[:, :, 1], np.nan)
+                res['preds'][s] = q[:, :, 1]
                 res['hits'][s] = (int(((a >= q[:, :, 0]) & (a <= q[:, :, 2]) & ok).sum()), int(ok.sum()))
             if s in live_q:
                 n = len(futs[s].head(H))

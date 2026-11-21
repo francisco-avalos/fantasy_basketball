@@ -14,15 +14,51 @@ Models (MODELS below)
                  eligible player's games with lag features, direct multi-horizon (h is a feature)
     dl           TFT, DEEPAR: one of each per position group, in pipeline/deep_models.py
 
-Inputs used by ARIMAX / NEGBIN / XGB (all known before tip-off)
-    min_proj   projected minutes: EWM of the player's minutes through the previous game
+Inputs used by ARIMAX / NEGBIN / XGB (all known before tip-off; ARIMAX leaves out tm_out_usg, see EXOG)
+    min_lag5   minutes EWM through the player's game 5 games before the target, the same at every horizon in
+               training, backtest and forecast (it used to be refreshed every game in training and frozen at the
+               origin when forecasting); XGB also sees the EWM at the origin
     home, rest (team days off, capped at 4), b2b
-    opp_def    opponent points allowed over its last 15 games minus the league average (30 days)
-    opp_pace   the same for possessions
+    opp_def    opponent defensive rating: points allowed per 100 possessions over its last 15 games minus the league
+               average (30 days). Points allowed per game, used before, also measures pace and overlapped opp_pace,
+               which made ARIMAX / NEGBIN's linear coefficients unstable.
+    opp_pace   possessions per game over its last 15 games minus the league average
+    tm_out_usg teammates out: the sum, over teammates with an injury / non-medical episode open, of their usage
+               share x minutes share (their share of the team's possessions per game), as of their last game.
+               NEGBIN trains on each game's own value; XGB takes the origin game's value for all 5 targets (h lets
+               it learn how fast it fades); the backtest and the forecast carry the value known at the origin to
+               all 5 games. The forecast also counts teammates ESPN lists OUT / SUSPENSION today
+               (teammates_out_now).
+
+XGB-only features (origin_features)
+    usg_ewm       usage share of team possessions while on the floor, (FGA + 0.44 FTA + TOV) x (team minutes / 5)
+                  / (minutes x team usage), minutes-weighted EWM. Per-minute volume, used before, grew with pace.
+    role          started_last, start_rate5: a starter = top 5 on his team in minutes that game (the box scores
+                  have no starter flag)
+    team change   games_on_team (since his last team change in the 3-season window, capped at 40), new_team
+                  (changed team, <= 20 games since), usg_ewm_team (usage on the current team only). A player on
+                  a new team since his last game is forecast with games_on_team = 0, new_team = 1 (ROLE_RESET).
+                  MIN_X_PPM(_EB) project minutes from the current team's games once there are TEAM_MIN_GAMES.
+
+Team-game grid and playing time
+    basketball-reference only lists players who got on the floor, so a missed game has no row. player_grid
+    rebuilds every team game a player was on the roster for (each stint's first to last game, and the latest
+    stint on to today while ESPN still lists him on that team), played = 1 when he has a box score. Missed
+    games are tagged from player_injury_cycles: injury (an episode open that day), non_medical (suspension,
+    personal), or unexplained (coach's decision, rest, G League, an unlogged DTD).
+    The scoring models are "points if he plays": trained on games played, minutes averaged over games played.
+    A separate classifier (fit_play_model) gives the chance he plays each of the team's next 5 games, from the
+    open injury episode, runs of missed games, recent minutes and back-to-backs. expected points = chance x
+    points if he plays. points_forecast.play_forecast then applies today's ESPN status (no status history to
+    train on yet, so these are caps, not features): OUT -> P(back by that game) from his own survival curve
+    and the historical OUT rate for the next game, DAY_TO_DAY -> the historical day-to-day rate for the next
+    game (status_play_rates), ACTIVE while the transaction log still has him out -> the episode is ignored.
 
 Backtest
-    For each player, the last N_ORIGINS(+H-1) games are origins. At origin o every model is
-    refit on games [0, o) and forecasts games o..o+4. Errors are in points, signed actual-pred.
+    For each player, the last N_ORIGINS(+H-1) games played are origins. At origin o every model is refit on
+    games [0, o) and forecasts the TEAM's next 5 games after it (the same games the live forecast covers:
+    horizon h = the h-th team game, not the h-th game he plays). Errors (signed actual - pred, in points) are
+    scored on the games he played; predictions for every game are kept for the expected-points score.
     XGB / TFT / DeepAR backtest models train only on targets on or before a cutoff. A player's own safe
     cutoff is the last game before their first origin. One cutoff for the whole roster would be the
     earliest of those (a long-injured player's, 2025-10-24 on 2026-11-12, against a median of
@@ -57,8 +93,12 @@ warnings.filterwarnings('ignore')
 H = 5                    # forecast horizon: the team's next 5 games
 N_ORIGINS = 20           # backtest origins with a full 5-game horizon (plus H-1 shorter ones at the end)
 MIN_TRAIN = 6            # games needed before the first origin
+EXOG_MIN_TRAIN = 20      # ARIMAX / NEGBIN drop their inputs below this many training games (coefficients from
+                         # a handful of games extrapolate wildly: one 7-game window predicted 4e8 points)
 DM_ALPHA, DM_MIN_ORIGINS = 0.10, 8
-EXOG = ['min_proj', 'home', 'b2b', 'opp_def', 'opp_pace']
+EXOG = ['min_lag5', 'home', 'b2b', 'opp_def', 'opp_pace']       # ARIMAX's inputs; NEGBIN adds tm_out_usg (_nb_design).
+# tm_out_usg made ARIMAX worse (backtest MAE 6.27 -> 6.30): for one player it is mostly 0 with rare spikes, too
+# little to estimate a coefficient from a single series. NEGBIN's recency-weighted GLM handled it (6.24 -> 6.23).
 POSITIONS = ['PG', 'SG', 'SF', 'PF', 'C']
 REST_CAP = 4
 N_CUTOFFS = 3            # backtest-model cutoffs for the ML / DL models (each costs one more backtest fit)
@@ -98,17 +138,20 @@ def team_games(box):
 
 
 def team_ratings(tg, window=15):
-    """Per team and game date: defence (points allowed) and pace over its last `window` games
-    through that date, relative to the league average over the previous 30 days.
-    opp_def > 0 means the team allows more than average (a good matchup)."""
+    """Per team and game date: defensive rating (points allowed per 100 possessions) and pace over its last
+    `window` games through that date, relative to the league average over the previous 30 days.
+    opp_def > 0 means the team allows more per possession than average (a good matchup). allowed_roll is the
+    rolling defensive rating itself (the page's opponent-defence rank)."""
     tg = tg.sort_values(['team', 'date']).copy()
     grp = tg.groupby('team')
-    tg['allowed_roll'] = grp['opp_points'].transform(lambda s: s.rolling(window, min_periods=3).mean())
+    roll = lambda col: grp[col].transform(lambda s: s.rolling(window, min_periods=3).sum())
+    tg['allowed_roll'] = 100 * roll('opp_points') / roll('pace')
     tg['pace_roll'] = grp['pace'].transform(lambda s: s.rolling(window, min_periods=3).mean())
-    daily = tg.groupby('date')[['points', 'pace']].mean().sort_index()
-    league = daily.rolling('30D').mean().rename(columns={'points': 'lg_pts', 'pace': 'lg_pace'})
+    tg['rtg'] = 100 * tg['points'] / tg['pace']
+    daily = tg.groupby('date')[['rtg', 'pace']].mean().sort_index()
+    league = daily.rolling('30D').mean().rename(columns={'rtg': 'lg_rtg', 'pace': 'lg_pace'})
     tg = tg.merge(league, left_on='date', right_index=True, how='left')
-    tg['opp_def'] = tg['allowed_roll'] - tg['lg_pts']
+    tg['opp_def'] = tg['allowed_roll'] - tg['lg_rtg']
     tg['opp_pace'] = tg['pace_roll'] - tg['lg_pace']
     return tg[['team', 'date', 'opp_def', 'opp_pace', 'allowed_roll']].dropna()
 
@@ -146,11 +189,243 @@ def player_games(box, rest, ratings):
     pg['b2b'] = (pg['rest'] == 0).astype(float)
     r = ratings_asof(ratings, pg['opponent'], pg['date'] - pd.Timedelta(days=1))
     pg['opp_def'], pg['opp_pace'] = r['opp_def'].values, r['opp_pace'].values
+    # usage rate: share of the team's possessions he used while on the floor (FGA + 0.44 FTA + TOV), team totals
+    # from the same box scores. Per-minute volume, used before, grows with team pace.
+    tm = box.groupby(['team', 'date'], as_index=False).agg(t_fga=('fga', 'sum'), t_fta=('fta', 'sum'),
+                                                          t_tov=('tov', 'sum'), t_min=('minutes', 'sum'))
+    pg = pg.merge(tm, on=['team', 'date'], how='left')
+    use, t_use = pg['fga'] + 0.44 * pg['fta'] + pg['tov'], pg['t_fga'] + 0.44 * pg['t_fta'] + pg['t_tov']
+    pg['usg_share'] = (use * (pg['t_min'] / 5) / (pg['minutes'] * t_use)).where(t_use > 0).clip(0, 0.6).fillna(0.15)
+    pg = pg.drop(columns=['t_fga', 't_fta', 't_tov', 't_min'])
+    # role proxy: a starter = top 5 on his team in minutes that game (box scores carry no starter flag)
+    rk = box.assign(_r=box.groupby(['team', 'date'])['minutes'].rank(ascending=False, method='first'))
+    pg = pg.merge(rk[['slug', 'date', '_r']], on=['slug', 'date'], how='left')
+    pg['started'] = (pg['_r'] <= 5).astype(float)
+    pg = pg.drop(columns=['_r'])
+    # team stints: a new stint each time his team changes (a trade or signing inside the 3-season window)
+    pg['stint'] = (pg['team'] != pg.groupby('slug', sort=False)['team'].shift()).groupby(pg['slug']).cumsum() - 1
+    pg['games_on_team'] = pg.groupby(['slug', 'stint'], sort=False).cumcount() + 1
     g = pg.groupby('slug', sort=False)['minutes']
     pg['min_ewm'] = g.transform(lambda s: s.ewm(alpha=0.25).mean())      # through this game
-    pg['min_proj'] = pg.groupby('slug', sort=False)['min_ewm'].shift(1)   # through the previous game
-    pg['min_proj'] = pg['min_proj'].fillna(pg['minutes'].median())
+    pg['min_lag5'] = pg.groupby('slug', sort=False)['min_ewm'].shift(H)  # through the game 5 games before
+    # a player's first H games: his EWM after game 0 (the same clamp min_lag5_at uses), not a league median,
+    # which made the column near-constant for short series and blew up the input models' extrapolation
+    pg['min_lag5'] = pg['min_lag5'].fillna(pg.groupby('slug', sort=False)['min_ewm'].transform('first'))
     return pg
+
+
+def min_lag5_at(min_ewm, last, h):
+    """min_lag5 for the target h team games after played game index `last`: the EWM through game last + h - H,
+    as if he plays every game in between (the definition training uses on games played)."""
+    i = last + h - H
+    return float(min_ewm[max(i, 0)])
+
+
+####################################################################################################
+# 002b - TEAM-GAME GRID AND PLAYING TIME
+####################################################################################################
+
+def team_game_table(box, future):
+    """Every team game: played (from league-wide box scores) and scheduled."""
+    past = box[['team', 'date', 'opponent', 'home']].drop_duplicates(['team', 'date'])
+    return (pd.concat([past, future[['team', 'date', 'opponent', 'home']]])
+            .drop_duplicates(['team', 'date']).sort_values(['team', 'date']).reset_index(drop=True))
+
+
+def player_grid(pg, team_tbl, current_team, today):
+    """One row per team game a player was on the roster for, played or not (see the module docstring).
+    current_team: slug -> 'Team.X' from today's ESPN snapshot (extends the latest stint to today)."""
+    p = pg[['slug', 'date', 'team', 'points', 'minutes']].sort_values(['slug', 'date'])
+    stint = (p['team'] != p.groupby('slug')['team'].shift()).cumsum()
+    st = p.assign(stint=stint).groupby(['slug', 'stint', 'team'], as_index=False).agg(first=('date', 'min'),
+                                                                                       last=('date', 'max'))
+    latest = st.groupby('slug')['stint'].transform('max') == st['stint']
+    ext = latest & (st['slug'].map(current_team) == st['team'])
+    st.loc[ext, 'last'] = pd.Timestamp(today) - pd.Timedelta(days=1)
+    g = st.merge(team_tbl[['team', 'date', 'opponent', 'home']], on='team')
+    g = g[(g['date'] >= g['first']) & (g['date'] <= g['last'])]
+    g = g.merge(p[['slug', 'date', 'points', 'minutes']], on=['slug', 'date'], how='left')
+    g['played'] = g['minutes'].notna().astype(int)
+    return g.drop(columns=['first', 'last']).sort_values(['slug', 'date']).reset_index(drop=True)
+
+
+INJURY_CATS = ('injury', 'illness', 'unspecified')
+
+
+def episode_state(slugs, dates, episodes):
+    """Injury episode open at the end of each (slug, date): the latest episode started on or before the date and
+    not yet ended (end_date > date; an 'open' episode never ends). Columns ep_* aligned with the inputs."""
+    q = pd.DataFrame({'slug': np.asarray(slugs), 'date': pd.to_datetime(np.asarray(dates))})
+    q['_i'] = np.arange(len(q))
+    cols = ['start_date', 'end', 'category', 'is_dtd', 'out_for_season', 'out_indefinitely', 'stated_days']
+    out = pd.DataFrame(index=q['_i'], columns=cols)
+    if episodes is not None and len(episodes):
+        ep = episodes.dropna(subset=['slug']).copy()
+        ep['end'] = ep['end_date'].where(ep['end_reason'] != 'open', pd.Timestamp('2100-01-01'))
+        m = pd.merge_asof(q.sort_values('date'), ep.sort_values('start_date')[['slug'] + cols],
+                          left_on='date', right_on='start_date', by='slug', direction='backward').set_index('_i')
+        m.loc[~(m['end'] > m['date']), cols] = np.nan                   # that episode already ended
+        out.loc[m.index, cols] = m[cols].values
+    out = out.reset_index(drop=True)
+    inj = out['category'].isin(INJURY_CATS)
+    clock = lambda d: np.asarray(season_calendar.clock(pd.to_datetime(d)), dtype=float)
+    days = np.full(len(q), np.nan)
+    ok = inj.values | (out['category'] == 'non_medical').values
+    if ok.any():
+        days[ok] = clock(q['date'].values[ok]) - clock(out.loc[ok, 'start_date'].values)
+    return pd.DataFrame({
+        'inj_open': inj.astype(float).values, 'nonmed_open': (out['category'] == 'non_medical').astype(float).values,
+        'ep_days': np.clip(days, 0, 120), 'ep_dtd': pd.to_numeric(out['is_dtd'], errors='coerce').fillna(0).values,
+        'ep_out_season': pd.to_numeric(out['out_for_season'], errors='coerce').fillna(0).values,
+        'ep_out_indef': pd.to_numeric(out['out_indefinitely'], errors='coerce').fillna(0).values,
+        'has_stated': pd.to_numeric(out['stated_days'], errors='coerce').notna().astype(float).values,
+        'ep_stated_left': (pd.to_numeric(out['stated_days'], errors='coerce').values - days),
+        'ep_start': pd.to_datetime(out['start_date']).values})
+
+
+def grid_features(grid, episodes, rest, ratings):
+    """Grid + absence reason, the state after each team game (origin features for the playing-time model and
+    games_since_return for the scoring models) and the pre-game inputs of each game (as player_games does)."""
+    g = grid.sort_values(['slug', 'date']).reset_index(drop=True)
+    st = episode_state(g['slug'], g['date'], episodes)
+    g = pd.concat([g, st], axis=1)
+    g['reason'] = np.where(g['played'] == 1, 'played', np.where(g['inj_open'] == 1, 'injury',
+                           np.where(g['nonmed_open'] == 1, 'non_medical', 'unexplained')))
+    miss = 1 - g['played']
+    run = (g['played'] != g.groupby('slug')['played'].shift()).cumsum()
+    g['miss_streak'] = miss.groupby(run).cumsum() * miss
+    unex = (g['reason'] == 'unexplained').astype(int)
+    urun = (unex != unex.groupby(g['slug']).shift()).cumsum()
+    g['unexpl_streak'] = unex.groupby(urun).cumsum() * unex
+    by = g.groupby('slug', sort=False)['played']
+    g['played5'] = by.transform(lambda s: s.rolling(5, min_periods=1).mean())
+    g['played10'] = by.transform(lambda s: s.rolling(10, min_periods=1).mean())
+    mins = g['minutes'].where(g['played'] == 1)
+    g['min_ewm_o'] = mins.groupby(g['slug']).transform(lambda s: s.ewm(alpha=0.25, ignore_na=True).mean()).fillna(0)
+    # games played since the end of the last run of 3+ missed team games (capped)
+    gsr = np.zeros(len(g))
+    for idx in g.groupby('slug', sort=False).indices.values():
+        pl, ms = g['played'].values[idx], g['miss_streak'].values[idx]
+        c = 15
+        for k, i in enumerate(idx):
+            if pl[k] == 1:
+                c = 1 if (k > 0 and ms[k - 1] >= 3) else min(c + 1, 15)
+            gsr[i] = c
+    g['games_since_return'] = gsr
+    g = g.merge(rest, on=['team', 'date'], how='left')
+    g['rest'] = g['rest'].fillna(REST_CAP)
+    g['b2b'] = (g['rest'] == 0).astype(float)
+    r = ratings_asof(ratings, g['opponent'], g['date'] - pd.Timedelta(days=1))
+    g['opp_def'], g['opp_pace'] = r['opp_def'].values, r['opp_pace'].values
+    return g
+
+
+def player_importance(pg):
+    """Share of his team's possessions a player uses per game, through each game played: usage share (minutes-
+    weighted EWM) x minutes EWM / 48."""
+    g = pg.groupby('slug', sort=False)
+    u = pg.assign(_u=pg['usg_share'] * pg['minutes']).groupby('slug', sort=False)['_u'].transform(
+        lambda s: s.ewm(alpha=0.1).mean())
+    m = g['minutes'].transform(lambda s: s.ewm(alpha=0.1).mean())
+    return (u / m.where(m > 0)).fillna(0) * pg['min_ewm'].clip(0, 48) / 48
+
+
+def teammate_absence(gf, pg):
+    """tm_out_usg for every grid row (see the module docstring): teammates on the same team-game who are out
+    with an episode open that day, each weighted by his importance through his last game played. Adds
+    'importance' and 'tm_out_usg' to gf; returns (gf, pg with tm_out_usg)."""
+    imp = pg[['slug', 'date']].assign(importance=player_importance(pg).values)
+    g = gf.merge(imp, on=['slug', 'date'], how='left')
+    g['importance'] = g.groupby('slug', sort=False)['importance'].ffill().fillna(0)
+    out = ((g['played'] == 0) & g['reason'].isin(['injury', 'non_medical'])).astype(float)
+    g['_out'] = out * g['importance']
+    team = g.groupby(['team', 'date'])['_out'].transform('sum')
+    g['tm_out_usg'] = (team - g['_out']).clip(lower=0)
+    pg = pg.merge(g[['slug', 'date', 'tm_out_usg']], on=['slug', 'date'], how='left')
+    pg['tm_out_usg'] = pg['tm_out_usg'].fillna(0)
+    return g.drop(columns=['_out']), pg
+
+
+OUT_STATUSES = ('OUT', 'SUSPENSION')
+
+
+def teammates_out_now(gf, episodes, status, current_team, today, recent_days=21):
+    """For the forecast: {team: {slug: importance}} of players out today. A player belongs to his team in
+    today's ESPN snapshot, else to the team of his latest grid row if that is within `recent_days`. Out = an
+    injury / non-medical episode open today, or ESPN status OUT / SUSPENSION."""
+    last = gf.sort_values('date').groupby('slug').tail(1).set_index('slug')
+    last = last[last['date'] >= pd.Timestamp(today) - pd.Timedelta(days=recent_days)]
+    team = {s: current_team.get(s, t) for s, t in last['team'].items()}
+    team.update({s: t for s, t in current_team.items() if s in last.index})
+    slugs = list(team)
+    st = episode_state(slugs, [pd.Timestamp(today)] * len(slugs), episodes)
+    out = set(np.asarray(slugs)[(st['inj_open'] + st['nonmed_open']).values > 0])
+    if status is not None and len(status):
+        out |= set(status.loc[status['injury_status'].isin(OUT_STATUSES), 'slug'].dropna())
+    res = {}
+    for s in out:
+        if s in team and s in last.index:
+            res.setdefault(team[s], {})[s] = float(last.loc[s, 'importance'])
+    return res
+
+
+def status_play_rates(gf):
+    """Historical chance of playing the next team game, used to cap the forecast by today's ESPN status (we have
+    no status history to train on yet): DAY_TO_DAY = after a day-to-day episode with at most one game missed;
+    OUT = after any other open injury episode. From the grid, every season loaded."""
+    g = gf.sort_values(['slug', 'date'])
+    prev = g.groupby('slug', sort=False)[['inj_open', 'ep_dtd', 'miss_streak']].shift()
+    dtd = (prev['inj_open'] == 1) & (prev['ep_dtd'] == 1) & (prev['miss_streak'] <= 1)
+    out = (prev['inj_open'] == 1) & (prev['ep_dtd'] == 0)
+    return {'DAY_TO_DAY': float(g.loc[dtd, 'played'].mean()), 'OUT': float(g.loc[out, 'played'].mean()),
+            'n_dtd': int(dtd.sum()), 'n_out': int(out.sum())}
+
+
+PLAY_FEATS = ['inj_open', 'nonmed_open', 'ep_days', 'ep_dtd', 'ep_out_season', 'ep_out_indef', 'has_stated',
+              'ep_stated_left', 'miss_streak', 'unexpl_streak', 'played5', 'played10', 'min_ewm_o',
+              'games_since_return', 'h', 'days_ahead', 'b2b']
+PLAY_MAX_DAYS = 21          # playing-time rows: only targets this close to the origin (no offseason jumps)
+PLAY_PARAMS = dict(n_estimators=500, learning_rate=0.05, max_depth=4, min_child_weight=50, subsample=0.8,
+                   colsample_bytree=0.8, objective='binary:logistic', eval_metric='logloss', tree_method='hist',
+                   early_stopping_rounds=40, n_jobs=4, random_state=42)
+
+
+def play_rows(gf):
+    """Direct multi-horizon rows for the playing-time model: state after team game t, target = played at the
+    team's game t+h (h = 1..H)."""
+    out = []
+    by = gf.groupby('slug', sort=False)
+    for h in range(1, H + 1):
+        nxt = by[['date', 'played', 'b2b']].shift(-h)
+        r = gf[[c for c in PLAY_FEATS if c in gf and c not in ('h', 'days_ahead', 'b2b')]].copy()
+        r['slug'], r['origin_date'], r['h'] = gf['slug'], gf['date'], h
+        r['days_ahead'] = (nxt['date'] - gf['date']).dt.days
+        r['b2b'], r['target'], r['target_date'] = nxt['b2b'], nxt['played'], nxt['date']
+        out.append(r[r['target'].notna() & (r['days_ahead'] <= PLAY_MAX_DAYS)])
+    rows = pd.concat(out, ignore_index=True)
+    rows['ep_stated_left'] = rows['ep_stated_left'].fillna(-99)
+    return rows
+
+
+def fit_play_model(rows):
+    """XGBoost classifier, chance of playing. Last 10% of target dates = early-stopping set."""
+    from xgboost import XGBClassifier
+    rows = rows.sort_values('target_date')
+    cut = rows['target_date'].quantile(0.9)
+    tr, va = rows[rows['target_date'] < cut], rows[rows['target_date'] >= cut]
+    model = XGBClassifier(**PLAY_PARAMS)
+    model.fit(tr[PLAY_FEATS].astype(float), tr['target'].astype(int),
+              eval_set=[(va[PLAY_FEATS].astype(float), va['target'].astype(int))], verbose=False)
+    return model
+
+
+def play_scores(y, p, baseline):
+    """Brier / log loss / AUC of p, and the same Brier for a baseline (share of the last 10 games played)."""
+    from sklearn.metrics import roc_auc_score, log_loss
+    y, p, b = np.asarray(y, float), np.clip(np.asarray(p, float), 1e-4, 1 - 1e-4), np.clip(np.asarray(baseline, float), 1e-4, 1 - 1e-4)
+    return {'n': int(len(y)), 'played_rate': float(y.mean()), 'brier': float(np.mean((p - y) ** 2)),
+            'brier_baseline': float(np.mean((b - y) ** 2)), 'log_loss': float(log_loss(y, p, labels=[0, 1])),
+            'auc': float(roc_auc_score(y, p)) if 0 < y.mean() < 1 else float('nan')}
 
 
 def origin_features(pg):
@@ -170,8 +445,8 @@ def origin_features(pg):
     f['min_ewm'] = pg['min_ewm']
     pts_w, min_w = ewm('points', 0.1), ewm('minutes', 0.1)
     f['ppm_ewm'] = pts_w / min_w.where(min_w > 0)
-    use = pg['fga'] + 0.44 * pg['fta'] + pg['tov']
-    f['usg_ewm'] = pg.assign(_u=use).groupby('slug', sort=False)['_u'].transform(
+    # usage share, minutes-weighted (a 30-minute game counts more than a 5-minute one)
+    f['usg_ewm'] = pg.assign(_u=pg['usg_share'] * pg['minutes']).groupby('slug', sort=False)['_u'].transform(
         lambda s: s.ewm(alpha=0.1).mean()) / min_w.where(min_w > 0)
     f['fga_mean5'] = roll('fga', 5)
     f['fta_mean5'] = roll('fta', 5)
@@ -180,33 +455,56 @@ def origin_features(pg):
     f['season_mean'] = gs.transform(lambda s: s.expanding().mean())
     f['games_season'] = gs.cumcount() + 1
     f['gap_before'] = g['date'].diff().dt.days.clip(0, 30).fillna(30)
+    f['games_since_return'] = pg['games_since_return'] if 'games_since_return' in pg else 15.0
+    # role and team (step 7): starter share of the last 5, starter last game, games on his current team, a
+    # flag for a team change in the window with <= 20 games since, and usage share on the current team only
+    f['started_last'] = pg['started']
+    f['start_rate5'] = roll('started', 5)
+    f['games_on_team'] = pg['games_on_team'].clip(upper=40).astype(float)
+    f['new_team'] = ((pg['stint'] > 0) & (pg['games_on_team'] <= 20)).astype(float)
+    gt = pg.assign(_u=pg['usg_share'] * pg['minutes']).groupby(['slug', 'stint'], sort=False)
+    f['usg_ewm_team'] = (gt['_u'].transform(lambda s: s.ewm(alpha=0.1).mean())
+                         / gt['minutes'].transform(lambda s: s.ewm(alpha=0.1).mean()).where(lambda m: m > 0))
     return f
 
 
-TARGET_FEATS = ['h', 'home', 'rest', 'b2b', 'opp_def', 'opp_pace', 'days_ahead']
+TARGET_FEATS = ['h', 'home', 'rest', 'b2b', 'opp_def', 'opp_pace', 'days_ahead', 'tm_out_usg']
 
 
-def xgb_training_rows(pg, feats, ratings):
-    """Direct multi-horizon rows: features at game t, target = points at the player's game t+h."""
+def xgb_training_rows(pg, feats, ratings, gf):
+    """Direct multi-horizon rows: features at played game t, target = points at the TEAM's h-th game after it
+    (from the grid gf). Rows whose target game he missed are kept with played = 0 (predicted for the
+    expected-points score, never trained on)."""
+    key = gf[['slug', 'date']].reset_index().rename(columns={'index': 'gpos'})
+    pos = pg[['slug', 'date']].merge(key, on=['slug', 'date'], how='left')['gpos'].values
+    cols = ['slug', 'date', 'points', 'played', 'opponent', 'home', 'rest', 'b2b']
     out = []
-    g = pg.groupby('slug', sort=False)
     for h in range(1, H + 1):
-        nxt = g[['date', 'points', 'opponent', 'home', 'rest', 'b2b']].shift(-h)
-        rows = feats.copy()
-        rows['slug'], rows['origin_date'], rows['t'] = pg['slug'], pg['date'], g.cumcount()
-        rows['h'] = h
-        rows['home'], rows['rest'], rows['b2b'] = nxt['home'], nxt['rest'], nxt['b2b']
-        r = ratings_asof(ratings, nxt['opponent'], pg['date'])          # opponent form as of the origin
+        nxt = gf[cols].shift(-h)                    # gf is sorted by slug, date; a different slug is dropped below
+        ok = ~np.isnan(pos)
+        t = pd.DataFrame(index=pg.index, columns=nxt.columns)
+        t.loc[ok] = nxt.iloc[pos[ok].astype(int)].values
+        t = t[t['slug'] == pg['slug']]                                      # next grid row is the same player's
+        rows = feats.loc[t.index].copy()
+        rows['slug'], rows['origin_date'], rows['h'] = pg.loc[t.index, 'slug'], pg.loc[t.index, 'date'], h
+        rows['home'], rows['rest'], rows['b2b'] = (pd.to_numeric(t['home']), pd.to_numeric(t['rest']),
+                                                   pd.to_numeric(t['b2b']))
+        r = ratings_asof(ratings, t['opponent'], rows['origin_date'])       # opponent form as of the origin
         rows['opp_def'], rows['opp_pace'] = r['opp_def'].values, r['opp_pace'].values
-        rows['days_ahead'] = (nxt['date'] - pg['date']).dt.days
-        rows['target'], rows['target_date'] = nxt['points'], nxt['date']
-        out.append(rows[rows['target'].notna()])
+        rows['days_ahead'] = (pd.to_datetime(t['date']) - rows['origin_date']).dt.days
+        rows['tm_out_usg'] = pg.loc[t.index, 'tm_out_usg'].values                 # as known at the origin
+        rows['target'] = pd.to_numeric(t['points'])
+        rows['played'] = pd.to_numeric(t['played'])
+        rows['target_date'] = pd.to_datetime(t['date'])
+        out.append(rows)
     return pd.concat(out, ignore_index=True)
 
 
 XGB_FEATS = ['pts_last', 'pts_mean3', 'pts_mean5', 'pts_mean10', 'pts_std10', 'pts_ewm', 'min_last', 'min_mean5',
              'min_ewm', 'ppm_ewm', 'usg_ewm', 'fga_mean5', 'fta_mean5', 'fg3a_mean5', 'season_mean',
-             'games_season', 'gap_before'] + TARGET_FEATS
+             'games_season', 'gap_before', 'games_since_return', 'started_last', 'start_rate5', 'games_on_team',
+             'new_team', 'usg_ewm_team'] + TARGET_FEATS
+ROLE_RESET = {'games_on_team': 0.0, 'new_team': 1.0}   # forecast for a player on a new team since his last game
 
 XGB_PARAMS = dict(n_estimators=800, learning_rate=0.03, max_depth=4, min_child_weight=20, subsample=0.8,
                   colsample_bytree=0.8, reg_lambda=1.0, objective='reg:absoluteerror', tree_method='hist',
@@ -312,6 +610,10 @@ def m_arima(df, fut, ctx):
 def m_arimax(df, fut, ctx):
     p, _, q = ctx.get('arima_order') or (1, 0, 1)
     p, q = min(p, 1), min(q, 1)               # keep it small: inputs carry the signal
+    if len(df) < EXOG_MIN_TRAIN:              # too few games to estimate input effects: plain ARMA
+        r = SARIMAX(df['points'].values, order=(p, 0, q), trend='c').fit(disp=False)
+        return (r.forecast(len(fut)), {'order': [p, 0, q], 'inputs': 'dropped (few games)', **_arma_params(r)},
+                {'aicc': _aicc(r), 'ljung_box_p': _lb(r.resid)})
     X = df[EXOG].astype(float).values
     r = SARIMAX(df['points'].values, exog=X, order=(p, 0, q), trend='c').fit(disp=False)
     names = {f'x{i + 1}': c for i, c in enumerate(EXOG)}
@@ -329,15 +631,18 @@ def m_local_level(df, fut, ctx):
 
 
 def _nb_design(d):
-    X = pd.DataFrame({'log_min': np.log(d['min_proj'].clip(lower=1.0)), 'home': d['home'], 'b2b': d['b2b'],
-                      'opp_def': d['opp_def'], 'opp_pace': d['opp_pace']}).astype(float)
+    X = pd.DataFrame({'log_min': np.log(d['min_lag5'].astype(float).clip(lower=1.0)), 'home': d['home'], 'b2b': d['b2b'],
+                      'opp_def': d['opp_def'], 'opp_pace': d['opp_pace'], 'tm_out_usg': d['tm_out_usg']}).astype(float)
     return sm.add_constant(X, has_constant='add')
 
 
 def m_negbin(df, fut, ctx, half_life=30):
-    """Count GLM, log link: log E[pts] = b0 + b1 log(min_proj) + home + b2b + opponent defence/pace.
+    """Count GLM, log link: log E[pts] = b0 + b1 log(min_lag5) + home + b2b + opponent defence/pace.
     Recent games weigh more (half-life in games). Dispersion alpha by moments from a Poisson fit."""
     X, y = _nb_design(df), df['points'].values
+    Xf = _nb_design(fut)
+    if len(df) < EXOG_MIN_TRAIN:              # too few games to estimate input effects: weighted mean only
+        X, Xf = X[['const']], Xf[['const']]
     w = 0.5 ** ((len(df) - 1 - np.arange(len(df))) / half_life)
     pois = sm.GLM(y, X, family=sm.families.Poisson(), var_weights=w).fit()
     mu = pois.fittedvalues
@@ -345,7 +650,7 @@ def m_negbin(df, fut, ctx, half_life=30):
     r = sm.GLM(y, X, family=sm.families.NegativeBinomial(alpha=alpha), var_weights=w).fit()
     prm = {k: float(v) for k, v in r.params.items()}
     prm['alpha_dispersion'] = alpha
-    return np.asarray(r.predict(_nb_design(fut))), prm, {'ljung_box_p': _lb(y - r.fittedvalues)}
+    return np.asarray(r.predict(Xf)), prm, {'ljung_box_p': _lb(y - r.fittedvalues)}
 
 
 def _weighted_rate(df, half_life):
@@ -353,11 +658,25 @@ def _weighted_rate(df, half_life):
     return float(np.sum(w * df['points'])), float(np.sum(w * df['minutes']))
 
 
+TEAM_MIN_GAMES = 3      # after a team change, project minutes from the new team's games once he has this many
+
+
+def _proj_minutes(df):
+    """Minutes EWM; after a team change, from his games on the current team only (if >= TEAM_MIN_GAMES)."""
+    m = df['minutes']
+    if 'team' in df and df['team'].nunique() > 1:
+        run = (df['team'] != df['team'].iloc[-1])[::-1].cumsum()[::-1] == 0     # trailing games on today's team
+        if run.sum() >= TEAM_MIN_GAMES and not run.all():
+            m = m[run]
+    return float(m.ewm(alpha=0.25).mean().iloc[-1])
+
+
 def m_min_x_ppm(df, fut, ctx):
-    """points = projected minutes x points per minute (both exponentially weighted)."""
+    """points = projected minutes x points per minute (both exponentially weighted; minutes from the current
+    team's games after a team change)."""
     P, M = _weighted_rate(df, 15)
     ppm = P / M if M > 0 else 0.0
-    mins = float(df['minutes'].ewm(alpha=0.25).mean().iloc[-1])
+    mins = _proj_minutes(df)
     return np.repeat(mins * ppm, len(fut)), {'proj_minutes': mins, 'pts_per_min': ppm}, {}
 
 
@@ -369,7 +688,7 @@ def m_min_x_ppm_eb(df, fut, ctx):
     long_run = (P_all + kappa * mu_g) / (M_all + kappa)
     P, M = _weighted_rate(df, 15)
     ppm = (P + kappa * long_run) / (M + kappa)
-    mins = float(df['minutes'].ewm(alpha=0.25).mean().iloc[-1])
+    mins = _proj_minutes(df)
     return (np.repeat(mins * ppm, len(fut)),
             {'proj_minutes': mins, 'pts_per_min': ppm, 'recent_ppm': P / M if M else None,
              'long_run_ppm': long_run, 'group_ppm': mu_g, 'kappa_minutes': kappa}, {})
@@ -409,23 +728,45 @@ def origins_for(n):
     return list(range(max(MIN_TRAIN, n - N_ORIGINS - H + 1), n))
 
 
-def run_player(slug, df, fut, ctx):
+def backtest_targets(df, grid_s, origins):
+    """For each origin (after played game o-1): the team's next H games from the player's grid, with their
+    pre-game inputs and min_lag5. -> list of DataFrames (points NaN where he didn't play)."""
+    m = df['min_ewm'].values
+    out = []
+    for o in origins:
+        d = df['date'].iloc[o - 1]
+        te = grid_s[grid_s['date'] > d].head(H).copy().reset_index(drop=True)
+        te['h'] = np.arange(1, len(te) + 1)
+        te['min_lag5'] = [min_lag5_at(m, o - 1, h) for h in te['h']]
+        te['tm_out_usg'] = float(df['tm_out_usg'].iloc[o - 1])            # teammates out, as known at the origin
+        te['points'] = te['points'].where(te['played'] == 1)
+        out.append(te)
+    return out
+
+
+def run_player(slug, df, fut, ctx, grid_s):
     """Backtest every statistical model on one player's games, then fit on all games and forecast `fut`.
-    Returns {'errors': {model: (n_origins, H) signed actual - pred}, 'forecast': {model: array},
-             'params': {model: dict}, 'diag': {model: dict}, 'failed': {model: msg}}."""
+    Returns {'errors': {model: (n_origins, H) signed actual - pred, NaN where he didn't play},
+             'preds': {model: (n_origins, H) predictions for every team game}, 'played': (n_origins, H),
+             'forecast': {model: array}, 'params': {model: dict}, 'diag': {model: dict}, 'failed': {model: msg}}."""
     df = df.reset_index(drop=True)
     n = len(df)
     origins = origins_for(n)
     ctx = dict(ctx)
     ctx['arima_order'] = select_arima(df['points'].values[:origins[0]] if origins else df['points'].values)
     errors = {m: np.full((len(origins), H), np.nan) for m in STAT_FITS}
+    preds = {m: np.full((len(origins), H), np.nan) for m in STAT_FITS}
+    played = np.full((len(origins), H), np.nan)
     failed = {}
-    for k, o in enumerate(origins):
-        tr, te = df.iloc[:o], df.iloc[o:o + H].copy()
-        te['min_proj'] = df['min_ewm'].iloc[o - 1]          # minutes projection known at the origin
+    for k, (o, te) in enumerate(zip(origins, backtest_targets(df, grid_s, origins))):
+        if te.empty:
+            continue
+        tr = df.iloc[:o]
+        played[k, :len(te)] = te['played'].values
         for m, fit in STAT_FITS.items():
             try:
-                p = np.asarray(fit(tr, te, ctx)[0], dtype=float)
+                p = np.asarray(fit(tr, te, ctx)[0], dtype=float)[:len(te)]
+                preds[m][k, :len(te)] = p
                 errors[m][k, :len(te)] = te['points'].values - p
             except Exception as e:
                 failed.setdefault(m, f'{type(e).__name__}: {e}')
@@ -438,8 +779,8 @@ def run_player(slug, df, fut, ctx):
             params[m], diag[m] = _clean(prm), _clean(dg)
         except Exception as e:
             failed[m] = f'{type(e).__name__}: {e}'
-    return {'slug': slug, 'n_games': n, 'origins': origins, 'errors': errors, 'forecast': forecast,
-            'params': params, 'diag': diag, 'failed': failed}
+    return {'slug': slug, 'n_games': n, 'origins': origins, 'errors': errors, 'preds': preds, 'played': played,
+            'forecast': forecast, 'params': params, 'diag': diag, 'failed': failed}
 
 
 def _clean(d):

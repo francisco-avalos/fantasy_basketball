@@ -22,6 +22,8 @@ Covariates, all known on day one (nothing learned later in the absence):
   era (2000-05 / 2006-14 / 2015-20 / 2021+, reference 2021+: reporting rules changed);
   out_for_season, out_indefinitely, stated return window, surgery, DTD, concurrent;
   age; prior episodes, same-region episodes and in-season days missed in the last year;
+  minutes per game over the 10 games before the injury (pre_mpg_10): a healthy bench player who isn't
+  getting minutes has no box score to end his absence, so low-minute players look out for longer;
   player frailty: an empirical-Bayes player effect, the shrunken average of how much longer
   (log scale) than his group's median the player's PREVIOUS absences ran.
 
@@ -37,8 +39,13 @@ time (higher is better), and calibration = mean |predicted - Kaplan-Meier| at 7/
 within each test group. Lowest integrated Brier wins and is refit on every season.
 
 Published curve for a group: the champion's survival curve averaged over that group's
-episodes with era set to today's (a population-average curve for the current league),
-daily from day 0 to HORIZON in-season days.
+episodes with era set to today's and pre-injury minutes raised to at least ROTATION_MPG (a
+population-average curve for a rotation player in the current league), daily from day 0 to
+HORIZON in-season days.
+
+Per-player curves (player_curves, written by pipeline/injury_player_curves.py every night): the same
+champion's curve for each player currently out, from that absence's own inputs (out for season, stated
+window, surgery, DTD, age, history, frailty, minutes), not averaged away.
 
 Run from the repo root (env: basketball-env-useme-v11052026, which has lifelines):
     python -m pipeline.injury_probabilities_basketball --dry-run          # fit + compare, no DB writes
@@ -84,6 +91,8 @@ IBS_TIMES = np.arange(1, 61)
 SHRINK_K = 3               # frailty shrinkage: k pseudo-episodes at the group median
 PENALIZER = 0.01
 MAX_AVG_EPISODES = 1500    # episodes averaged per published curve
+ROTATION_MPG = 20.0        # published group curves: pre-injury minutes raised to at least this
+CURRENT_DAYS = 365         # an open episode counts as "currently out" if it started within this many days
 
 
 # ---------------------------------------------------------------------------
@@ -104,7 +113,9 @@ def load_episodes(from_csv=None):
     for c in ['start_date', 'end_date']:
         df[c] = pd.to_datetime(df[c])
     num = ['inseason_days', 'stated_days', 'age_at_start', 'prior_episodes', 'prior_same_region_365',
-           'prior_inseason_days_365', 'event', 'season']
+           'prior_inseason_days_365', 'event', 'season', 'pre_mpg_10']
+    if 'pre_mpg_10' not in df:                     # before the 2026-11-21 migration / an old CSV
+        df['pre_mpg_10'] = np.nan
     df[num] = df[num].apply(pd.to_numeric, errors='coerce')        # DECIMAL -> float
     return df
 
@@ -166,6 +177,9 @@ def design(df, groups, eras=ERAS):
     X['prior_same_region_365'] = df['prior_same_region_365'].fillna(0).clip(upper=5)
     X['log_prior_days_365'] = np.log1p(df['prior_inseason_days_365'].fillna(0))
     X['frailty'] = df['frailty']
+    mpg = df['pre_mpg_10'] if 'pre_mpg_10' in df else pd.Series(np.nan, index=df.index)
+    X['pre_mpg_missing'] = mpg.isna().astype(float)
+    X['pre_mpg_c'] = (mpg.clip(0, 40) - ROTATION_MPG).fillna(0) / 10
     for e in eras:
         if e != CURRENT_ERA:
             X[f'era_{e}'] = (df['era'] == e).astype(float)
@@ -281,13 +295,80 @@ def publish_curves(df, model, groups):
     for g, d in df.groupby('model_group'):
         if len(d) > MAX_AVG_EPISODES:
             d = d.iloc[np.sort(rng.choice(len(d), MAX_AVG_EPISODES, replace=False))]
-        d = d.assign(era=CURRENT_ERA)
+        d = d.assign(era=CURRENT_ERA, pre_mpg_10=d['pre_mpg_10'].fillna(ROTATION_MPG).clip(lower=ROTATION_MPG))
         S = model.survival(d, design(d, groups), days[1:]).mean(axis=0)
         S = np.minimum.accumulate(np.concatenate([[1.0], S]))       # monotone, starts at 1
         n = int((df['model_group'] == g).sum())
         out.append(pd.DataFrame({'injury': g, 'days': days, 'probabilities': S.round(5),
                                  'n_episodes': n, 'model': model.name}))
     return pd.concat(out, ignore_index=True)
+
+
+def current_episodes(full, today):
+    """Episodes still open (no return logged and no game since the out date) that started within CURRENT_DAYS."""
+    today = pd.Timestamp(today)
+    return full[(full['end_reason'] == 'open') & (full['start_date'] >= today - pd.Timedelta(days=CURRENT_DAYS))
+                & (full['start_date'] <= today)]
+
+
+def player_curves(full, model, groups, today):
+    """One curve per player currently out, from that absence's own inputs, era = today's. -> rows for
+    basketball.injury_player_curves (S at days 0..HORIZON from the out date; the app conditions on days out)."""
+    cur = current_episodes(full, today)
+    if cur.empty:
+        return pd.DataFrame()
+    cur = cur.sort_values('start_date').drop_duplicates('slug', keep='last').assign(era=CURRENT_ERA)
+    days = np.arange(0, HORIZON + 1)
+    S = model.survival(cur, design(cur, groups), days[1:])
+    out = []
+    for i, r in enumerate(cur.itertuples()):
+        s = np.minimum.accumulate(np.concatenate([[1.0], S[i]]))
+        try:
+            out_days = int(cal.inseason_days(r.start_date, pd.Timestamp(today)))
+        except ValueError:
+            out_days = None
+        out.append(pd.DataFrame({'run_date': pd.Timestamp(today).date(), 'slug': r.slug, 'player_name': r.player_name,
+                                 'start_date': r.start_date.date(), 'days_out': out_days, 'curve_group': r.model_group,
+                                 'model': model.name, 'days': days, 'probabilities': s.round(5)}))
+    return pd.concat(out, ignore_index=True)
+
+
+PLAYER_CURVE_COLS = ['run_date', 'slug', 'player_name', 'start_date', 'days_out', 'curve_group', 'model', 'days',
+                     'probabilities']
+
+
+def write_player_curves(rows):
+    """Replace basketball.injury_player_curves (sql_files/migrations/2026-11-21_forecast_inputs.sql)."""
+    connection = mysql.connect(**config)
+    cur = connection.cursor()
+    try:
+        cur.execute('DELETE FROM basketball.injury_player_curves;')
+        if len(rows):
+            clean = lambda v: None if v is None or (isinstance(v, float) and not np.isfinite(v)) else \
+                (v.item() if hasattr(v, 'item') else v)
+            cur.executemany(f'INSERT INTO basketball.injury_player_curves ({", ".join(PLAYER_CURVE_COLS)}) '
+                            f'VALUES ({", ".join(["%s"] * len(PLAYER_CURVE_COLS))});',
+                            [tuple(clean(v) for v in r) for r in rows[PLAYER_CURVE_COLS].itertuples(index=False)])
+        connection.commit()
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        cur.close()
+        connection.close()
+    n = rows['slug'].nunique() if len(rows) else 0
+    print(f'basketball.injury_player_curves: {len(rows)} rows, {n} players')
+
+
+def fit_champion(df, champion):
+    """Set up groups / frailty on every episode and fit `champion` on all of them. -> (model, full, groups)."""
+    full, _, _ = setup(df)
+    groups = sorted(full['model_group'].unique())
+    model = next((m for m in [KMGroup()] + candidates() if m.name == champion), None)
+    if model is None:
+        raise SystemExit(f'unknown model {champion}; choose from {["km_group"] + [m.name for m in candidates()]}')
+    model.fit(full) if isinstance(model, KMGroup) else model.fit(full, design(full, groups))
+    return model, full, groups
 
 
 def write(curves):
@@ -393,7 +474,6 @@ def main():
     df = prepare(load_episodes(args.from_csv))
     print(f'episodes {len(df)}  returns observed {int(df.E.sum())}  censored {int((df.E == 0).sum())}')
 
-    names = ['km_group'] + [m.name for m in candidates()]
     champion = args.champion
     holdout_rows = []
     if not champion:
@@ -416,12 +496,7 @@ def main():
                                   f'{TEST_FROM_SEASON}-{int(df.season.max())}', f'<{TEST_FROM_SEASON}',
                                   len(train), len(test))
 
-    full, mapping, medians = setup(df)
-    groups = sorted(full['model_group'].unique())
-    model = next((m for m in [KMGroup()] + candidates() if m.name == champion), None)
-    if model is None:
-        raise SystemExit(f'unknown model {champion}; choose from {names}')
-    model.fit(full) if isinstance(model, KMGroup) else model.fit(full, design(full, groups))
+    model, full, groups = fit_champion(df, champion)
     if isinstance(model, Lifelines):
         summ = model.model.summary
         keep = [i for i in summ.index if not str(i[1] if isinstance(i, tuple) else i).startswith('g_')]

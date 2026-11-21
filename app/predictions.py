@@ -4,7 +4,8 @@ Fantasy Predictions page (page1): next-5-games points forecasts, Draft A.
     filter bar     league · player · models (multi) · history window
     chart          last N games + the next 5 on the team's schedule, opponent on every future tick,
                    champion with its 80% range, any other selected models dashed
-    next 5 games   date, opponent, rest / back-to-back, opponent defence rank, champion forecast + range
+    next 5 games   date, opponent, rest / back-to-back, opponent defence rank, chance of playing, champion
+                   forecast if playing + range, expected points (forecast x chance of playing)
     scoreboard     backtest MAE, skill vs naive, MAE by horizon, live MAE of logged forecasts
     parameters     one card per selected model (fitted parameters, AICc, Ljung-Box, champion reason)
 
@@ -44,7 +45,7 @@ for c in NUM_RUN:
     if c in RUNS:
         RUNS[c] = pd.to_numeric(RUNS[c], errors='coerce')
 FC = _d['forecasts_df'].copy()
-for c in ['prediction', 'lo80', 'hi80']:
+for c in ['prediction', 'lo80', 'hi80', 'p_play', 'expected_points']:
     if c in FC:
         FC[c] = pd.to_numeric(FC[c], errors='coerce')
 if not FC.empty:
@@ -197,7 +198,10 @@ def next5_table(slug):
         return html.Div('No forecast for this player in the latest run.', className='tp-empty')
     season = season_calendar.season_of(h['date'].iloc[-1]) if not h.empty else None
     avg = h.loc[season_calendar.season_of(h['date']) == season, 'points'].mean() if season else np.nan
-    head = html.Tr([html.Th(c) for c in ['#', 'Date', 'Opponent', 'Rest', 'Opp D rank', 'Forecast', '80% range']])
+    has_play = 'p_play' in f and f['p_play'].notna().any()
+    cols = ['#', 'Date', 'Opponent', 'Rest', 'Opp D rank'] + (['Plays'] if has_play else []) + \
+        ['If playing' if has_play else 'Forecast', '80% range'] + (['Expected'] if has_play else [])
+    head = html.Tr([html.Th(c) for c in cols])
     rows = []
     for r in f.itertuples():
         rest = 'B2B' if r.rest_days == 0 else f'{int(r.rest_days)}d' + ('+' if r.rest_days >= 4 else '')
@@ -214,8 +218,20 @@ def next5_table(slug):
                                                                className='pr-up' if up else 'pr-down')]),
             html.Td(f'{r.lo80:.0f}–{r.hi80:.0f}', className='pr-muted'),
         ]))
-    note = html.Div(f'Opp D rank: 1 = allows the most points over its last 15 games (best matchup). '
-                    f'▲/▼ vs season average ({avg:.1f}).', className='pr-foot')
+        if has_play:
+            p = r.p_play if pd.notna(r.p_play) else np.nan
+            p_cls = 'tp-cold' if pd.notna(p) and p < 0.5 else 'pr-amber' if pd.notna(p) and p < 0.85 else ''
+            rows[-1].children.insert(5, html.Td(f'{p:.0%}' if pd.notna(p) else '–', className=p_cls))
+            rows[-1].children.append(html.Td(f'{r.expected_points:.1f}' if pd.notna(r.expected_points) else '–'))
+    notes = [f'Opp D rank: 1 = allows the most points per 100 possessions over its last 15 games (best '
+             f'matchup). ▲/▼ vs season average ({avg:.1f}).']
+    if has_play:
+        notes.append('Plays = chance he plays that game (his recent games played, any open injury, and today\'s '
+                     'ESPN status). Expected = forecast if playing × that chance.')
+        pn = f['play_note'].dropna() if 'play_note' in f else pd.Series(dtype=str)
+        if len(pn) and str(pn.iloc[0]).strip():
+            notes.insert(0, html.B(str(pn.iloc[0])))
+    note = html.Div([html.Div(n) for n in notes], className='pr-foot')
     return html.Div([html.Table([html.Thead(head), html.Tbody(rows)], className='tp-table'), note])
 
 
@@ -263,6 +279,7 @@ PARAM_NAMES = {'alpha': 'alpha (level)', 'beta': 'beta (trend)', 'phi': 'phi (da
                'intercept': 'constant', 'sigma2': 'sigma²', 'ar.L1': 'AR 1', 'ar.L2': 'AR 2', 'ma.L1': 'MA 1',
                'ma.L2': 'MA 2', 'min_proj': 'per projected minute', 'home': 'home', 'b2b': 'back-to-back',
                'opp_def': 'opponent defence', 'opp_pace': 'opponent pace', 'const': 'constant',
+               'tm_out_usg': 'teammates out', 'min_lag5': 'minutes (lag 5)',
                'log_min': 'log(projected min)', 'alpha_dispersion': 'dispersion', 'sigma2.irregular': 'noise var',
                'sigma2.level': 'level var', 'signal_to_noise': 'signal / noise', 'proj_minutes': 'projected minutes',
                'pts_per_min': 'pts / min used', 'recent_ppm': 'recent pts / min', 'long_run_ppm': 'long-run pts / min',

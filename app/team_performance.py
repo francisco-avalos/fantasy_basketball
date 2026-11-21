@@ -607,6 +607,25 @@ NOTE_LABELS = ({} if _NOTES.empty else
                 for r in _NOTES.to_dict('records')})
 
 
+# Per-player curves (pipeline/injury_player_curves.py): the same model as the group curves, fed this absence's
+# own inputs (stated window, out indefinitely, DTD, surgery, age, history, minutes) instead of averaging them away.
+_PC = _extra.get('player_curves_df', pd.DataFrame())
+PLAYER_CURVE = {}
+if not _PC.empty:
+    for _slug, _g in _PC.groupby('slug'):
+        _g = _g.sort_values('days')
+        PLAYER_CURVE[_slug] = {'S': _g['probabilities'].astype(float).values, 'group': _g['curve_group'].iloc[0],
+                               'start': pd.Timestamp(_g['start_date'].iloc[0]), 'model': _g['model'].iloc[0]}
+_FR = _extra.get('forecast_roster_df', pd.DataFrame())
+SLUG_OF = ({} if _FR.empty else
+           {(str(lg).lower(), n): sl for lg, n, sl in zip(_FR['league'], _FR['name'], _FR['slug'])})
+
+
+def s_at(S, t):
+    """Value of a daily survival array (index = day) at day t, held flat past its end."""
+    return float(S[int(min(max(t, 0), len(S) - 1))])
+
+
 def curve_label(injury):
     return describe_group(injury) if GROUP_CURVES and injury else injury
 
@@ -739,13 +758,24 @@ def out_players(league):
         inj = current_injury(n)
         days_out = days_since(inj['since'], today) if inj else None
         curve = match_curve(inj['note']) if inj else DEFAULT_CURVE
+        own = PLAYER_CURVE.get(SLUG_OF.get((str(league).lower(), n))) if GROUP_CURVES else None
+        since = inj['since'] if inj else None
+        if own is not None:                       # the episode the per-player curve was fitted on
+            since = own['start']
+            days_out = days_since(since, today)
+            if own['group'] in CURVE_N.index:
+                curve = own['group']
         back_7 = None
-        if inj and curve:
+        if own is not None and days_out is not None:
+            s_now = s_at(own['S'], days_out)
+            back_7 = 1 - s_at(own['S'], days_out + 7) / s_now if s_now > 0 else None
+        elif inj and curve:
             s_now = survival(curve, days_out)
             back_7 = 1 - survival(curve, days_out + 7) / s_now if s_now > 0 else None
         players.append({'name': n, 'status': STATUS_LABELS.get(status, status.replace('_', ' ').title()),
-                        'note': inj['note'] if inj else None, 'since': inj['since'] if inj else None,
-                        'days_out': days_out, 'curve': curve, 'back_7': back_7})
+                        'note': inj['note'] if inj else None, 'since': since,
+                        'days_out': days_out, 'curve': curve, 'back_7': back_7,
+                        'own': own['S'] if own is not None else None})
     players.sort(key=lambda p: (p['days_out'] is None, -(p['days_out'] or 0)))
     return players, source
 
@@ -759,13 +789,25 @@ def fig_injury_curve(injury, player=None):
     x = np.r_[0, c['days'].values]
     y = np.r_[1.0, c['probabilities'].values]
     x_max = min(int(c['days'].max()), 60)
-    fig = go.Figure(go.Scatter(x=x, y=y, mode='lines', line=dict(color=ACC, width=3, shape='hv'),
-                               fill='tozeroy', fillcolor='rgba(0,188,140,0.15)',
-                               hovertemplate='After %{x} days: %{y:.0%} still out<extra></extra>'))
+    own = player.get('own') if player and player.get('curve') == injury else None
+    if own is not None:
+        # the player's own curve in colour, the typical curve for the group as a grey reference
+        fig = go.Figure([
+            go.Scatter(x=x, y=y, mode='lines', name=f'Typical {curve_label(injury)}',
+                       line=dict(color=MUTED, width=2, dash='dot', shape='hv'),
+                       hovertemplate='Typical: after %{x} days, %{y:.0%} still out<extra></extra>'),
+            go.Scatter(x=np.arange(len(own)), y=own, mode='lines', name=f"{player['name']}'s own inputs",
+                       line=dict(color=ACC, width=3, shape='hv'), fill='tozeroy', fillcolor='rgba(0,188,140,0.15)',
+                       hovertemplate=f"{player['name']}: after %{{x}} days, %{{y:.0%}} still out<extra></extra>")])
+        fig.update_layout(showlegend=True, legend=dict(orientation='h', y=1.08, x=0, font=dict(size=11)))
+    else:
+        fig = go.Figure(go.Scatter(x=x, y=y, mode='lines', line=dict(color=ACC, width=3, shape='hv'),
+                                   fill='tozeroy', fillcolor='rgba(0,188,140,0.15)',
+                                   hovertemplate='After %{x} days: %{y:.0%} still out<extra></extra>'))
     if player and player.get('days_out') is not None and player.get('curve') == injury:
         d = player['days_out']
         x_max = max(x_max, min(d + 21, int(c['days'].max())))
-        s = survival(injury, d)
+        s = s_at(own, d) if own is not None else survival(injury, d)
         fig.add_vline(x=d, line=dict(color=AMBER, width=2, dash='dash'))
         fig.add_annotation(x=d, y=s, text=f"{player['name']}: day {d}", showarrow=True, arrowcolor=AMBER,
                            ax=50, ay=-40, font=dict(color=AMBER, size=12), bgcolor='#1a2035')
@@ -781,20 +823,54 @@ def key_days(injury, player=None):
         return html.Div('No injury curves loaded.', className='tp-empty'), ''
     conditional = player and player.get('days_out') is not None and player.get('curve') == injury
     d0 = player['days_out'] if conditional else 0
-    s0 = survival(injury, d0) if conditional else 1.0
+    own = player.get('own') if conditional else None
+    surv = (lambda t: s_at(own, t)) if own is not None else (lambda t: survival(injury, t))
+    s0 = surv(d0) if conditional else 1.0
     rows = []
     for k in [1, 3, 7, 14, 21, 30]:
-        p = survival(injury, d0 + k) / s0 if s0 > 0 else 0.0
+        p = surv(d0 + k) / s0 if s0 > 0 else 0.0
         rows.append(html.Tr([
             html.Td(f'{k} {"more " if conditional else ""}day{"s" if k > 1 else ""}'),
             html.Td(html.Div(html.Div(style={'width': f'{p * 100:.0f}%'}, className='tp-bar-fill'), className='tp-bar')),
             html.Td(f'{p:.0%}', className='tp-pct'),
         ]))
-    sub = (f"Given {player['name']} has been out {d0} days, chance they're still out after…" if conditional
+    sub = (f"Given {player['name']} has been out {d0} days, chance they're still out after…"
+           + (' (from their own injury details)' if own is not None else '') if conditional
            else 'Chance a player with this injury is still out after…')
     table = html.Table([html.Thead(html.Tr([html.Th('Days'), html.Th(''), html.Th('Still out')])),
                         html.Tbody(rows)], className='tp-table tp-keydays')
     return table, sub
+
+
+_FAC = _extra.get('fa_curves_df', pd.DataFrame())
+
+
+def injured_free_agents():
+    """ESPN free agents currently out (pipeline/injury_player_curves.py), most likely back soonest first: chance
+    back within 7 / 14 days given the days already out, and the median further days. For the screener page."""
+    if _FAC.empty or not GROUP_CURVES:
+        return html.Div('No injured free agents with a fitted curve yet (pipeline.injury_player_curves).',
+                        className='tp-empty')
+    today = pd.Timestamp(dt.date.today())
+    items = []
+    for (name, _slug), g in _FAC.groupby(['name', 'slug']):
+        S = g.sort_values('days')['probabilities'].astype(float).values
+        d = days_since(pd.Timestamp(g['start_date'].iloc[0]), today)
+        s0 = s_at(S, d)
+        if s0 <= 0:
+            continue
+        cond = S[min(d, len(S) - 1):] / s0
+        med = int(np.argmax(cond <= 0.5)) if (cond <= 0.5).any() else None
+        items.append((1 - s_at(S, d + 7) / s0, 1 - s_at(S, d + 14) / s0, name, g['curve_group'].iloc[0], d, med))
+    items.sort(key=lambda r: -r[0])
+    head = html.Tr([html.Th(c) for c in ['Player', 'Injury', 'Days out', 'Back within 7 days', 'Within 14',
+                                         'Median more days']])
+    body = [html.Tr([html.Td(n, className='tp-name'), html.Td(curve_label(grp)), html.Td(d),
+                     html.Td(html.Div(html.Div(style={'width': f'{b7 * 100:.0f}%'}, className='tp-bar-fill'),
+                                      className='tp-bar', title=f'{b7:.0%}')), html.Td(f'{b14:.0%}', className='tp-pct'),
+                     html.Td(med if med is not None else '150+')])
+            for b7, b14, n, grp, d, med in items]
+    return html.Table([html.Thead(head), html.Tbody(body)], className='tp-table')
 
 
 def out_list(league, selected=None):
@@ -813,7 +889,8 @@ def out_list(league, selected=None):
                       html.Span(p['status'], className='tp-badge')], className='tp-out-head'),
             html.Div(p['note'] or 'No injury note found this season · showing the generic curve', className='tp-out-note'),
             html.Div(' · '.join(meta), className='tp-out-meta'),
-            html.Div(f"Curve: {curve_label(p['curve'])}", className='tp-out-curve'),
+            html.Div(f"Curve: {curve_label(p['curve'])}" + (' · fitted to this injury' if p['own'] is not None else ''),
+                     className='tp-out-curve'),
         ], id={'type': 'tp-out-player', 'index': p['name']}, n_clicks=0,
             className='tp-out-item' + (' selected' if p['name'] == selected else '')))
     return html.Div(items, className='tp-out-grid'), source
@@ -1011,6 +1088,9 @@ def update_out_list(league, selected):
 def update_injury_curve(injury, selected, league):
     player = next((p for p in out_players(league)[0] if p['name'] == selected), None)
     on_curve = player is not None and player['curve'] == injury and player['days_out'] is not None
-    sub = f'"{curve_label(injury)}"' + (f" · dashed line = {player['name']}, day {player['days_out']}" if on_curve else '')
+    own = on_curve and player.get('own') is not None
+    sub = (f"{player['name']}'s own curve (green) vs the typical \"{curve_label(injury)}\" (grey) · dashed line = "
+           f"day {player['days_out']}" if own else
+           f'"{curve_label(injury)}"' + (f" · dashed line = {player['name']}, day {player['days_out']}" if on_curve else ''))
     table, key_sub = key_days(injury, player)
     return fig_injury_curve(injury, player), sub, table, key_sub
