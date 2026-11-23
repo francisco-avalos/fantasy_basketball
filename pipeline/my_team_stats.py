@@ -45,6 +45,13 @@ from shared.my_functions import remove_name_suffixes
 # Flip to True once the Yahoo NBA API approval comes through.
 YAHOO_ENABLED = False
 
+YAHOO_MANUAL_ROSTER = [
+	'James Harden', 'Keyonte George', 'Jalen Green', 'Saddiq Bey',
+	'Alperen Şengün', 'Darius Garland', 'Zach Edey', 'Davion Mitchell',
+	'Andre Drummond', 'Luka Dončić', 'Ryan Rollins', 'Scottie Barnes',
+	'Norman Powell', 'Jaren Jackson Jr.', 'CJ McCollum'
+]
+
 # basketball-reference starts blocking around 20 requests/min; don't lower this.
 BBREF_SLEEP_SECONDS = 4
 
@@ -114,6 +121,30 @@ def get_yahoo_roster():
 
 	players = [(p['name'], p.get('status') or 'ACTIVE') for p in tm.roster()]
 	print(f'Yahoo league {league_keys[-1]}, team {lg.team_key()} ({len(players)} players)')
+	return players
+
+def get_yahoo_roster_manual():
+	"""(name, injury statuts) for the hand-typed Yahoo roster. A type list has no injury status, so it's 
+	taken from ESPN's latest daily snapshot (nba_injury_status), matched by name key. Same NBA injuries, 
+	ESPN's spelling (OUT, DAY_TO_DAY, ...); the app reads both.
+	Anyone not found in the snapshot counts as ACITVE."""
+	connection = mysql.connect(**config)
+	try:
+		cursor = connection.cursor()
+		cursor.execute('''
+			SELECT player_name, injury_status
+			FROM basketball.nba_injury_status
+			WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM basketball.nba_injury_status);
+			''')
+		status = {name_key(n): (s or 'ACTIVE') for n, s in cursor.fetchall()}
+		cursor.close()
+	finally:
+		connection.close()
+	players = [(n, status.get(name_key(n), 'ACTIVE')) for n in YAHOO_MANUAL_ROSTER]
+	missing = [n for n in YAHOO_MANUAL_ROSTER if name_key(n) not in status]
+	print(f'Yahoo roster from YAHOO_MANUAL_ROSTER ({len(players)}) players')
+	if missing:
+		print(f'	! not in the ESPN injury snpashot, treated as ACTIVE: {",".join(missing)}')
 	return players
 
 
@@ -253,8 +284,11 @@ def main():
 		if YAHOO_ENABLED:
 			refresh_league(connection, 'Yahoo', get_yahoo_roster,
 						   'live_yahoo_players', 'my_team_stats_yahoo')
+		elif YAHOO_MANUAL_ROSTER:
+				refresh_league(connection, 'Yahoo', get_yahoo_roster_manual,
+							 'live_yahoo_players', 'my_team_stats_yahoo')
 		else:
-			print('\nYahoo skipped (YAHOO_ENABLED = False); live_yahoo_players and my_team_stats_yahoo untouched.')
+			print('\nYahoo skipped (YAHOO_ENABLED = False, no manual roster); tables untouched')
 	finally:
 		connection.close()
 
