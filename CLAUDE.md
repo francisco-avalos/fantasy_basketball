@@ -59,9 +59,8 @@ raises `TypeError: unsupported operand type(s) for |`. To check a page locally, 
 Heroku runs 3.11, so it's fine there.
 
 ⚠️ **Local pandas is 1.3.5; `requirements.txt` pins 2.2.3.** Local and Heroku are
-not the same pandas major. `groupby().apply()` — used by the minute-weighted
-calculation in `callbacks.apply_calculation()` and by `ai_chatbox.build_context()`
-— changed behaviour between those versions. A frame shape that works locally is
+not the same pandas major. `groupby().apply()` — still used by `ai_chatbox.build_context()`
+— changed behaviour between those versions (the pages avoid it: plain sums / `agg` only). A frame shape that works locally is
 not proof it works live.
 
 ### Always run from the repo root
@@ -572,9 +571,10 @@ now unused.
 app/index.py        routes, gunicorn entry point (app.index:server)
 app/dash_create.py  the Dash instance (app_inst) — keep minimal
 app/landing.py      page0, the landing page
-app/layouts.py      page1–page4 shells (page1 / page3 are stubs over predictions / team_performance)
-app/callbacks.py    callbacks + figure builders for pages 2, 4
+app/layouts.py      page1–page4 shells (pages 1–3 are stubs over predictions / screener / team_performance)
+app/callbacks.py    the free-agent + roster data load, the shared pool, page 4's callbacks
 app/predictions.py  page 1 in full: forecast chart, next 5 games, scoreboard, parameter cards
+app/screener.py     page 2 in full: ranked table, player drawer, My needs view, callbacks
 app/team_performance.py  page 3 in full: data prep, figures, tabbed layout, callbacks
 app/ai_chatbox.py   Anthropic client, context builder, system prompt
 ```
@@ -583,7 +583,7 @@ app/ai_chatbox.py   Anthropic client, context builder, system prompt
 |---|---|---|
 | `/` (and anything unrecognised) | `page0` | landing |
 | `/apps/fantasy-predictions` | `page1` | points forecast (Draft A): chart with opponents on future ticks, next 5 games, model scoreboard, fitted parameters |
-| `/apps/free-agent-screening` | `page2` | minute-weighted screener |
+| `/apps/free-agent-screening` | `page2` | free-agent screener: ranked table coloured by percentile, player drawer, My needs |
 | `/apps/team-performance` | `page3` | three `dcc.Tabs`: Team overview, Player detail, Injuries |
 | `/apps/ai-assistant` | `page4` | chatbox |
 
@@ -594,21 +594,18 @@ Theme is Bootstrap **DARKLY** plus Inter from Google Fonts, patched by
 
 ### ⚠️ All data loads at import time, and the app is not a module boundary
 
-`layouts.py` imports `line_plot_preds` / `create_data_table` **from `callbacks.py`**
-and imports `app.team_performance` (which itself imports `callbacks`), so importing
-layouts executes callbacks first. Each of the two modules independently:
-
-- builds its **own** `pooling.MySQLConnectionPool`, both named `"sports_db_pool"`,
-  both `pool_size=5` — 10 connections for one process; and
-- runs its own startup query batch at module level
-  (`data_imports.optimize_code()` in callbacks, `optimize_code_layouts()` in
-  layouts), so the **expensive `espn_query`** — a `UNION ALL` of
-  `live_free_agents` with every matching row of `historical_player_data` — runs
-  **twice per boot**.
+`layouts.py` imports `app.team_performance`, `app.predictions` and `app.screener`, which all import
+`callbacks.py`, so importing layouts executes callbacks first. `callbacks.py` builds the one
+`pooling.MySQLConnectionPool` (`"sports_db_pool"`, `pool_size=5`) and runs the startup batch
+(`data_imports.optimize_code()`), including the **expensive `espn_query`** — a `UNION ALL` of
+`live_free_agents` with every matching row of `historical_player_data` (~80k rows). It used to run twice per
+boot: `layouts.py` had its own pool and an `optimize_code_layouts()` copy for the old screener's frozen
+default heatmap and Player Checklist. Both are gone (2026-11-22).
 
 `team_performance.py` then runs its own batch (`data_imports.team_performance_data()`:
 league totals since `season_start`, injury curves, roster status, this season's
-`hist_player_inj` moves) on the callbacks pool. Boot is ~30 s locally. This is
+`hist_player_inj` moves) on the callbacks pool, and `screener.py` a small one (`screener_data()`: every
+ESPN player's positions, the latest `nba_injury_status` snapshot). Boot is ~30 s locally. This is
 why the Procfile carries `-t 120 --preload`.
 
 ⚠️ **Running ANY pipeline script changes nothing on the live site until the dyno
@@ -617,14 +614,8 @@ restarts** (`heroku restart -a fantasy-basketball-team-dash`, or Heroku's own
 TTL — there is no "reload data" path short of a restart. A fresh table plus a
 stale dyno is easy to mistake for a code bug: on 2026-10-30, `live_free_agents`
 had 163 players all inside the last 10 days, while the dyno still served a
-226-player snapshot from an older load. The free-agent screener's Player
-Checklist is the quickest tell, since it is frozen at boot from the same
-snapshot — compare its names against the table.
-
-The screener also **500s on an empty window**: `apply_calculation('weights')`
-sets 13 column names on the 0×16 frame that `groupby().apply()` returns for no
-rows (`ValueError: Length mismatch`), and Dash then keeps whatever figure was
-already showing.
+226-player snapshot from an older load. The screener's header line is the quickest tell: it shows the
+free-agent count and "box scores through <date>" from the boot snapshot.
 
 
 ### Fantasy Predictions (page 1)
@@ -674,10 +665,10 @@ ESPN/Yahoo + window season/30/14/7 days, both global) plus `tabs_body()`:
   hover tooltip, and "not checked yet" when there's no monitor run. Its CSS class is
   `tp-health`, because `tp-badge` is already the "Out" chip.
 
-The free-agent screener (page 2) has an **Injured free agents** card under its graph
-(`tp.injured_free_agents()`, from `fa_injury_curves_qry`: `injury_player_curves` joined to
-`live_free_agents.name_code`): days out, chance back within 7 / 14 days given the days already out, and
-the median further days, soonest first.
+The free-agent screener (page 2) uses the same per-player curves for free agents (`tp.fa_injury_odds()`, from
+`fa_injury_curves_qry`: `injury_player_curves` joined to `live_free_agents.name_code`): chance back within
+7 / 14 days given the days already out, and the median further days. They feed the table's injury chips and
+the collapsed "Full injury outlook" table (`tp.injured_free_agents()`).
 
 Injury **status** comes from `live_*_players.injury_status` (ESPN `injuryStatus` /
 Yahoo `status`, written by `my_team_stats.py`). That column is added by
@@ -698,19 +689,38 @@ behaves the same on pandas 1.3.5 and 2.2.3. Don't put `'responsive': True` in th
 graph config: Plotly then sizes each chart to its heightless card, the cards
 collapse to 0 px and the charts overlap. Each figure sets its own height instead.
 
-### The minute-weighted calculation
+### The free-agent screener (page 2)
 
-`callbacks.apply_calculation()` is where feature #2 actually lives. When
-`calculation_type == 'weights'` it computes, per player,
-`sum(stat × minutes_played) / sum(minutes_played)` (guarding a zero denominator);
-anything else falls through to a plain `groupby().agg()`. `minutes_played` and
-`total_rebounds` are **derived in pandas, not SQL**, by
-`data_imports.add_new_fields()` (`seconds_played / 60`, and offensive + defensive
-rebounds) — so any frame fed to the weighted path must be passed through it first.
+`app/screener.py` owns the page. Feature #2 lives in `aggregate()`. Under the default stat type
+("Per game · minute-weighted", `weights`) it computes, per player, `sum(stat × minutes) / sum(minutes)` with
+plain group sums. Percentages are the minute-weighted makes over the minute-weighted attempts. This is a
+per-game stat where longer games count more, **not** production per minute. The other stat types:
 
-The history selector (`history_id`) is three-valued and only one branch is
-date-filtered: `'cso'` (current season only) applies the `days_ago` window,
-while `'ho'` (historicals only) and `'hcs'` (history + current) **ignore it**.
+- per game (`mean`);
+- totals (`sum`);
+- consistency (`std`): the per-game SD, not coloured.
+
+- **Grouping:** players are grouped by **slug** (`espn_query` / `yahoo_query` now select it). The history
+  rows carry bbref's spelling, so names can differ from the live one. The display name prefers the
+  current-season spelling.
+- **Windows:** 7 / 14 / 30 days and season use current-season rows. Prior seasons and all seasons use the
+  history rows (whole careers).
+- **Colour:** each stat cell is coloured by its percentile among free agents with 3+ games in the window (2+
+  for 7 days; everyone if fewer than 10 qualify). TO and PF are inverted. FG% / FT% / 3P% are coloured and
+  sorted on volume-weighted impact (makes − league% × attempts, `tp.LEAGUE_PCT`).
+- **Scores:** Value = mean percentile over the 12 league categories (`tp.CAT_LABELS`). Fit (the My needs view)
+  = mean percentile over the ticked categories. Those are pre-ticked with the roster's three weakest
+  categories (mean `tp.zscores` vs league rotation players, season to date).
+- **Sorting:** players under the games threshold are dimmed and sorted after everyone else.
+- **Positions:** from `espn_player_positions` by `name_key` (that table strips suffixes; `live_free_agents`
+  keeps them).
+- **Injury chip:** today's `nba_injury_status` wins. ESPN "active" means healthy even when an episode is
+  still open in the transaction log, as in `points_forecast`.
+- **Player drawer:** compares the player with the weakest rostered player (lowest `tp.zscores` TOTAL) at one
+  of his positions, per game over the same window. Prior / all seasons fall back to season to date. Yahoo
+  has no positions, so it compares with the weakest player overall.
+- **Clicks:** header sorts and row clicks are pattern-matching ids (`fa-sort`, `fa-row`). Re-rendered
+  components arrive with `n_clicks=0` and are ignored, the same trick as `tp.select_out_player`.
 
 ---
 

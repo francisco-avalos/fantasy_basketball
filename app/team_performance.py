@@ -845,15 +845,15 @@ def key_days(injury, player=None):
 _FAC = _extra.get('fa_curves_df', pd.DataFrame())
 
 
-def injured_free_agents():
-    """ESPN free agents currently out (pipeline/injury_player_curves.py), most likely back soonest first: chance
-    back within 7 / 14 days given the days already out, and the median further days. For the screener page."""
+def fa_injury_odds():
+    """ESPN free agents currently out (pipeline/injury_player_curves.py), keyed by slug: chance back within
+    7 / 14 days given the days already out, the median further days (None past day 150), the curve group and
+    in-season days out. Most likely back soonest first."""
     if _FAC.empty or not GROUP_CURVES:
-        return html.Div('No injured free agents with a fitted curve yet (pipeline.injury_player_curves).',
-                        className='tp-empty')
+        return {}
     today = pd.Timestamp(dt.date.today())
     items = []
-    for (name, _slug), g in _FAC.groupby(['name', 'slug']):
+    for (name, slug), g in _FAC.groupby(['name', 'slug']):
         S = g.sort_values('days')['probabilities'].astype(float).values
         d = days_since(pd.Timestamp(g['start_date'].iloc[0]), today)
         s0 = s_at(S, d)
@@ -861,15 +861,27 @@ def injured_free_agents():
             continue
         cond = S[min(d, len(S) - 1):] / s0
         med = int(np.argmax(cond <= 0.5)) if (cond <= 0.5).any() else None
-        items.append((1 - s_at(S, d + 7) / s0, 1 - s_at(S, d + 14) / s0, name, g['curve_group'].iloc[0], d, med))
-    items.sort(key=lambda r: -r[0])
+        items.append({'slug': slug, 'name': name, 'back_7': 1 - s_at(S, d + 7) / s0,
+                      'back_14': 1 - s_at(S, d + 14) / s0, 'group': g['curve_group'].iloc[0],
+                      'days_out': d, 'median_more': med})
+    items.sort(key=lambda r: -r['back_7'])
+    return {r['slug']: r for r in items}
+
+
+def injured_free_agents(odds=None):
+    """Table of fa_injury_odds() for the screener page."""
+    odds = fa_injury_odds() if odds is None else odds
+    if not odds:
+        return html.Div('No injured free agents with a fitted curve yet (pipeline.injury_player_curves).',
+                        className='tp-empty')
     head = html.Tr([html.Th(c) for c in ['Player', 'Injury', 'Days out', 'Back within 7 days', 'Within 14',
                                          'Median more days']])
-    body = [html.Tr([html.Td(n, className='tp-name'), html.Td(curve_label(grp)), html.Td(d),
-                     html.Td(html.Div(html.Div(style={'width': f'{b7 * 100:.0f}%'}, className='tp-bar-fill'),
-                                      className='tp-bar', title=f'{b7:.0%}')), html.Td(f'{b14:.0%}', className='tp-pct'),
-                     html.Td(med if med is not None else '150+')])
-            for b7, b14, n, grp, d, med in items]
+    body = [html.Tr([html.Td(r['name'], className='tp-name'), html.Td(curve_label(r['group'])), html.Td(r['days_out']),
+                     html.Td(html.Div(html.Div(style={'width': f"{r['back_7'] * 100:.0f}%"}, className='tp-bar-fill'),
+                                      className='tp-bar', title=f"{r['back_7']:.0%}")),
+                     html.Td(f"{r['back_14']:.0%}", className='tp-pct'),
+                     html.Td(r['median_more'] if r['median_more'] is not None else '150+')])
+            for r in odds.values()]
     return html.Table([html.Thead(head), html.Tbody(body)], className='tp-table')
 
 

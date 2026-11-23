@@ -26,6 +26,7 @@ FROM
         SELECT  
             'current_season_only' AS current_season_vs_historicals,
             ESPN_FA.name,
+            ESPN_FA.name_code AS slug,
             ESPN_FA.date,
             ESPN_FA.team,
             ESPN_FA.location,
@@ -52,6 +53,7 @@ FROM
         SELECT 
             'historicals_only' AS current_season_vs_historicals,
             BBREF.name,
+            BBREF.slug,
             BBREF.date,
             BBREF.team,
             BBREF.location,
@@ -92,6 +94,7 @@ SELECT
     -- END current_season_vs_historicals,
     'history_plus_current' AS all_history,
     YP.name,
+    BBREF.slug,
     BBREF.date,
     BBREF.team,
     BBREF.location,
@@ -318,6 +321,21 @@ FROM basketball.espn_player_positions p
 JOIN basketball.live_espn_players l ON l.name = p.player_name;
 '''
 
+# Every active ESPN player's eligibility (names in the live-table spelling, suffixes stripped), for the
+# screener's position column; matched to free agents with shared.my_functions.name_key.
+all_positions_qry='''
+SELECT player_name AS name, player_roles
+FROM basketball.espn_player_positions;
+'''
+
+# The latest daily ESPN injury snapshot (pipeline/espn_player_positions.py), keyed by bbref slug.
+fa_status_qry='''
+SELECT slug, injury_status, snapshot_date
+FROM basketball.nba_injury_status
+WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM basketball.nba_injury_status)
+    AND slug IS NOT NULL;
+'''
+
 # Fantasy-platform injury status, written by pipeline/my_team_stats.py.
 # This season's prosportstransactions moves: relinquished = placed on IL / ruled out,
 # acquired = activated. Used to find each injured player's note and days out.
@@ -371,12 +389,16 @@ def optimize_code(connection):
         dfs['injury_probabilities_df']=injury_probabilities_df
     return dfs
 
-def optimize_code_layouts(connection):
-    dfs={}
-    if connection.is_connected():
-        fa_espn_df=execute_query_and_fetch_df(espn_query,connection,season_start_str)
-        dfs['fa_espn_df']=fa_espn_df
-    return dfs
+def screener_data(connection):
+    """Extra frames for the Free Agent Screener (app/screener.py): every ESPN player's position
+    eligibility and the latest ESPN injury snapshot. A failed query comes back empty."""
+    def fetch(query):
+        df=execute_query_and_fetch_df(query, connection)
+        return df if df is not None else pd.DataFrame()
+    return {
+        'positions_df': fetch(all_positions_qry),
+        'status_df':    fetch(fa_status_qry),
+    }
 
 
 def forecast_page_data(connection):
