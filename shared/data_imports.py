@@ -221,6 +221,14 @@ WHERE H.slug IN (SELECT slug FROM basketball.forecast_roster)
 ORDER BY H.slug, H.date
 ;'''
 
+# latest live drift check of the forecasts (pipeline/forecast_drift_monitor.py; empty before
+# sql_files/migrations/2026-11-22_forecast_model_monitoring.sql or the first run)
+forecast_health_qry='''
+SELECT run_date, check_name, unit, metric, value, status, detail
+FROM basketball.forecast_model_monitoring
+WHERE run_date = (SELECT MAX(run_date) FROM basketball.forecast_model_monitoring);
+'''
+
 # champion forecasts for the AI assistant's context
 forecast_champion_qry='''
 SELECT R.league, R.name, F.slug, F.horizon, F.game_date, F.opponent, F.home, F.prediction, F.lo80, F.hi80, F.model
@@ -383,6 +391,7 @@ def forecast_page_data(connection):
         'forecasts_df': fetch(forecast_latest_qry),
         'live_df': fetch(forecast_live_qry),
         'history_df': fetch(forecast_history_qry),
+        'health_df': fetch(forecast_health_qry),
     }
 
 

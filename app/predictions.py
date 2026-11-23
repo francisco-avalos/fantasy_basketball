@@ -6,7 +6,8 @@ Fantasy Predictions page (page1): next-5-games points forecasts, Draft A.
                    champion with its 80% range, any other selected models dashed
     next 5 games   date, opponent, rest / back-to-back, opponent defence rank, chance of playing, champion
                    forecast if playing + range, expected points (forecast x chance of playing)
-    scoreboard     backtest MAE, skill vs naive, MAE by horizon, live MAE of logged forecasts
+    scoreboard     backtest MAE, skill vs naive, MAE by horizon, live MAE of logged forecasts and live / backtest,
+                   with a "live check" badge from pipeline/forecast_drift_monitor.py
     parameters     one card per selected model (fitted parameters, AICc, Ljung-Box, champion reason)
 
 Data comes from pipeline/points_forecast.py (forecast_roster, model_runs, points_forecasts), loaded once
@@ -23,8 +24,8 @@ from dash.exceptions import PreventUpdate
 
 from app.dash_create import app_inst
 from app.callbacks import get_connection_from_pool, close_connection
-from app.team_performance import style_fig, empty_fig, _card, _section, GRAPH_CONFIG, TXT, MUTED, FAINT, ACC, \
-    RED, AMBER
+from app.team_performance import style_fig, empty_fig, _card, _section, _fmt_day, GRAPH_CONFIG, TXT, MUTED, FAINT, \
+    ACC, RED, AMBER
 from shared.data_imports import forecast_page_data
 from shared import season_calendar
 
@@ -59,6 +60,7 @@ if not HIST.empty:
     HIST['date'] = pd.to_datetime(HIST['date'])
     HIST['points'] = pd.to_numeric(HIST['points'], errors='coerce')
     HIST['minutes'] = pd.to_numeric(HIST['minutes'], errors='coerce')
+HEALTH = _d.get('health_df', pd.DataFrame())
 READY = not (ROSTER.empty or RUNS.empty or FC.empty)
 RUN_DATE = str(RUNS['run_date'].iloc[0]) if not RUNS.empty else None
 
@@ -235,6 +237,43 @@ def next5_table(slug):
     return html.Div([html.Table([html.Thead(head), html.Tbody(rows)], className='tp-table'), note])
 
 
+MODEL_CHECKS = ['live_vs_backtest', 'bias', 'coverage', 'ranking', 'playing_time', 'season_start']
+LIVE_MIN_N, LIVE_RATIO_WARN = 10, 1.15
+
+
+def live_health_badge(h):
+    """'Live check <date> · on track / drifting / collecting data', from the latest
+    pipeline/forecast_drift_monitor.py run. Drifting = any alert in a model check; data / input alerts only go
+    in the tooltip. Empty before the 2026-11-22 migration or the first run."""
+    if h is None or h.empty:
+        return html.Span([html.Span(className='tp-health-dot'), 'Live check not run yet'],
+                         className='tp-health tp-health--muted',
+                         title='pipeline/forecast_drift_monitor.py scores logged forecasts against their backtest')
+    tip = [f"Checked {_fmt_day(h['run_date'].max())}: logged forecasts scored against the backtest error they "
+           f"promised"]
+    weeks = h[(h['check_name'] == 'live_vs_backtest') & (h['metric'] == 'scored_weeks')]
+    n_weeks = int(pd.to_numeric(weeks['value'], errors='coerce').fillna(0).iloc[0]) if len(weeks) else 0
+    drift = h[(h['status'] == 'alert') & h['check_name'].isin(MODEL_CHECKS)]
+    data = h[(h['status'] == 'alert') & ~h['check_name'].isin(MODEL_CHECKS)]
+    if len(drift):
+        state, text = 'warn', 'drifting'
+        tip += [f"⚠ {a['check_name']} · {a['unit'] or a['metric']}: {a['detail']}" for _, a in drift.head(6).iterrows()]
+    elif n_weeks == 0:
+        state, text = 'muted', 'collecting data'
+        tip.append('No complete week of played games from the current forecast definitions yet')
+    else:
+        state, text = 'ok', 'on track'
+        tip.append(f'{n_weeks} complete week(s) scored; no model alerts')
+    if len(data):
+        tip.append(f"{len(data)} data / input alert(s): " + '; '.join(
+            f"{a['metric']}: {a['detail']}" for _, a in data.head(3).iterrows()))
+    return html.Span([html.Span(className='tp-health-dot'), f"Live check {_fmt_day(h['run_date'].max())} · {text}"],
+                     className=f'tp-health tp-health--{state}', title='\n'.join(tip))
+
+
+LIVE_BADGE = live_health_badge(HEALTH)
+
+
 def scoreboard(slug):
     r = RUNS[RUNS['slug'] == slug].sort_values('mae', na_position='last')
     if r.empty:
@@ -249,7 +288,8 @@ def scoreboard(slug):
             return '–'
         return ''.join(SPARK[int(round((x - lo) / (hi - lo) * 7))] if np.isfinite(x) else ' ' for x in v)
 
-    head = html.Tr([html.Th(c) for c in ['Model', 'Backtest MAE', 'Skill', 'MAE 1→5 ahead', 'Live MAE']])
+    head = html.Tr([html.Th(c) for c in ['Model', 'Backtest MAE', 'Skill', 'MAE 1→5 ahead', 'Live MAE',
+                                         'Live ÷ backtest']])
     rows = []
     for _, x in r.iterrows():
         is_c = x['champion'] == 1
@@ -258,6 +298,8 @@ def scoreboard(slug):
             (' · ML' if x['family'] == 'ml' else ' · DL' if x['family'] == 'dl' else '')
         lv = live.loc[x['model']] if not live.empty and x['model'] in live.index else None
         live_txt = f"{lv['live_mae']:.2f} ({int(lv['n_scored'])})" if lv is not None else '–'
+        ratio = (lv['live_mae'] / x['mae'] if lv is not None and int(lv['n_scored']) >= LIVE_MIN_N
+                 and pd.notna(x['mae']) and x['mae'] > 0 else None)
         skill = x['skill']
         rows.append(html.Tr([
             html.Td(name, className='tp-name' + (' pr-champ-name' if is_c else ' pr-muted' if base else '')),
@@ -266,11 +308,15 @@ def scoreboard(slug):
                     className='pr-up' if pd.notna(skill) and skill > 0 else 'pr-down'),
             html.Td(spark(x), className='pr-spark'),
             html.Td(live_txt, className='pr-muted'),
+            html.Td('–' if ratio is None else f'×{ratio:.2f}',
+                    className='pr-down' if ratio is not None and ratio > LIVE_RATIO_WARN else 'pr-muted'),
         ], className='pr-champ-row' if is_c else ''))
     n_or = int(r['n_origins'].iloc[0])
     foot = html.Div(f'Backtest: {n_or} rolling origins, every model refit at each, scored in points 1–5 games '
                     f'ahead. Skill = 1 − MAE / naive MAE. Live MAE = logged forecasts scored after the game '
-                    f'(count in brackets).', className='pr-foot')
+                    f'(count in brackets); live ÷ backtest from {LIVE_MIN_N}+ games, red above '
+                    f'×{LIVE_RATIO_WARN:.2f}. One player\'s live games are few and noisy: the live check badge '
+                    f'pools the whole roster.', className='pr-foot')
     return html.Div([html.Table([html.Thead(head), html.Tbody(rows)], className='tp-table pr-board'), foot])
 
 
@@ -359,7 +405,7 @@ def body():
         html.Div([
             html.Div(_card('Next 5 games', html.Div(id='pr-next5'),
                            sub='Champion forecast; matchup context from the schedule'), className='col-lg-6'),
-            html.Div(_card('Model scoreboard', html.Div(id='pr-board'),
+            html.Div(_card(['Model scoreboard', LIVE_BADGE], html.Div(id='pr-board'),
                            sub='Rolling-origin backtest, lowest MAE first'), className='col-lg-6'),
         ], className='row'),
         _section('Fitted parameters', 'Final fit on all games for the champion and every model selected above'),

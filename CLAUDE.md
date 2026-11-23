@@ -155,7 +155,9 @@ The restore-side AWS steps are `continue-on-error`: an AWS problem never blocks 
 the dyno afterwards. The repo is public: run logs are public too (secret values are masked).
 After the pipeline, a **Model health (injury curves)** step runs `python -m pipeline.injury_drift_monitor`
 (`!cancelled()`, `continue-on-error`): it never fails the run, and it writes the "Model health" block to the
-run summary plus a `::warning` annotation per alert (see **Injury drift monitoring**).
+run summary plus a `::warning` annotation per alert (see **Injury drift monitoring**). A second step,
+**Model health (points forecasts)**, runs `python -m pipeline.forecast_drift_monitor` the same way (see
+**Forecast drift monitoring**).
 
 Both lists run `historicals.py` then `espn_player_positions.py` (positions + the day's ESPN injury
 snapshot; slugs are matched against the box scores just loaded). After either list it runs the **injury
@@ -198,6 +200,7 @@ connection config for this to work.
 | `injury_probabilities_basketball.py` | `player_injury_cycles` → survival models, champion on a holdout | `injury_probabilities`, `injury_model_evaluations` |
 | `injury_player_curves.py` | `player_injury_cycles` → the published champion refit (~5 s), one curve per player out today | `injury_player_curves` |
 | `injury_drift_monitor.py` | `player_injury_cycles` + `injury_probabilities` + box scores / schedules, weekly | `injury_model_monitoring`, `injury_model_evaluations` |
+| `forecast_drift_monitor.py` | `points_forecasts` + `model_runs` + box scores, `nba_injury_status`, the forecast inputs; weekly (nightly in a season's first 30 in-season days) | `forecast_model_monitoring` |
 | `points_forecast.py` (+ `forecast_models.py`) | `historical_player_data` + `high_level_nba_team_schedules` + rosters | `forecast_roster`, `points_forecasts`, `model_runs`, MLflow in `mlflow/` |
 
 `basketball-work.py` (1264 lines, hyphen in the name so it cannot be imported)
@@ -488,6 +491,66 @@ runs it last, after the injury chain.
   divides by the history mean with **no epsilon**, and the `softplus` transformation maps 0 points to
   log(eps) ≈ −16, hence the floored subclass and no transformation.
 
+### Forecast drift monitoring
+
+`pipeline/forecast_drift_monitor.py` scores every logged forecast once its game is played, against the error
+its own run's backtest promised (`model_runs.mae_h<k>` at the forecast's horizon). It runs from the workflow
+every night but only does the checks when the last run is 7+ days old, or every night in a season's first 30
+in-season days. It takes ~15 s. Flags: `--force`, `--dry-run`, `--summary-only`, `--since DATE`. It needs
+`sql_files/migrations/2026-11-22_forecast_model_monitoring.sql` (run 2026-11-22: `forecast_model_monitoring`, the
+same columns as `injury_model_monitoring`). Without the table it prints a note and exits 0.
+
+What it scores:
+- **Which runs:** only runs since the first one with `p_play` (2026-11-21, the team-game definitions). `--since`
+  scores older runs too, for testing.
+- **Which games:** game dates in the last 63 days, only games the team actually played and box scores are loaded for.
+- **Repeats:** a game forecast at the same horizon by several runs counts once, from the latest run.
+- **Weeks:** 7-day windows ending on the last box-score day, so the weekday the check runs doesn't matter.
+- **Intervals:** bootstrap, resampling player-games (1000 draws).
+
+Because the backtest is redone nightly and XGB refits nightly, staleness is mostly absorbed. A live error
+above the backtest's usually means one of three things:
+- an optimistic backtest: ARIMAX / NEGBIN see opponent form a few days ahead;
+- a forecast-time-only input: `min_lag5` projection, ESPN teammates out, status caps;
+- a real change.
+
+The checks (alerts need 30 player-games in a week):
+- **data_inputs**: box scores ≤ 2 days old, forecast run and ESPN snapshot ≤ 1 day, schedule covers the next week,
+  roster positions missing ≤ 20%, PSI ≤ 0.2 of `min_lag5`, `min_ewm`, `usg_ewm`, `pts_ewm`, `opp_def`, `opp_pace`,
+  `tm_out_usg`, `rest` (last 14 days vs everything before, league-wide, built with `points_forecast.load` + the
+  `forecast_models` feature code).
+- **live_vs_backtest** (the main one): live skill = 1 − MAE / NAIVE's MAE on the same forecasts vs the skill the
+  backtest promised. Dividing by NAIVE cancels a hard week for every model. Alert: gap < −0.05 with the 95%
+  interval below 0, in each of the last 2 weeks.
+- **bias**: |forecast − points| mean > 0.75, interval on one side of 0, 2 weeks, same sign.
+- **coverage**: 80% range outside 70–90%, 2 weeks.
+- **ranking**: each model paired against the roster default (most players' champion) on the same
+  player-games; alert if one beats it at p < 0.10 / (number of challengers) in each of the last 3 weeks.
+- **playing_time** (last 14 days):
+  - `p_play` Brier > 0.13, or a band 15 points off;
+  - expected points no better than "assume he plays";
+  - over 28 days, players ESPN listed OUT / DAY_TO_DAY on the run date: game-1 played rate vs the `p_play` given,
+    > 10 points off. This is the only validation the status caps get.
+- **season_start**: champion live / backtest MAE for players with no games last season, on a new team, or with
+  < 10 games this season. Alerts (> ×1.25, interval above 1) only through in-season day 45.
+
+Results go to `$GITHUB_STEP_SUMMARY` as "Model health: points forecasts", with up to 10 `::warning` annotations.
+Page 1 shows a "Live check <date> · on track / drifting / collecting data" badge on the scoreboard. It reads
+drifting on any model-check alert; data / input alerts only go in its tooltip.
+
+⚠️ **The first run (2026-11-22) had nothing to score** (the first `p_play` run was 2026-11-21, and box scores
+stopped at 2026-11-19). It alerted on two inputs:
+- box scores 3 days old: Nov 20 and 21 games were never loaded;
+- `opp_def` PSI 0.209, recent mean +1.66 vs 0.18. Early in a season a team's 15-game rolling defensive rating
+  still includes last season's games, while the league average is 30 days of this season, so the feature runs
+  high until about game 15. Weekly mean this season: +7.6 (opening week), +4.1, +2.7, +1.4, +0.3 (Nov 16-22).
+  The alert clears by itself. XGB trains on earlier season starts that have the same offset, so it is not a
+  forecast-time-only input, but a season-aware league average would remove it.
+
+Scoring the older runs (`--since 2026-11-11`) worked end to end:
+- XGB live skill +28% vs backtest +21% in the week to Nov 19;
+- live MAE ×1.10 the backtest's, NAIVE's ×1.20.
+
 **Retired 2026-11-11:** `base_model.py`, `machine_learning_models.py`, `model_pooling.py` and
 `my_time_series.py` were moved to `archived/pipeline/` (gitignored, local copy only). The tables they fed
 (`predictions`, `model_evaluation`) and the frozen display tables `myteam_next_5_games` /
@@ -571,7 +634,8 @@ the latest `model_runs` and `points_forecasts` run, live scores of past forecast
 rostered players' box scores. Filters: league, player, models (multi; the champion is always drawn, with
 its 80% band), history window. Below the chart: next 5 games (rest / B2B, opponent defence rank per 100
 possessions, **Plays** = `p_play`, champion forecast **if playing**, **Expected** = `expected_points`, and
-the `play_note` above the footnote; the three columns appear once a run has written them), the scoreboard (backtest MAE, skill, MAE by horizon as a sparkline, live MAE), and one parameter
+the `play_note` above the footnote; the three columns appear once a run has written them), the scoreboard (backtest MAE, skill, MAE by horizon as a sparkline, live MAE, live ÷ backtest from 10+ games, red above
+×1.15, and the **Live check** badge from `forecast_drift_monitor`, `forecast_health_qry`), and one parameter
 card per selected model. Until the migration has run or a forecast run exists, the page shows a message.
 The AI assistant's context gets the champion forecasts (`forecast_champion_qry`).
 

@@ -168,6 +168,24 @@ jobs:
           PYTHONUNBUFFERED: '1'
         run: python -m pipeline.injury_drift_monitor
 
+      # Live drift checks for the points forecasts: logged forecasts scored against the backtest error each
+      # run promised, plus bias, 80% coverage, model ranking, chance of playing, input drift and data freshness.
+      # Weekly (nightly in a season's first 30 in-season days); the latest results go to the run summary.
+      # Never fails the run.
+      - name: Model health (points forecasts)
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        env:
+          sports_db_admin_host: ${{ secrets.SPORTS_DB_ADMIN_HOST }}
+          sports_db_admin_user: ${{ secrets.SPORTS_DB_ADMIN_USER }}
+          sports_db_admin_pw: ${{ secrets.SPORTS_DB_ADMIN_PW }}
+          sports_db_admin_port: ${{ secrets.SPORTS_DB_ADMIN_PORT }}
+          season_year: ${{ vars.SEASON_YEAR }}
+          season_start: ${{ vars.SEASON_START }}
+          season_end: ${{ vars.SEASON_END }}
+          PYTHONUNBUFFERED: '1'
+        run: python -m pipeline.forecast_drift_monitor
+
       - name: Unflare logs (on failure)
         if: failure()
         run: docker logs --tail 60 unflare || true
