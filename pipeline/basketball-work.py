@@ -24,7 +24,7 @@ import time
 from datetime import datetime
 from datetime import date
 from datetime import timedelta
-from shared.my_functions import remove_team_string, remove_matchup_string, remove_activity_string, remove_player_string, remove_box_string, clean_string, remove_name_suffixes, convert_game_score_to_points
+# from shared.my_functions import remove_team_string, remove_matchup_string, remove_activity_string, remove_player_string, remove_box_string, clean_string, remove_name_suffixes, convert_game_score_to_points
 
 # import shared.my_functions as mf
 
@@ -297,10 +297,10 @@ pd.set_option('display.max_rows', None)
 sc=OAuth2(None,None,from_file='oauth2.json')
 gm=yfa.Game(sc, 'nba')
 league_id=gm.league_ids(year=2026)
-# lg=gm.to_league('454.l.6397')
-# tk=lg.free_agents('PG')
-# tk_df=pd.DataFrame(tk)
-# print(tk_df.head(20))
+lg=gm.to_league('454.l.6397')
+tk=lg.free_agents('PG')
+tk_df=pd.DataFrame(tk)
+print(tk_df.head(20))
 
 # leagues=gm.league_ids()
 # HHU_league=leagues[-1]
@@ -349,21 +349,21 @@ league_id=gm.league_ids(year=2026)
 
 
 
-leagueid=os.environ.get('leagueid')
-espn_s2=os.environ.get('espn_s2')
-swid=os.environ.get('swid')
+# leagueid=os.environ.get('leagueid')
+# espn_s2=os.environ.get('espn_s2')
+# swid=os.environ.get('swid')
 
-# print(f'leagueid: {leagueid}')
-# print(f'espn_s2: {espn_s2}')
-# print(f'swid: {swid}')
+# # print(f'leagueid: {leagueid}')
+# # print(f'espn_s2: {espn_s2}')
+# # print(f'swid: {swid}')
 
-fa_size=5
-season_end_year=2027
-league=League(league_id=leagueid, 
-				year=season_end_year,
-				espn_s2=espn_s2,
-				swid=swid, 
-				debug=False)
+# fa_size=5
+# season_end_year=2027
+# league=League(league_id=leagueid, 
+# 				year=season_end_year,
+# 				espn_s2=espn_s2,
+# 				swid=swid, 
+# 				debug=False)
 
 # FA=league.free_agents(size=fa_size)
 # FA=pd.DataFrame(FA)
@@ -455,9 +455,9 @@ league=League(league_id=leagueid,
 
 # print(league.teams)
 
-myteam=league.teams[4]
-my_players=clean_string(myteam.roster).split(',')
-print(my_players)
+# myteam=league.teams[4]
+# my_players=clean_string(myteam.roster).split(',')
+# print(my_players)
 
 # myteam=league.teams[9]
 # current_players=clean_string(myteam.roster).split(',')

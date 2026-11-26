@@ -48,7 +48,7 @@ YAHOO_ENABLED = False
 YAHOO_MANUAL_ROSTER = [
 	'James Harden', 'Keyonte George', 'Jalen Green', 'Saddiq Bey',
 	'Alperen Şengün', 'Darius Garland', 'Zach Edey', 'Davion Mitchell',
-	'Andre Drummond', 'Luka Dončić', 'Ryan Rollins', 'Scottie Barnes',
+	'Andre Drummond', 'Luka Dončić', 'Kenrich Williams', 'Scottie Barnes',
 	'Norman Powell', 'Jaren Jackson Jr.', 'CJ McCollum'
 ]
 
