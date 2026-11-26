@@ -25,6 +25,14 @@ def _feature_card(icon: str, icon_class: str, title: str, description: str) -> h
     )
 
 
+def _method_entry(title: str, color: str, text: str) -> html.Div:
+    return html.Div([
+        html.Div(title, style={"fontSize": "11px", "color": color, "marginBottom": "4px",
+                               "textTransform": "uppercase", "letterSpacing": "0.07em"}),
+        html.Div(text, style={"fontSize": "12px", "color": "var(--text-muted)", "lineHeight": "1.6"}),
+    ])
+
+
 # ---------------------------------------------------------------------------
 # Page layout
 # ---------------------------------------------------------------------------
@@ -42,9 +50,10 @@ page0 = html.Div(
                     className="landing-title",
                 ),
                 html.P(
-                    "Time-series forecasting, injury survival analysis, and "
-                    "minutes-weighted production metrics — built on "
-                    "Basketball-Reference, ESPN, and Yahoo data.",
+                    "Points forecasts that account for whether a player will "
+                    "suit up, injury return odds fitted to each absence, and a "
+                    "minute-weighted free-agent screener, refreshed daily from "
+                    "Basketball-Reference, ESPN and Yahoo data.",
                     className="landing-subtitle",
                 ),
 
@@ -52,11 +61,12 @@ page0 = html.Div(
                 html.Div(
                     className="landing-pills",
                     children=[
-                        html.Span("ARIMA · SARIMAX · LSTM · Neural Network", className="pill-accent"),
-                        html.Span("Kaplan-Meier injury modeling",             className="pill"),
-                        html.Span("Minutes-weighted ranking tool",            className="pill"),
-                        html.Span("ESPN + Yahoo league integration",          className="pill"),
-                        html.Span("MariaDB · Python · Plotly Dash",           className="pill"),
+                        html.Span("XGBoost · Temporal Fusion Transformer (TFT) · DeepAR · ARIMA",
+                                  className="pill-accent"),
+                        html.Span("Survival models fitted per injury",    className="pill"),
+                        html.Span("Minute-weighted free-agent screener",  className="pill"),
+                        html.Span("ESPN + Yahoo leagues",                 className="pill"),
+                        html.Span("Python · Dash · MySQL · MLflow · AWS", className="pill"),
                     ],
                 ),
 
@@ -69,11 +79,11 @@ page0 = html.Div(
                             href="/apps/free-agent-screening",
                         ),
                         dcc.Link(
-                            html.Button("View Player Predictions", className="btn-secondary"),
+                            html.Button("Points Forecasts", className="btn-secondary"),
                             href="/apps/fantasy-predictions",
                         ),
                         dcc.Link(
-                            html.Button("My Team Performance", className="btn-secondary"),
+                            html.Button("My Team", className="btn-secondary"),
                             href="/apps/team-performance",
                         ),
                         dcc.Link(
@@ -92,12 +102,14 @@ page0 = html.Div(
                 _feature_card(
                     icon="📈",
                     icon_class="fi-amber",
-                    title="Predictive modeling",
+                    title="Points forecasting",
                     description=(
-                        "Per-player point forecasts using ARIMA, SARIMAX, "
-                        "double/single exponential smoothing, and LSTM neural "
-                        "networks. Champion model selected automatically by "
-                        "lowest MAE on a held-out test set."
+                        "Points for each rostered player's next five team games, "
+                        "from a field of competing models: simple baselines, ARIMA "
+                        "and other time-series models, XGBoost, and the TFT and "
+                        "DeepAR deep-learning models. A separate model estimates "
+                        "whether he plays each game, so the page shows points if "
+                        "he plays and expected points."
                     ),
                 ),
                 _feature_card(
@@ -105,10 +117,12 @@ page0 = html.Div(
                     icon_class="fi-blue",
                     title="Free agent screener",
                     description=(
-                        "Rank waiver wire pickups by minutes-weighted category "
-                        "production — a view unavailable natively in ESPN or Yahoo. "
-                        "Filter by league, date range, calculation type, and "
-                        "individual stat categories."
+                        "Rank the waiver wire on minute-weighted production, a view "
+                        "ESPN and Yahoo do not offer. Every stat is colored by how "
+                        "the player ranks among free agents. A \"My needs\" view "
+                        "re-ranks on the categories your roster is weakest in. "
+                        "Click a player to compare him with your weakest rostered "
+                        "player at his position."
                     ),
                 ),
                 _feature_card(
@@ -116,9 +130,12 @@ page0 = html.Div(
                     icon_class="fi-green",
                     title="Injury survival analysis",
                     description=(
-                        "Kaplan-Meier survival curves estimate the probability a "
-                        "player returns within N days, broken down by injury type. "
-                        "Data sourced from Pro Sports Transactions."
+                        "How many more days will he be out? Several survival models "
+                        "compete on recent seasons, and the winner draws a return "
+                        "curve for each type of injury. Each injured player also "
+                        "gets a curve fitted to his own absence: surgery, stated "
+                        "timeline, age, injury history and minutes. Data from Pro "
+                        "Sports Transactions."
                     ),
                 ),
                 _feature_card(
@@ -126,29 +143,36 @@ page0 = html.Div(
                     icon_class="fi-amber",
                     title="Team performance dashboard",
                     description=(
-                        "Minutes-weighted production heatmaps, weekly contribution "
-                        "trend lines, per-player box plots, and weekday vs. weekend "
-                        "performance splits for my current roster."
+                        "My roster across all 12 fantasy categories, colored against "
+                        "league rotation players, plus how many players can fill "
+                        "each lineup slot. Weekly trends, game-by-game form, a hot / "
+                        "cold table, and an Injuries tab with each injured player's "
+                        "return curve."
                     ),
                 ),
                 _feature_card(
                     icon="🤖",
                     icon_class="fi-blue",
-                    title="Multi-model comparison",
+                    title="Model scoreboard and monitoring",
                     description=(
-                        "Every player gets evaluated across 8 model types. Results "
-                        "are stored in the DB and surfaced in the predictions table "
-                        "so you can see exactly why the champion was chosen."
+                        "Every model is scored on each player's recent games before "
+                        "it can win. The champion is the best model across the "
+                        "roster; a player switches only when a statistical test "
+                        "shows his own best is really better. Live accuracy is "
+                        "checked against that score every week, with a badge on "
+                        "the page."
                     ),
                 ),
                 _feature_card(
                     icon="🗄️",
                     icon_class="fi-green",
-                    title="Live data pipeline",
+                    title="Nightly data pipeline",
                     description=(
-                        "Daily player game logs scraped from Basketball-Reference, "
-                        "merged with ESPN and Yahoo league rosters, and stored in "
-                        "MariaDB. Models retrain on fresh data automatically."
+                        "Every morning an automated run loads last night's box "
+                        "scores from Basketball-Reference, ESPN rosters, positions "
+                        "and injury statuses, and new injury transactions, then "
+                        "refits the models. Data lives in MySQL on AWS; models are "
+                        "versioned in MLflow and backed up to S3."
                     ),
                 ),
             ],
@@ -174,26 +198,43 @@ page0 = html.Div(
                 html.Div(
                     style={"display": "grid", "gridTemplateColumns": "1fr 1fr", "gap": "16px"},
                     children=[
-                        html.Div([
-                            html.Div("Forecasting approach", style={"fontSize": "11px", "color": "var(--accent)", "marginBottom": "4px", "textTransform": "uppercase", "letterSpacing": "0.07em"}),
-                            html.Div(
-                                "Player game-log time series are modeled individually. "
-                                "A rolling walk-forward validation scheme is used — "
-                                "models are never evaluated on data they were trained on. "
-                                "The champion model per player is updated each run.",
-                                style={"fontSize": "12px", "color": "var(--text-muted)", "lineHeight": "1.6"},
-                            ),
-                        ]),
-                        html.Div([
-                            html.Div("Minutes-weighted ranking", style={"fontSize": "11px", "color": "var(--info)", "marginBottom": "4px", "textTransform": "uppercase", "letterSpacing": "0.07em"}),
-                            html.Div(
-                                "Standard fantasy rankings treat a player who scored 20 pts "
-                                "in 38 minutes the same as one who scored 20 pts in 22 minutes. "
-                                "The screener weights each stat by minutes played, then "
-                                "sorts by the selected category — surfacing efficient players.",
-                                style={"fontSize": "12px", "color": "var(--text-muted)", "lineHeight": "1.6"},
-                            ),
-                        ]),
+                        _method_entry(
+                            "Forecasting approach", "var(--accent)",
+                            "Every model is refit at each of a player's recent games "
+                            "and forecasts his team's next five, so it is only ever "
+                            "scored on games it hadn't seen. Machine-learning models "
+                            "train only on games before each cutoff. A "
+                            "chance-of-playing model, capped by today's ESPN injury "
+                            "status, turns points if he plays into expected points.",
+                        ),
+                        _method_entry(
+                            "Minute-weighted ranking", "var(--info)",
+                            "A 6-minute garbage-time game shouldn't count as much as "
+                            "a 34-minute start. The screener averages each stat per "
+                            "game with every game weighted by minutes played, so the "
+                            "numbers reflect what a player does when he gets real "
+                            "minutes. Each column is ranked against other free "
+                            "agents, and shooting percentages are ranked by volume, "
+                            "so 1-for-1 doesn't top the list.",
+                        ),
+                        _method_entry(
+                            "Injury modeling", "var(--accent)",
+                            "Absences are rebuilt from the injury transaction log: an "
+                            "absence opens when a player is ruled out and closes at "
+                            "his next game. Notes are sorted into body region and "
+                            "injury type by rules, with Claude for the few the rules "
+                            "miss. Models train on older seasons, are scored on "
+                            "recent ones, and count in-season days only.",
+                        ),
+                        _method_entry(
+                            "Monitoring", "var(--info)",
+                            "Every logged forecast is scored once its game is played "
+                            "and compared with the accuracy its backtest promised, "
+                            "measured against a naive forecast so a hard week for "
+                            "everyone doesn't look like drift. Injury curves are "
+                            "checked weekly against recent returns. An alert in "
+                            "either flips the page badge to drifting.",
+                        ),
                     ],
                 ),
             ],

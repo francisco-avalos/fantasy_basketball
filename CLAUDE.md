@@ -13,7 +13,8 @@ schema named `basketball`:
 1. **Points prediction** per player for the next five games (time-series, ML, and
    naive baselines, with a champion model picked per player).
 2. **Minute-weighted free-agent screener** — the headline feature; ranks free
-   agents by production per minute played, which neither ESPN nor Yahoo offers.
+   agents on per-game stats weighted by minutes played (longer games count more),
+   which neither ESPN nor Yahoo offers.
 3. **Current team performance** — weekly roster performance plus Kaplan-Meier
    survival estimates for "how many more days is this injury likely to last".
 4. **AI assistant** — a Claude-powered chatbox answering questions against the

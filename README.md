@@ -19,7 +19,7 @@ Points prediction by player for the next five games across the ESPN and Yahoo pl
 4. Deep Learning - Temporal Fusion Transformer (TFT), DeepAR (Deep AutoRegressive) (both DL models per position group)
 
 ### Free Agent Screening Tool
-This web app provides fantasy managers with a screening tool that can rank free agent players weighted by minutes on the court production, a feature not available in ESPN, Yahoo, or other common fantasy basketball websites. This feature is useful in screening free agents in the fantasy manager's ESPN and Yahoo leagues. 
+This web app provides fantasy managers with a screening tool that can rank free agent players on per-game production with each game weighted by minutes played, so short garbage-time games count less than full games, a feature not available in ESPN, Yahoo, or other common fantasy basketball websites. This feature is useful in screening free agents in the fantasy manager's ESPN and Yahoo leagues. 
 
 ### Current Team Performance
 The web app also includes survival models (using Kaplan Meier estimation) to estimate the probability a player is out x days based on a particular injury. 
